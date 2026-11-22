@@ -119,7 +119,7 @@ Fix all regressions before T9.
 - If the host is unavailable or credits are insufficient, report that explicitly and
   do not claim a real improvement. No self-funded purchase.
 
-## [ ] T10 — Commit, push, CI, report
+## [x] T10 — Commit, push, CI, report
 
 - Commit + push `dev/trae-research-quality`.
 - Verify GitHub CI.
