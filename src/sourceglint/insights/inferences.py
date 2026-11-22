@@ -1,4 +1,4 @@
-"""Phase 6A §15–§20, §27, §35 — INFERENCE synthesis + validation.
+"""INFERENCE synthesis + validation.
 
 INFERENCE synthesis: model combines FACTs + Signals into higher-order
 inferences. Code validates support, inference distance, evidence scope,
@@ -77,7 +77,7 @@ def validate_inference(
     fact_evidence_map: Mapping[str, set[str]],
     signal_evidence_map: Mapping[str, set[str]],
 ) -> list[str]:
-    """Code-side INFERENCE guardrails (PRD §16, §27, §35).
+    """Code-side INFERENCE guardrails.
 
     Returns a list of violation strings (empty = valid). Hallucinated
     refs are REJECTED — never stripped or repaired (§32: No Silent Repair).
@@ -134,7 +134,7 @@ def validate_inference(
         )
 
     # 9. Confidence 0-1
-    if draft.confidence < 0.0 or draft.confidence > 1.0:
+    if not 0.0 <= draft.confidence <= 1.0:
         violations.append(f"confidence out of range: {draft.confidence}")
 
     # 10. Recommendation leakage (§28, §32)
@@ -185,7 +185,7 @@ def _build_inference_payload(
             "evidence_ids": list(f.evidence_ids),
             "confidence": f.confidence,
         }
-        for f, fid in zip(facts, fact_insight_ids)
+        for f, fid in zip(facts, fact_insight_ids, strict=True)
     ]
     signals_payload = [ps.to_model_payload() for ps in prepared_signals]
 
@@ -212,7 +212,7 @@ def synthesize_inferences(
     research_context: ResearchContext | None = None,
     cache: SemanticCache | None = None,
 ) -> InferenceSynthesisResult:
-    """FACT[] + Signal[] → INFERENCE[] (PRD §15, §19).
+    """FACT[] + Signal[] → INFERENCE[].
 
     Calls the model with inference_synthesis task. Parses response into
     InferenceDraft objects. Validates each draft against support, evidence
@@ -226,11 +226,11 @@ def synthesize_inferences(
     valid_signal_ids = {ps.signal_id for ps in prepared_signals}
     fact_evidence_map = {
         fid: set(f.evidence_ids)
-        for f, fid in zip(facts, fact_insight_ids)
+        for f, fid in zip(facts, fact_insight_ids, strict=True)
     }
     signal_evidence_map = {ps.signal_id: set(ps.evidence_ids) for ps in prepared_signals}
     fact_confidence_by_id = {
-        fid: f.confidence for f, fid in zip(facts, fact_insight_ids)
+        fid: f.confidence for f, fid in zip(facts, fact_insight_ids, strict=True)
     }
 
     # Build cache key (§30: includes fact structural IDs)
@@ -299,13 +299,20 @@ def _parse_inference_response(
             model_status=response.status.value,
         )
 
-    inferences_raw = response.payload.get("inferences") or []
+    inferences_raw = response.rows("inferences")
+    if inferences_raw is None:
+        return InferenceSynthesisResult(warnings=("inference_synthesis: invalid inferences array",), model_status="invalid_output")
     validated: list[InferenceDraft] = []
     rejected: list[InferenceDraft] = []
     insight_ids: list[str] = []
     warnings: list[str] = []
 
+    malformed = 0
     for i, inf_raw in enumerate(inferences_raw):
+        if not isinstance(inf_raw, Mapping):
+            malformed += 1
+            warnings.append(f"inference_synthesis: draft {i} must be an object")
+            continue
         try:
             draft = InferenceDraft(
                 statement=str(inf_raw.get("statement") or ""),
@@ -320,7 +327,8 @@ def _parse_inference_response(
                     if inf_raw.get("inference_distance") is not None else 1
                 ),
             )
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, OverflowError) as exc:
+            malformed += 1
             warnings.append(f"inference_synthesis: draft {i} parse error: {exc}")
             continue
 
@@ -364,9 +372,9 @@ def _parse_inference_response(
             insight_ids.append(ins_id)
 
     status = "success"
-    if rejected and not validated:
+    if (rejected or malformed) and not validated:
         status = "invalid_output"
-    elif rejected:
+    elif rejected or malformed:
         status = "partial"
 
     return InferenceSynthesisResult(
