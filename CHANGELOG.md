@@ -4,6 +4,10 @@ Python 3.10 compatibility is exercised by the public CI matrix; recommendation I
 
 ## 1.0.0.dev1 — development
 
+- Define and validate the Host source reply contract and record search outcomes per query.
+- Keep citation URLs free of embedded credentials and allow per-question source fallback.
+- Add public-source-only execution, a Japanese hybrid route, a real Host benchmark and a cross-platform wheel install check.
+
 - Add the `vantage` CLI and inclusive UTC date ranges. Keep `sourceglint`
   imports and the legacy command.
 - Extend research plans with multiple focus areas, hypotheses, open conditions,

@@ -13,7 +13,7 @@ from sourceglint.host_stdio import StdioHostSource
 def test_registry_alone_records_native_routes_without_redirecting_them_to_host(monkeypatch,tmp_path):
     root=Path(__file__).resolve().parents[2]
     native_calls=[]
-    markers={name:object() for name in ['reddit','hacker_news','github','youtube']}
+    markers={name:object() for name in ['reddit','hacker_news','github','youtube','qiita']}
     def native(name,plan):
         native_calls.append(name)
         return markers[name]

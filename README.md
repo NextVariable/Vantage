@@ -46,7 +46,7 @@ See [four worked prompts and a recorded run](docs/examples/vantage-1.0.md).
 
 You receive a cited report and an evidence file containing links, dates and source excerpts. Reports distinguish maker claims, user experiences and interpretations, retain counterexamples, and disclose missing sources or thin evidence.
 
-The default Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube and agent web search. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. Platform credentials are optional enhancements; the agent's costs and usage limits still apply.
+The default Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube, Qiita and agent web search. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. The Skill uses public sources by default. Credentialed routes can be configured for direct CLI use. Host usage limits still apply.
 
 Research is bounded sampling. Coverage depends on access, rate limits, language and topic. A completed report does not establish complete platform coverage or prove market demand. Historical-window growth comparison, continuous monitoring, news aggregation and scheduled delivery are outside this workflow. Raw CLI/API calls keep single-pass retrieval unless invoked with `--adaptive` or `adaptive=True`.
 
@@ -55,7 +55,8 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 - [Recorded research examples](docs/examples/2026-10-04/README.md)
 - [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
 - [Agent integration and evidence exports](references/host-protocol.md)
-- [1.0 development and release readiness](docs/vantage-1.0.md)
+- [1.0 release readiness and live benchmark](docs/rc-release-readiness.md)
+- [1.0 development audit](docs/vantage-1.0.md)
 - [Adaptive research baseline and replay](docs/adaptive-research.md)
 - [Validation records](docs/validation.md)
 - [Repository guide](docs/repository-guide.md) and [contributing](CONTRIBUTING.md)

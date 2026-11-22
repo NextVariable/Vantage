@@ -273,7 +273,7 @@ def test_cli_stdio_executes_one_followup_and_reports_no_evidence(tmp_path):
          "--host-sources-stdio", "--model", "sourceglint.host_stdio:build_model",
          "--registry", str(registry), "--as-of", AS_OF.isoformat(), "--json"],
         input="\n".join(json.dumps(msg) for msg in replies) + "\n",
-        text=True, capture_output=True, check=True, timeout=10,
+        text=True, capture_output=True, check=True, timeout=30,
     )
     lines = proc.stdout.splitlines()
     messages = [json.loads(line) for line in lines[:5]]

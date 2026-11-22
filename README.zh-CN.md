@@ -45,7 +45,7 @@ python3 -m venv .venv
 
 你会得到带来源的报告，以及保存链接、日期和原文节选的证据文件。报告区分厂商陈述、用户体验与推断，保留反例，并说明未访问到的来源或材料不足的地方。
 
-默认从 GitHub、Reddit、Hacker News、YouTube 和智能体网页搜索中选择相关路径，并在可用时补充讨论、评论或字幕。每次检索的来源随问题和可访问性变化。无需先配齐各平台密钥，智能体自身的工具费用和额度由使用者承担。
+默认从 GitHub、Reddit、Hacker News、YouTube、Qiita 和智能体网页搜索中选择相关路径，并在可用时补充讨论、评论或字幕。每次检索的来源随问题和可访问性变化。Skill 默认使用公开来源。直接调用 CLI 时可另行配置需凭据的来源，智能体自身的使用额度仍适用。
 
 检索是有限采样，覆盖受访问权限、限流、语言和主题影响。报告生成成功不代表信息已全部覆盖，也不能直接证明市场需求。目前不支持历史窗口增长比较、实时监控、新闻聚合或定时推送。直接调用旧 CLI 或 Python API 默认维持单轮，可分别用 `--adaptive` 或 `adaptive=True` 启用自适应模式。
 
@@ -54,7 +54,8 @@ python3 -m venv .venv
 - [真实研究样例](docs/examples/2026-10-04/README.md)
 - [来源访问](docs/source-access-matrix.md)与[降级方式](docs/source-fallback-playbook.md)
 - [智能体集成与证据导出](references/host-protocol.md)
-- [1.0 开发与发布验收](docs/vantage-1.0.md)
+- [1.0 发布验收与真实宿主基准](docs/rc-release-readiness.md)
+- [1.0 开发审计](docs/vantage-1.0.md)
 - [自适应研究基线与回放](docs/adaptive-research.md)
 - [验证记录](docs/validation.md)
 - [仓库目录说明](docs/repository-guide.md)与[参与开发](CONTRIBUTING.md)

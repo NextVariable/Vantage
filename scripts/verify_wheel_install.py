@@ -4,7 +4,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import venv
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,7 +18,7 @@ def main():
         check(sys.executable, "-m", "pip", "wheel", "--no-deps", str(ROOT), "-w", workspace, cwd=workspace)
         wheel, = workspace.glob("sourceglint-*.whl")
         environment = workspace / "fresh"
-        venv.EnvBuilder(with_pip=True).create(environment)
+        check(sys.executable, "-m", "venv", environment, cwd=workspace)
         win = os.name == "nt"
         bin_dir = environment / ("Scripts" if win else "bin")
         python = bin_dir / ("python.exe" if win else "python")

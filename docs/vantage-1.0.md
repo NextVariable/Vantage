@@ -1,5 +1,7 @@
 # Vantage 1.0 development and acceptance
 
+For the later authenticated Host benchmark and current release decision, see [RC release readiness](rc-release-readiness.md).
+
 Baseline: `0a93cc1` on `main`, 2,123 offline tests passed and 14 online tests
 skipped. Development takes place on `dev/vantage-1.0`.
 
