@@ -210,6 +210,8 @@ class AdaptiveResearch:
                 "Write each query as 2-6 plain content words naming the user's actual subject. "
                 "Do not use quotation marks, boolean operators, language names, calendar dates or "
                 "source syntax: the engine applies the time window and source filters itself. "
+                "Name at most two evidence types per subquestion, only the kinds a covered answer "
+                "must contain, not the whole tier menu. "
                 "Use focused topic-preserving initial search queries and enabled registry route names. "
                 "Assign priority 1 to the most important. Use a completion criterion and minimum "
                 "distinct reporting origins appropriate to each question. Evidence tiers are roles, "
@@ -248,6 +250,9 @@ class AdaptiveResearch:
             self.plan["intents"].append("opportunity")
         for question in self.plan["subquestions"]:
             question["query"] = normalize_planned_query(question["query"]) or question["query"]
+            # Requiring the whole tier menu makes "covered" unreachable: a
+            # plan listing four tiers cannot be satisfied by two citations.
+            question["evidence_types"] = list(question.get("evidence_types") or ())[:2]
         initial = []
         for question in self.plan["subquestions"] if response else ():
             preferences = self.plan.get("source_priorities") or []
@@ -360,6 +365,7 @@ class AdaptiveResearch:
             contrary_ids = set((row or {}).get("counterevidence_ids", []))
             cited = [by_id[eid] for eid in (row or {}).get("evidence_ids", [])
                      if eid in by_id and eid not in contrary_ids]
+            cited_ids = {item["evidence_id"] for item in cited}
             missing_tiers = [tier for tier in question["evidence_types"]
                              if TIERS[tier] not in {item.get("source_tier") for item in cited}]
             # Reuse synthesis's origin estimator, including syndicated-copy suppression.
@@ -374,11 +380,16 @@ class AdaptiveResearch:
                 gap = " ".join(filter(None, (gap, "Missing cited evidence tiers: " + ", ".join(missing_tiers))))
             if status != "covered" and not gap:
                 gap = "Completion criterion not established in the retained sample."
+            # Provenance is exclusive and must point at cited evidence. A maker
+            # post on a community platform is a vendor claim, never firsthand
+            # user feedback, even if the model listed it under both.
+            vendor_claim_ids = [eid for eid in (row or {}).get("vendor_claim_ids", [])
+                                if eid in cited_ids]
             feedback = [eid for eid in (row or {}).get("feedback_ids", [])
-                        if eid in by_id and by_id[eid].get("source_tier") != 1
+                        if eid in cited_ids and eid not in vendor_claim_ids
+                        and by_id[eid].get("source_tier") != 1
                         and by_id[eid].get("source_type") in {"post", "review", "comment"}]
-            vendors = [eid for eid in (row or {}).get("vendor_claim_ids", [])
-                       if eid in by_id and eid not in feedback]
+            vendors = [eid for eid in vendor_claim_ids if eid not in feedback]
             counterevidence = [eid for eid in (row or {}).get("counterevidence_ids", []) if eid in by_id]
             self.assessments.append({
                 "question_id": question["id"], "question": question["question"], "status": status,

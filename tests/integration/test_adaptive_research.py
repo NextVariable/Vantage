@@ -426,3 +426,43 @@ def test_diagnostics_record_runtime_and_route_coverage():
     assert performance["elapsed_seconds"] >= 0
     assert performance["synthesis_reserve_seconds"] > 0
     assert performance["retained_evidence"] == 1
+
+
+def test_search_qualifiers_are_not_sent_as_subject_matter():
+    from sourceglint.pipeline.query_expansion import normalize_planned_query
+
+    assert normalize_planned_query(
+        "代码智能体 开源 发布 after:2026-09-23 before:2026-11-23"
+    ) == "代码智能体 开源 发布"
+
+
+def test_a_plan_cannot_require_the_whole_evidence_tier_menu():
+    class FourTiers(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Understand AI products", research_objects=["AI products"],
+                              subquestions=[{
+                                  "question": "What did users experience?", "priority": 1,
+                                  "evidence_types": ["T1_official", "T2_community",
+                                                     "T3_marketplace", "T4_secondary"],
+                                  "preferred_sources": ["hacker_news"],
+                                  "completion_criterion": "A recent report.", "minimum_origins": 1,
+                                  "query": "AI product discussion", "language": "en",
+                              }])
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    result, _, _, _ = execute(FourTiers(), lambda *_: [observation()])
+    assert result.research_plan["subquestions"][0]["evidence_types"] == ["T1_official", "T2_community"]
+
+
+def test_maker_post_listed_as_both_vendor_and_feedback_counts_only_as_vendor():
+    model = ScriptedModel(planned_source="reddit", assess=lambda payload: {
+        "feedback_ids": [payload["evidence"][0]["id"]],
+        "vendor_claim_ids": [payload["evidence"][0]["id"]],
+    })
+    _, report, _, ledger = execute(
+        model, lambda *_: [observation("reddit")], sources=[source("reddit")],
+    )
+    row = report["subquestions"][0]
+    assert row["feedback_ids"] == []
+    assert row["vendor_claim_ids"] == [next(iter(ledger)).evidence_id]

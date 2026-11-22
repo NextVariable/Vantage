@@ -405,6 +405,9 @@ def normalize_planned_query(value: str) -> str:
         bare = token.strip(".,;:!?()[]{}<>…")
         if not bare:
             continue
+        # Search-engine qualifiers are source syntax, not subject matter.
+        if re.match(r"(?:after|before|since|until|created|pushed|updated):", bare, re.IGNORECASE):
+            continue
         folded = bare.casefold()
         if folded in _LANGUAGE_TOKENS or folded in _TEMPORAL_TOKENS:
             continue
