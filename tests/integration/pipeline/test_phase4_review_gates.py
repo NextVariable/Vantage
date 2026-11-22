@@ -305,7 +305,7 @@ def test_gate_e_tests_live_default_skipped(request):
         pytest.skip("live mode active — default-skip boundary not applicable")
     live_items = [
         item for item in request.session.items
-        if "tests/live" in str(item.fspath)
+        if item.path.is_relative_to(TESTS / "live")
     ]
     if not live_items:
         pytest.skip(

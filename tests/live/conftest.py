@@ -1,8 +1,7 @@
 """Live-test boundary harness (Phase 4 §21, §29).
 
-Tests in this directory are OFFLINE BY DEFAULT. They are only collected
-when `RUN_LIVE_TESTS=1` is in the environment, AND only the ones for
-which the host integration has wired the relevant capability / token.
+Tests in this directory are skipped by default. They run only when
+`RUN_LIVE_TESTS=1` is set and the required credentials are available.
 
 The live tests verify that the production mapping — the SAME code
 that's exercised by the offline tests — still produces correct output
@@ -23,11 +22,13 @@ Run only what you mean to:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
 
 LIVE_FLAG = "RUN_LIVE_TESTS"
+LIVE_DIR = Path(__file__).resolve().parent
 
 # Maps each live test file to the env-var dependencies that the host
 # integration must supply for the corresponding live run. Tests consult
@@ -54,18 +55,15 @@ def pytest_collection_modifyitems(config, items):
     """
     flag = os.environ.get(LIVE_FLAG)
     for item in items:
-        if "tests/live" not in str(item.fspath):
+        if not item.path.is_relative_to(LIVE_DIR):
             continue
         if flag != "1":
             item.add_marker(pytest.mark.skip(
                 reason=f"live test — set {LIVE_FLAG}=1 to enable"
             ))
             continue
-        for filename, deps in LIVE_DEPS.items():
-            if filename in str(item.fspath):
-                missing = [d for d in deps if not os.environ.get(d)]
-                if missing:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"missing live creds: {','.join(missing)}"
-                    ))
-                break
+        missing = sorted(name for name in LIVE_DEPS.get(item.path.stem, ()) if not os.environ.get(name))
+        if missing:
+            item.add_marker(pytest.mark.skip(
+                reason=f"missing live creds: {','.join(missing)}"
+            ))

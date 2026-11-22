@@ -1,5 +1,6 @@
 """The exported run corpus must be usable and isolated from earlier research."""
 import json
+import os
 
 from sourceglint.cli import main
 from sourceglint.intelligence.model import FakeIntelligenceModel
@@ -46,7 +47,7 @@ def test_model_can_be_loaded_from_a_python_file(tmp_path):
 
 
 def test_model_can_be_loaded_from_module_and_attribute():
-    assert cli._load_model("os.path:sep") == "/"
+    assert cli._load_model("os.path:sep") == os.sep
     assert cli._load_model("") is None
 
 
