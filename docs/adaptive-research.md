@@ -21,12 +21,16 @@ fallbacks are transport behavior, not research iterations.
 
 The adaptive path extends the existing research plan. The normalized request
 owns the market, languages and time window; the host proposes a research goal,
-objects and bounded subquestions. Each subquestion specifies evidence types,
-preferred registry routes, priority, completion criteria and an initial query.
-At most one follow-up round can address material gaps with an eligible new
-query or route. Assessment sees only retained, dated evidence with stable IDs.
-Both rounds use the same connector, filtering and deduplication pipeline and
-share one ledger. The existing synthesis stages run once on the combined evidence.
+objects and bounded subquestions. Each subquestion specifies required evidence
+(one or two tiers a covered answer must cite), supporting evidence (useful but
+non-blocking), preferred registry routes, priority, completion criteria and an
+initial query. The plan replaces the earlier practice of truncating a question
+to its first two evidence tiers, which made covered unreachable for broad
+questions. At most one follow-up round can address material gaps with an
+eligible new query or route. Assessment sees only retained, dated evidence with
+stable IDs. Both rounds use the same connector, filtering and deduplication
+pipeline and share one ledger. The existing synthesis stages run once on the
+combined evidence.
 
 ```text
 Parsed request → structured plan → initial retrieval → evaluate dated evidence
@@ -50,13 +54,29 @@ opt-in and cite validated insights. Neither mode schedules future work.
 | Planner and evaluator | One plan, at most two coverage calls, up to 40 evidence items per coverage call |
 | Opportunity task | At most one call and three hypotheses, only with explicit opt-in and valid insights |
 
-An assessed subquestion needs usable IDs and the required tiers and independent
-publishing surfaces. The model judges semantic relevance and the stated
-criterion. Engine checks establish that the referenced items exist, are dated,
-and satisfy those structural conditions. They cannot independently prove the
-semantic judgment or establish market representativeness. The existing domain-based
-origin estimator also discounts substantial copied text. Feedback
-labels are model judgments about reported experiences.
+Wall-clock budget is separate from request counts. Research stops at
+`research_deadline`; a synthesis reserve of 60–130 seconds, scaled by entity,
+language and mode complexity and capped at 45% of the total run budget, is held
+back so a slow final round cannot starve the brief. The chosen reserve and its
+basis are recorded in `diagnostics.performance`. Rejected routes are counted by
+reason (`duplicate_query`, `source_query_limit`, `route_budget`,
+`language_not_requested`, `source_language_unsupported`) instead of being
+silently dropped.
+
+An assessed subquestion needs usable IDs, its required tiers and independent
+publishing surfaces. Supporting tiers are reported but never block coverage.
+Each subquestion reports one of four answer states: `fully_answered`,
+`partially_answered`, `explicitly_disclosed` (a named gap such as missing
+required evidence or blocked sources) or `unanswered`. Disclosed gaps are not
+counted as answers, and `research_quality: ADEQUATE` requires every
+subquestion to be fully answered. The model judges semantic relevance and the
+stated criterion. Engine checks establish that the referenced items exist, are
+dated, and satisfy those structural conditions. They cannot independently prove
+the semantic judgment or establish market representativeness. The existing
+domain-based origin estimator also discounts substantial copied text. Feedback
+labels are model judgments about reported experiences; a maker post on a
+community platform is reclassified as a vendor claim even when the model did
+not flag it.
 
 A fully covered plan, absent/invalid assessment, or no eligible, materially
 useful follow-up ends the run after the first round. The second assessment
