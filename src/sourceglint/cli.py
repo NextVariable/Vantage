@@ -44,9 +44,9 @@ _MODEL_HELP = (
 )
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def _build_parser(prog: str = "sourceglint") -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="sourceglint",
+        prog=prog,
         description=(
             "Evidence-linked recent information and demand discovery, with "
             "optional product and GTM decision support."
@@ -58,6 +58,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--market", default="", help="Market override (iso code or name).")
     p.add_argument("--window", type=int, default=None, metavar="DAYS",
                    help="Relative window in days (default parse / 30).")
+    p.add_argument("--start-date", default="", metavar="YYYY-MM-DD",
+                   help="First publication date in a custom UTC window (inclusive).")
+    p.add_argument("--end-date", default="", metavar="YYYY-MM-DD",
+                   help="Last publication date in a custom UTC window (inclusive).")
+    p.add_argument("--max-rounds", type=int, choices=(1, 2, 3), default=None,
+                   help="Adaptive research round cap (Vantage 3, legacy adaptive 2).")
+    p.add_argument("--research-timeout", type=float, default=90, metavar="SECONDS",
+                   help="Discovery deadline for the built-in tools (default 90 seconds).")
     p.add_argument("--language", action="append", default=[], dest="languages",
                    help="Research language (repeatable).")
     p.add_argument("--entity", action="append", default=[], dest="entities",
@@ -69,8 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Add product/GTM implications and recommendations when requested.")
     p.add_argument("--adaptive", action="store_true",
                    help="Plan research subquestions and allow one bounded follow-up round.")
-    p.add_argument("--opportunities", action="store_true",
-                   help="Add evidence-linked opportunity hypotheses when explicitly requested.")
+    opportunity = p.add_mutually_exclusive_group()
+    opportunity.add_argument("--opportunities", action="store_true",
+                             help="Add evidence-linked opportunity hypotheses when explicitly requested.")
+    opportunity.add_argument("--no-opportunities", action="store_true",
+                             help="Suppress opportunity analysis, including branded CLI intent detection.")
     p.add_argument("--model", default=None, metavar="FILE|MOD:ATTR", help=_MODEL_HELP)
     p.add_argument("--host-sources-stdio", action="store_true",
                    help="Ask the host agent to handle host_web_search and official_web via JSON lines.")
@@ -149,13 +160,14 @@ def _emit(result: Any, args: argparse.Namespace, stream: Any) -> None:
         print(result.brief_markdown)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments and arguments[0] == "doctor":
         from .health import main as doctor
         return doctor(arguments[1:])
-    parser = _build_parser()
+    parser = _build_parser("vantage" if branded else "sourceglint")
     args = parser.parse_args(argv)
+    from .interface.parser import requests_opportunities
 
     try:
         sources = _load_registry(args.registry)
@@ -177,13 +189,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             mode=args.mode,
             market=args.market,
             window_days=args.window,
+            start_date=args.start_date,
+            end_date=args.end_date,
             languages=tuple(args.languages),
             entities=tuple(args.entities),
             target=args.target,
             baseline=args.baseline,
             decision_support=args.decision_support,
-            adaptive=args.adaptive,
-            opportunities=args.opportunities,
+            adaptive=branded or args.adaptive,
+            research_rounds=args.max_rounds or (3 if branded else 2),
+            research_timeout_seconds=args.research_timeout,
+            opportunities=args.opportunities or (branded and not args.no_opportunities and requests_opportunities(args.query)),
             model=model,
             adapter_factory=adapter_factory,
             sources=sources,
@@ -231,6 +247,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     _emit(result, args, sys.stdout)
     return EXIT_OK
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return _main(argv, branded=False)
+
+
+def vantage_main(argv: Sequence[str] | None = None) -> int:
+    return _main(argv, branded=True)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -15,6 +15,8 @@ from urllib.parse import urlencode
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, runtime_checkable
 
+from ..deadline import limit_timeout, remaining_time
+
 
 DEFAULT_USER_AGENT = "sourceglint/0.2.0"
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -142,36 +144,30 @@ class StdlibHttpClient:
 
         for attempt in range(1, max(1, self.max_attempts) + 1):
             try:
+                attempt_timeout = limit_timeout(bound_timeout)
+            except TimeoutError as exc:
+                raise HttpTimeoutError(url, bound_timeout) from exc
+            try:
                 return self._request_once(
                     url,
                     headers=headers,
-                    timeout=bound_timeout,
+                    timeout=attempt_timeout,
                     method=method,
                     json_data=json_data,
                     form_data=form_data,
                 )
-            except HttpTransientError as exc:
+            except (HttpTransientError, HttpTimeoutError) as exc:
                 last_exc = exc
                 if attempt >= self.max_attempts:
                     break
-                # Sleep is injected so tests can pass a no-op.
+                delay = self.backoff_seconds * (2 ** (attempt - 1))
+                remaining = remaining_time()
+                if remaining is not None and remaining <= delay:
+                    break
                 try:
-                    self.sleep(self.backoff_seconds * (2 ** (attempt - 1)))
+                    self.sleep(delay)
                 except Exception:  # pragma: no cover - sleep injection is best-effort
                     pass
-                continue
-            except HttpPermanentError:
-                # No retry on permanent client errors.
-                raise
-            except HttpTimeoutError as exc:
-                last_exc = exc
-                if attempt >= self.max_attempts:
-                    break
-                try:
-                    self.sleep(self.backoff_seconds * (2 ** (attempt - 1)))
-                except Exception:  # pragma: no cover
-                    pass
-                continue
         assert last_exc is not None
         raise last_exc
 

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import subprocess
 from typing import Sequence
 
+from ..deadline import limit_timeout
+
 
 @dataclass(frozen=True)
 class CommandResult:
@@ -15,6 +17,10 @@ class CommandResult:
 
 def run_command(command: Sequence[str], timeout: float) -> CommandResult:
     """Run an argv sequence without a shell and capture bounded text output."""
+    try:
+        timeout = limit_timeout(timeout)
+    except TimeoutError as exc:
+        raise subprocess.TimeoutExpired(command, timeout) from exc
     completed = subprocess.run(
         list(command),
         capture_output=True,

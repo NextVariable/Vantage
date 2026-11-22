@@ -7,15 +7,76 @@ No model credentials or vendor client are required inside this package.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import atexit
+from queue import Empty, Queue
+from threading import Thread
+from weakref import WeakKeyDictionary, WeakSet
 from dataclasses import dataclass, field
 from typing import Any, Mapping, TextIO
 
 import jsonschema
 
+from .deadline import remaining_time
 from .intelligence.model import ModelResponse, ModelStatus
-from .pipeline.adapters import AdapterInvalidResponse, AdapterUnavailable, RawSourceResult
+from .pipeline.adapters import AdapterInvalidResponse, AdapterTimeout, AdapterUnavailable, RawSourceResult
+
+
+_expired_streams: WeakSet = WeakSet()
+_pipe_buffers: WeakKeyDictionary = WeakKeyDictionary()
+_MAX_HOST_LINE_BYTES = 8 * 1024 * 1024
+
+
+def _read_host_line(stream: TextIO) -> str:
+    if stream in _expired_streams:
+        return ""
+    remaining = remaining_time()
+    pending = _pipe_buffers.get(stream, b"")
+    if remaining is None and not pending:
+        return stream.readline()
+    if remaining is not None and remaining <= 0:
+        raise TimeoutError("host response deadline exceeded")
+    reply: Queue[tuple[str, bytes] | Exception] = Queue(maxsize=1)
+
+    def read() -> None:
+        try:
+            try:
+                fd = stream.fileno()
+            except (OSError, ValueError):
+                reply.put((stream.readline(), b""))
+                return
+            # os.read avoids leaving a Python buffered-stdin lock held by a
+            # blocked daemon at process shutdown. Keep any subsequent frame.
+            data = bytearray(pending)
+            while b"\n" not in data:
+                chunk = os.read(fd, 8192)
+                if not chunk:
+                    break
+                data.extend(chunk)
+                if len(data) > _MAX_HOST_LINE_BYTES:
+                    raise ValueError("host JSON frame exceeds size limit")
+            line, separator, tail = data.partition(b"\n")
+            reply.put((bytes(line + separator).decode(stream.encoding or "utf-8"), bytes(tail)))
+        except Exception as exc:
+            reply.put(exc)
+
+    Thread(target=read, daemon=True).start()
+    try:
+        result = reply.get(timeout=remaining)
+    except Empty as exc:
+        # A late response belongs to this request. Do not read it as the next response.
+        _expired_streams.add(stream)
+        raise TimeoutError("host response deadline exceeded") from exc
+    if isinstance(result, Exception):
+        _expired_streams.add(stream)
+        raise result
+    line, tail = result
+    if tail:
+        _pipe_buffers[stream] = tail
+    else:
+        _pipe_buffers.pop(stream, None)
+    return line
 
 
 @dataclass
@@ -31,16 +92,24 @@ class StdioHostModel:
         payload: Mapping[str, Any],
         response_schema: Mapping[str, Any],
     ) -> ModelResponse:
+        if remaining_time() == 0 or self.input_stream in _expired_streams:
+            return ModelResponse(task=task, status=ModelStatus.TIMEOUT, error="host response deadline exceeded")
         request = {
             "type": "model_request",
             "task": task,
             "payload": dict(payload),
             "response_schema": dict(response_schema),
+            **({"remaining_seconds": remaining_time()} if remaining_time() is not None else {}),
         }
         self.output_stream.write(json.dumps(request, ensure_ascii=False) + "\n")
         self.output_stream.flush()
 
-        line = self.input_stream.readline()
+        try:
+            line = _read_host_line(self.input_stream)
+        except TimeoutError as exc:
+            return ModelResponse(task=task, status=ModelStatus.TIMEOUT, error=str(exc))
+        except (ValueError, OSError) as exc:
+            return ModelResponse(task=task, status=ModelStatus.INVALID_OUTPUT, error=type(exc).__name__)
         if not line:
             return ModelResponse(task=task, status=ModelStatus.UNAVAILABLE,
                                  error="host input closed before a model response")
@@ -113,6 +182,8 @@ class StdioHostSource:
     def retrieve(
         self, plan: Mapping[str, object], request: Mapping[str, object]
     ) -> list[RawSourceResult]:
+        if remaining_time() == 0 or self.input_stream in _expired_streams:
+            raise AdapterTimeout(self.name, "host response deadline exceeded")
         message: dict[str, Any] = {
             "type": "source_request", "source": self.name,
             "plan": dict(plan), "request": dict(request),
@@ -144,7 +215,12 @@ class StdioHostSource:
                 message["target_warning"] = f"source catalog unavailable: {type(exc).__name__}"
         self.output_stream.write(json.dumps(message, ensure_ascii=False) + "\n")
         self.output_stream.flush()
-        line = self.input_stream.readline()
+        try:
+            line = _read_host_line(self.input_stream)
+        except TimeoutError as exc:
+            raise AdapterTimeout(self.name, str(exc)) from exc
+        except (ValueError, OSError) as exc:
+            raise AdapterInvalidResponse(self.name, type(exc).__name__) from exc
         if not line:
             raise AdapterUnavailable(self.name, "host input closed")
         try:

@@ -2,6 +2,19 @@
 
 Python 3.10 compatibility is exercised by the public CI matrix; recommendation ID construction avoids syntax that requires Python 3.12.
 
+## 1.0.0.dev1 — development
+
+- Add the `vantage` CLI and inclusive UTC date ranges. Keep `sourceglint`
+  imports and the legacy command.
+- Extend research plans with multiple focus areas, hypotheses, open conditions,
+  budgets and stop rules. Allow a third round only after assessed progress.
+- Apply cooperative deadlines to the built-in HTTP, subprocess and host
+  transport. Keep usable earlier evidence when a later assessment fails.
+- Separate vendor claims, user reports and contrary observations in briefs.
+  Restrict synthesis to assessed evidence and retain the full retrieval ledger.
+- Expand explicit opportunity hypotheses with alternatives, assumptions, risks
+  and disconfirming tests. Extend live evaluation to 20 paired research cases.
+
 ## 0.2.2.dev5 — unreleased
 
 - Read relative time windows written next to more Chinese or Japanese text

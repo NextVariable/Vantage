@@ -244,3 +244,22 @@ def _records_equal(existing: EvidenceRecord, payload: Mapping[str, object]) -> b
         if existing_val != new_val:
             return False
     return True
+
+
+@dataclass(frozen=True)
+class EvidenceView:
+    """Read-only, run-local selection of records from a single ledger."""
+    ledger: EvidenceLedger
+    ids: frozenset[str]
+
+    def get(self, evidence_id: str) -> EvidenceRecord | None:
+        return self.ledger.get(evidence_id) if evidence_id in self.ids else None
+
+    def exists(self, evidence_id: str) -> bool:
+        return self.get(evidence_id) is not None
+
+    def __iter__(self) -> Iterator[EvidenceRecord]:
+        return (record for record in self.ledger if record.evidence_id in self.ids)
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)

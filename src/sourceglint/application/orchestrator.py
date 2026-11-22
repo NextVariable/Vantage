@@ -15,7 +15,7 @@ A downstream stage NEVER discards upstream results.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Mapping, Sequence
 
@@ -25,7 +25,7 @@ from ..insights.pipeline import run_insight_pipeline
 from ..intelligence.dtos import ResearchContext
 from ..intelligence.model import IntelligencePipelineError
 from ..intelligence.pipeline import run_intelligence_pipeline
-from ..ledger import EvidenceLedger
+from ..ledger import EvidenceLedger, EvidenceView
 from ..pipeline.adaptive import AdaptiveResearch
 from ..pipeline.degradation import AllSourcesFailedError
 from ..pipeline.orchestrator import ResearchPipeline, ResearchPipelineResult
@@ -81,7 +81,7 @@ def build_research_context(
     )
 
 
-def _evidence_by_id(ledger: EvidenceLedger) -> dict[str, Mapping[str, Any]]:
+def _evidence_by_id(ledger: EvidenceLedger | EvidenceView) -> dict[str, Mapping[str, Any]]:
     """eid -> full payload map for the 6A/6B evidence contracts."""
     return {r.evidence_id: r.to_payload() for r in ledger}
 
@@ -153,7 +153,7 @@ class OrchestrationContext:
     research: ResearchPipeline  # Phase 3 orchestrator (adapters + config + cache)
     model: Any  # host-injected union model (Phase 5 / 6A / 6B boundary)
     as_of: datetime
-    ledger: EvidenceLedger = field(default_factory=lambda: EvidenceLedger(":memory:"))
+    ledger: EvidenceLedger | EvidenceView = field(default_factory=lambda: EvidenceLedger(":memory:"))
     semantic_cache: Any = None
     drop_baseline_only: bool = True
 
@@ -203,6 +203,29 @@ def orchestrate(
         adaptive.plan if adaptive else plan, languages=tuple(parsed.languages),
     )
     evidence_count = research_result.coverage.final_evidence_count
+    if adaptive:
+        screened_ids = frozenset(
+            eid for row in adaptive.assessments
+            for key in ("evidence_ids", "feedback_ids", "vendor_claim_ids", "counterevidence_ids")
+            for eid in row.get(key, ())
+            if ctx.ledger.exists(eid)
+        )
+        n_retained = evidence_count
+        evidence_count = len(screened_ids)
+        adaptive_coverage = dict(research_result.coverage.adaptive_research or {})
+        adaptive_coverage["synthesis_evidence_count"] = evidence_count
+        additional_gap = (
+            f"Coverage screening selected {evidence_count} of {n_retained} retained items. "
+            "Use the ledger for the full retrieval corpus."
+        )
+        coverage = replace(
+            research_result.coverage,
+            adaptive_research=adaptive_coverage,
+            gaps=(*research_result.coverage.gaps, additional_gap) if evidence_count < n_retained
+                 else research_result.coverage.gaps,
+        )
+        research_result = replace(research_result, coverage=coverage)
+        ctx = replace(ctx, ledger=EvidenceView(ctx.ledger, screened_ids))
     stage["research"] = (
         STAGE_DEGRADED
         if research_result.coverage.failed_sources
@@ -240,7 +263,7 @@ def orchestrate(
     # ---- Phase 5: signals -------------------------------------------------
     try:
         signal_result = run_intelligence_pipeline(
-            ctx.ledger,
+            [rec.to_payload() for rec in ctx.ledger] if adaptive else ctx.ledger,
             ctx.model,
             as_of=ctx.as_of,
             research_context=research_ctx,

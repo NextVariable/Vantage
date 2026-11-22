@@ -602,6 +602,7 @@ def select_brief(brief_input: BriefInput) -> SelectedBrief:
 
     # Degradation notes (§19) ride in the Coverage section.
     coverage_lines = _coverage_lines(brief_input.coverage)
+    adaptive = _as_dict(brief_input.coverage).get("adaptive_research") or {}
     missing: list[str] = []
     if not brief_input.signals:
         from .policy import NO_SIGNALS_NOTE
@@ -646,8 +647,7 @@ def select_brief(brief_input: BriefInput) -> SelectedBrief:
         watchouts=tuple(watchout_sel.items),
         executive=executive,
         coverage_lines=tuple(coverage_lines),
-        research_assessments=tuple(
-            (_as_dict(brief_input.coverage).get("adaptive_research") or {}).get("subquestions", ())
-        ),
+        research_assessments=tuple(adaptive.get("subquestions", ())),
+        research_open_conditions=tuple((adaptive.get("intent") or {}).get("open_conditions", ())),
         diagnostics=diagnostics,
     )

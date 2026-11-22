@@ -6,6 +6,7 @@ A failed enrichment never discards already retrieved parent evidence.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import replace
 from datetime import datetime, timezone
 import re
@@ -435,7 +436,8 @@ def reddit_archive(client, query, plan, request, parents, limitations, limit=20)
             return community, {}, type(exc).__name__
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        pages = list(pool.map(fetch_listing, jobs))
+        pages = [future.result() for future in
+                 [pool.submit(copy_context().run, fetch_listing, job) for job in jobs]]
     for community, payload, error in pages:
         if error:
             limitations.append(f"Reddit public archive search r/{community}: {error}")

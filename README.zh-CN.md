@@ -1,12 +1,12 @@
 # Vantage
 
-**按需情报发现 Skill（On-Demand Intelligence Discovery Skill）**
+**按需情报与机会发现 Skill（On-Demand Intelligence & Opportunity Discovery Skill）**
 
 [English](README.md) · [真实样例](docs/examples/2026-10-04/README.md) · [文档导航](docs/README.md)
 
 Vantage 面向创业者、产品经理、商业化负责人、咨询顾问和研究人员。你主动提出研究问题，它在可用平台上查找近期的行业变化、用户需求和竞争信号。默认研究最近 30 天，时间窗口可调整。
 
-Skill 会先拆出子问题，检索并检查保留的证据。重要缺口有明确补搜价值时，最多追加一轮。最终交付带日期和原始链接的报告，以及可重复使用的证据文件。机会假设和产品或 GTM 建议只在明确请求时输出。
+Skill 会先拆出子问题，检索并检查保留的证据。重要缺口或线索值得核实时，最多追加两轮。最终交付带日期和原始链接的报告，以及可重复使用的证据文件。机会假设和产品或 GTM 建议只在明确请求时输出。
 
 ## 可以研究什么
 
@@ -30,10 +30,16 @@ git clone https://github.com/NextVariable/Vantage.git ~/.codex/skills/vantage
 cd ~/.codex/skills/vantage
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
-.venv/bin/python -m sourceglint doctor
+.venv/bin/vantage doctor
 ```
 
 然后让智能体使用 Vantage。请保留完整仓库，单独复制 `SKILL.md` 无法运行。Windows 请使用 `.venv\Scripts\python.exe`。检查命令确认本地配置是否就绪，来源当下是否可访问则以实际研究为准。
+
+直接使用 `vantage` 时默认启用自适应研究，最多运行三轮。命令行仍需宿主
+提供结构化模型，例如通过 `--model sourceglint.host_stdio:build_model` 交互。
+用 `--window DAYS` 或 `--start-date` 和 `--end-date` 设置时间窗，后者包含首尾 UTC 日期。
+原 `sourceglint` 命令和 Python 导入路径继续可用。
+[四种使用示例与真实宿主记录](docs/examples/vantage-1.0.md)列出了完整提示词和输出边界。
 
 ## 输出与覆盖范围
 
@@ -48,7 +54,8 @@ python3 -m venv .venv
 - [真实研究样例](docs/examples/2026-10-04/README.md)
 - [来源访问](docs/source-access-matrix.md)与[降级方式](docs/source-fallback-playbook.md)
 - [智能体集成与证据导出](references/host-protocol.md)
-- [自适应研究设计与回放](docs/adaptive-research.md)
+- [1.0 开发与发布验收](docs/vantage-1.0.md)
+- [自适应研究基线与回放](docs/adaptive-research.md)
 - [验证记录](docs/validation.md)
 - [仓库目录说明](docs/repository-guide.md)与[参与开发](CONTRIBUTING.md)
 

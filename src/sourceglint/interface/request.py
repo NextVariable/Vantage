@@ -60,6 +60,8 @@ class SkillRequest:
     baseline: bool = False  # include prior-window baseline evidence
     source_preferences: tuple[str, ...] = ()
     decision_context: str = ""
+    start_date: str = ""
+    end_date: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.query, str) or not self.query.strip():
@@ -68,6 +70,10 @@ class SkillRequest:
             raise ValueError(
                 f"SkillRequest.mode must be one of {MODES!r}; got {self.mode!r}"
             )
+        if bool(self.start_date) != bool(self.end_date):
+            raise ValueError("start_date and end_date must be supplied together")
+        if self.start_date and self.window_days is not None:
+            raise ValueError("use relative days or a custom date range")
         if self.window_days is not None and not 1 <= self.window_days <= 365:
             raise ValueError(
                 f"window_days must be within 1..365; got {self.window_days}"

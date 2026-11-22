@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sourceglint"
-version = "0.2.2.dev4"
-description = "Cross-platform research of the last 30 days: new tools, market developments and user feedback for product managers, GTM teams and tech explorers"
+version = "1.0.0.dev1"
+description = "On-demand cross-platform intelligence and opportunity discovery using dated, traceable evidence"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -26,6 +26,7 @@ dev = [
 ]
 
 [project.scripts]
+vantage = "sourceglint.cli:vantage_main"
 sourceglint = "sourceglint.cli:main"
 
 [tool.setuptools.packages.find]

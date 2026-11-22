@@ -27,10 +27,12 @@ The orchestrator MUST NOT:
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from time import monotonic
 from typing import Callable, Iterable, Mapping, Sequence
 
 import jsonschema
 
+from ..deadline import deadline_scope, remaining_time
 from ..ledger import EvidenceLedger
 from ..normalization import (
     EvidenceNormalizationError,
@@ -157,7 +159,8 @@ class ResearchPipeline:
         retrievals = build_retrieval_plans(plan, list(sources), expanded)
 
         if adaptive:
-            retrievals = adaptive.prepare(retrievals, target=target)
+            with deadline_scope(adaptive.deadline):
+                retrievals = adaptive.prepare(retrievals, target=target)
             plan = adaptive.plan
 
         requested = {route.source for route in retrievals}
@@ -171,10 +174,12 @@ class ResearchPipeline:
         dropped_by_time = 0
         normalization_drops = 0
         blocked: set[str] = set()
-        for round_number in (1, 2) if adaptive else (1,):
-            batch, reports, observations, trace = self._retrieve_batch(
-                plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
-            )
+        rounds = adaptive.budget.rounds if adaptive else 1
+        for round_number in range(1, rounds + 1):
+            with deadline_scope(adaptive.deadline if adaptive else None):
+                batch, reports, observations, trace = self._retrieve_batch(
+                    plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
+                )
             raw_results.extend(batch)
             host_observations.extend(observations)
             for name, report in reports.items():
@@ -215,12 +220,19 @@ class ResearchPipeline:
                 "routes": [{"source": source, "query": query, "status": status, "raw_items": len(rows)}
                            for source, query, status, rows in trace],
             })
-            retrievals = adaptive.assess(
-                snapshot, blocked=blocked, allow_search=round_number == 1,
-                host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
-            )
+            with deadline_scope(adaptive.deadline):
+                expired = remaining_time() == 0
+                retrievals = adaptive.assess(
+                    snapshot, blocked=blocked,
+                    allow_search=not expired and round_number < rounds,
+                    min_new_relevance=round_number > 1,
+                    host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
+                )
             adaptive.rounds[-1]["subquestions"] = adaptive.assessments
-            if round_number == 2 and adaptive.stop_reason == "followup_budget_reached" and not adaptive.rounds[-1]["new_evidence"]:
+            if expired or monotonic() >= adaptive.deadline:
+                adaptive.stop_reason = "deadline_exceeded"
+                retrievals = []
+            elif round_number > 1 and adaptive.stop_reason in {"followup_budget_reached", "no_material_gain"} and not adaptive.rounds[-1]["new_evidence"]:
                 adaptive.stop_reason = "no_new_evidence"
             if not retrievals:
                 break
@@ -318,6 +330,8 @@ class ResearchPipeline:
             by_source.setdefault(r.source, []).append(r)
 
         for source_name in (by_source if adaptive else sorted(by_source)):
+            if adaptive and remaining_time() == 0:
+                break
             rep = SourceStatusReport(source=source_name)
             try:
                 adapter = self.adapter_factory(source_name, plan)
@@ -337,6 +351,10 @@ class ResearchPipeline:
                 continue
             adapter_results: list[RawSourceResult] = []
             for r in by_source[source_name]:
+                if adaptive and remaining_time() == 0:
+                    rep.status = SourceStatus.PARTIAL if adapter_results else SourceStatus.TIMEOUT
+                    rep.append_warning("research deadline exceeded before next query")
+                    break
                 # Cache check first.
                 cached = self._cache_get(source_name, r, plan)
                 if cached is not None:
@@ -352,6 +370,7 @@ class ResearchPipeline:
                 }
                 if adaptive:
                     request["host_target_budget"] = 3
+                    request["remaining_seconds"] = remaining_time()
                 try:
                     out = adapter.retrieve(plan=plan, request=request)
                 except AdapterError as exc:

@@ -247,24 +247,42 @@ def recent_items(sel: SelectedBrief, ledger: object) -> str:
 def research_questions(sel: SelectedBrief, lookup: Mapping[str, object]) -> str:
     if not sel.research_assessments:
         return ""
-    lines = []
+    groups: dict[str, list] = {}
+    headings = {
+        "industry": "Recent developments",
+        "demand": "User needs and experiences",
+        "competition": "Competitive signals and alternatives",
+        "opportunity": "Opportunity evidence",
+        "general": "Research questions and evidence",
+    }
     for row in sel.research_assessments:
-        lines.append(f"- **{_untrusted_inline(row['question'])}** — {row['status']}")
-        if row["gap"]:
-            lines.append(f"  Gap: {_untrusted_inline(row['gap'])}")
-        for label, key in (("Supporting evidence", "evidence_ids"),
-                           ("Firsthand user feedback (reported)", "feedback_ids"),
-                           ("Counterevidence", "counterevidence_ids")):
-            cited = refs(lookup, [eid for eid in row.get(key, ()) if eid in lookup])
-            if cited:
-                lines.append(f"  {label}: {cited}")
-    return _heading(2, "Research questions and evidence") + "\n".join(lines) + "\n\n"
+        groups.setdefault(row.get("focus", "general"), []).append(row)
+    blocks = []
+    for focus, questions in groups.items():
+        lines = []
+        for row in questions:
+            lines.append(f"- **{_untrusted_inline(row['question'])}** — {row['status']}")
+            if row["gap"]:
+                lines.append(f"  Gap: {_untrusted_inline(row['gap'])}")
+            for label, key in (("Supporting evidence", "evidence_ids"),
+                               ("Firsthand user feedback (reported)", "feedback_ids"),
+                               ("Vendor claims (reported)", "vendor_claim_ids"),
+                               ("Counterevidence", "counterevidence_ids")):
+                cited = refs(lookup, [eid for eid in row.get(key, ()) if eid in lookup])
+                if cited:
+                    lines.append(f"  {label}: {cited}")
+        blocks.append(_heading(2, headings.get(focus, headings["general"])) + "\n".join(lines))
+    return "\n\n".join(blocks) + "\n\n"
 
 
 def coverage(sel: SelectedBrief) -> str:
     if not sel.coverage_lines:
         return ""
     bullets = "\n".join(f"- {_inline(line)}" for line in sel.coverage_lines)
+    if sel.research_open_conditions:
+        bullets += "\n" + "\n".join(
+            f"- Scope assumption to verify: {_untrusted_inline(value)}" for value in sel.research_open_conditions
+        )
     return _heading(2, H["coverage"]) + bullets + "\n\n"
 
 

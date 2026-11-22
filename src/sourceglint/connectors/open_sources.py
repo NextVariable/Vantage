@@ -27,6 +27,7 @@ from ._http import (
     StdlibHttpClient,
 )
 from ._query import compact_search_query
+from ._recency import search_bounds
 
 
 def _limit(request: Mapping[str, object], maximum: int = 20) -> int:
@@ -65,8 +66,8 @@ def _as_of(request: Mapping[str, object]) -> datetime | None:
 
 
 def _date_start(plan: Mapping[str, object], request: Mapping[str, object]) -> datetime | None:
-    end = _as_of(request)
-    return end - timedelta(days=_days(plan)) if end else None
+    bounds = search_bounds(plan, request)
+    return bounds[0] if bounds else None
 
 
 def _rfc3339(value: object) -> str:
@@ -197,6 +198,7 @@ class StackOverflowAdapter:
 class DevToAdapter:
     http_client: HttpClient | None = None
     max_per_query: int = 20
+    require_topic_match: bool = False
     source_name: str = "devto"
 
     def __post_init__(self) -> None:
@@ -209,7 +211,9 @@ class DevToAdapter:
 
     def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
         query = _query(request, self.source_name)
-        params = {"q": query, "top": _days(plan), "per_page": _limit(request, self.max_per_query)}
+        limit = _limit(request, self.max_per_query)
+        pool = min(limit * 3, 60) if self.require_topic_match else limit
+        params = {"q": query, "top": _days(plan), "per_page": pool}
         payload = _json(self.http_client, self.source_name, f"https://dev.to/api/articles/search?{urlencode(params)}")
         if not isinstance(payload, list):
             raise AdapterInvalidResponse(self.source_name, "payload was not a list")
@@ -225,6 +229,14 @@ class DevToAdapter:
                 continue
             user = item.get("user") if isinstance(item.get("user"), Mapping) else {}
             text = str(item.get("description") or title).strip()
+            tags = item.get("tag_list") or item.get("tags") or []
+            if isinstance(tags, str):
+                tags = tags.replace(",", " ").split()
+            if self.require_topic_match:
+                from ._deep import subject_present
+                visible = " ".join((text[:8000], " ".join(map(str, tags))))
+                if not subject_present({"title": title, "body": visible}, query):
+                    continue
             out.append(RawSourceResult(
                 source=self.source_name, source_type="post", source_native_id=native_id,
                 url=url, title=title, text=text, author=str(user.get("username") or user.get("name") or ""),
@@ -233,6 +245,8 @@ class DevToAdapter:
                 engagement={"likes": _integer(item.get("public_reactions_count") or item.get("positive_reactions_count")), "comments": _integer(item.get("comments_count"))},
                 raw_metadata={"tags": item.get("tag_list") or item.get("tags") or []},
             ))
+            if len(out) == limit:
+                break
         return out
 
 
@@ -398,6 +412,7 @@ class SemanticScholarAdapter:
 class QiitaAdapter:
     http_client: HttpClient | None = None
     max_per_query: int = 20
+    require_topic_match: bool = False
     source_name: str = "qiita"
 
     def __post_init__(self) -> None:
@@ -410,9 +425,11 @@ class QiitaAdapter:
 
     def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
         query = _query(request, self.source_name)
+        limit = _limit(request, self.max_per_query)
+        pool = min(limit * 3, 60) if self.require_topic_match else limit
         start = _date_start(plan, request)
         api_query = f"{query} created:>={start.date().isoformat()}" if start else query
-        params = {"query": api_query, "page": 1, "per_page": _limit(request, self.max_per_query)}
+        params = {"query": api_query, "page": 1, "per_page": pool}
         payload = _json(self.http_client, self.source_name, f"https://qiita.com/api/v2/items?{urlencode(params)}")
         if not isinstance(payload, list):
             raise AdapterInvalidResponse(self.source_name, "payload was not a list")
@@ -427,15 +444,22 @@ class QiitaAdapter:
             if not native_id or not title or not url or not published:
                 continue
             user = item.get("user") if isinstance(item.get("user"), Mapping) else {}
+            text = str(item.get("body") or title)
+            if self.require_topic_match:
+                from ._deep import subject_present
+                if not subject_present({"title": title, "body": text[:8000]}, query):
+                    continue
             out.append(RawSourceResult(
                 source=self.source_name, source_type="post", source_native_id=native_id,
-                url=url, title=title, text=str(item.get("body") or title),
+                url=url, title=title, text=text,
                 author=str(user.get("id") or user.get("name") or ""), published_at=published,
                 market="jp", language="ja", query=query,
                 query_language=str(request.get("query_language") or "ja"),
                 engagement={"likes": _integer(item.get("likes_count") or item.get("reactions_count")), "comments": _integer(item.get("comments_count")), "views": _integer(item.get("page_views_count"))},
                 raw_metadata={"tags": [str(x.get("name")) for x in item.get("tags", []) if isinstance(x, Mapping) and x.get("name")], "stocks": _integer(item.get("stocks_count"))},
             ))
+            if len(out) == limit:
+                break
         return out
 
 

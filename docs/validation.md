@@ -42,6 +42,11 @@ not successful access. Reusable questions are in
 status and final report. Review relevance, dates, source support and
 counterexamples, and disclose unavailable sources and unanswered aspects.
 
+## Vantage 1.0 development quality gate
+
+See [the 1.0 validation record](vantage-1.0.md) for the 20-case live
+retrieval comparison, installed-workflow verification, and release criteria.
+
 ## 发布文件 · Distribution checks
 
 执行 `python scripts/check_repository.py --history` 检查当前文件、链接、可达历史与提交身份。运行数据保存在被忽略的 `runs/`，不进入源码包；分享证据文件前应人工检查私人内容和第三方正文。

@@ -86,6 +86,44 @@
       "type": "array", "maxItems": 8, "uniqueItems": true,
       "items": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S" }
     },
+    "intents": {
+      "type": "array", "uniqueItems": true, "maxItems": 5,
+      "items": { "enum": ["industry", "demand", "competition", "opportunity", "general"] }
+    },
+    "hypotheses": {
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["statement", "disconfirming_evidence"],
+        "properties": {
+          "statement": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "disconfirming_evidence": { "type": "string", "minLength": 1, "maxLength": 240 }
+        }
+      }
+    },
+    "open_conditions": {
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rounds", "initial_routes", "followup_routes", "max_queries", "max_per_source",
+                   "timeout_seconds", "assessment_evidence_items"],
+      "properties": {
+        "rounds": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "initial_routes": { "const": 6 },
+        "followup_routes": { "const": 3 },
+        "max_queries": { "type": "integer", "minimum": 6, "maximum": 12 },
+        "max_per_source": { "type": "integer", "minimum": 1, "maximum": 24 },
+        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 300 },
+        "assessment_evidence_items": { "const": 40 }
+      }
+    },
+    "stop_conditions": {
+      "type": "array", "uniqueItems": true, "maxItems": 8,
+      "items": { "type": "string" }
+    },
+    "opportunity_requested": { "type": "boolean" },
     "subquestions": {
       "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true,
       "items": {
@@ -95,6 +133,7 @@
                      "completion_criterion", "minimum_origins", "query", "language"],
         "properties": {
           "id": { "type": "string", "pattern": "^q[1-6]$" },
+          "focus": { "enum": ["industry", "demand", "competition", "opportunity", "general"] },
           "question": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "\\S" },
           "priority": { "type": "integer", "minimum": 1, "maximum": 6 },
           "evidence_types": {

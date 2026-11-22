@@ -109,12 +109,14 @@ def default_adapter_factory(
             allow_keyless_rss=True,
             include_archive=True,
         )
+    if name == "devto":
+        return DevToAdapter(require_topic_match=True)
+    if name == "qiita":
+        return QiitaAdapter(require_topic_match=True)
     public_adapters = {
         "arxiv": ArxivAdapter,
-        "devto": DevToAdapter,
         "hugging_face": HuggingFaceAdapter,
         "package_registries": PackageRegistriesAdapter,
-        "qiita": QiitaAdapter,
         "stack_overflow": StackOverflowAdapter,
     }
     adapter_type = public_adapters.get(name)

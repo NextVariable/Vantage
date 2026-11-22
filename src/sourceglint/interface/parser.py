@@ -14,6 +14,7 @@ market (a limitation, recorded — no silent merge, §13).
 from __future__ import annotations
 
 import re
+from datetime import date
 
 from .request import (
     DEFAULT_DAYS,
@@ -236,13 +237,31 @@ MODE_FALLBACK = "general"
 _UNIT_END = r"(?![A-Za-z0-9_])"
 _WINDOW_DAYS = re.compile(r"(?:last\s+)?(\d+)\s*(?:days?\b|日|天|일)" + _UNIT_END, re.IGNORECASE)
 _WINDOW_MONTHS = re.compile(r"(\d+)\s*(?:months?\b|ヶ月|个月|か月|개월)" + _UNIT_END, re.IGNORECASE)
+_DATE_RANGE = re.compile(
+    r"(\d{4}-\d{2}-\d{2})\s*(?:to|through|–|—|到|至|から|〜|～|~|→|\.\.)\s*(\d{4}-\d{2}-\d{2})",
+    re.IGNORECASE,
+)
 _WINDOW_QUARTER = re.compile(r"\b(quarter|quarterly)\b", re.IGNORECASE)
 
 
-def resolve_window(text: str, window_days: int | None = None) -> tuple[dict, str]:
+def resolve_window(text: str, window_days: int | None = None, *,
+                   start_date: str = "", end_date: str = "") -> tuple[dict, str]:
     """(time_window mapping, human text). Explicit day override wins."""
     if window_days is not None:
         return {"days": window_days}, f"Last {window_days} days"
+    dates = (start_date, end_date) if start_date and end_date else None
+    match = _DATE_RANGE.search(text)
+    if dates is None and match:
+        dates = match.groups()
+    if dates is not None:
+        try:
+            start, end = (date.fromisoformat(value) for value in dates)
+        except ValueError as exc:
+            raise ValueError("research date range must contain valid ISO dates (YYYY-MM-DD)") from exc
+        if start > end:
+            raise ValueError("research start date must precede or equal end date")
+        return ({"start": f"{start}T00:00:00Z", "end": f"{end}T23:59:59.999999Z"},
+                f"{start} to {end} (UTC)")
     m = _WINDOW_DAYS.search(text)
     if m:
         days = int(m.group(1))
@@ -408,7 +427,8 @@ def parse_request(request: SkillRequest) -> ParsedRequest:
 
     mode = resolve_mode(text, explicit=request.mode)
     market = resolve_market(text, explicit=request.market)
-    window, window_text = resolve_window(text, window_days=request.window_days)
+    window, window_text = resolve_window(text, window_days=request.window_days,
+                                         start_date=request.start_date, end_date=request.end_date)
 
     entities = resolve_entities(text, request.entities, mode=mode)
     if not entities and qlang in ("zh", "ja", "ko"):
@@ -448,3 +468,26 @@ def parse_query(query: str, **overrides: object) -> ParsedRequest:
     """Convenience: parse a bare query string into a ParsedRequest."""
     kwargs = {k: v for k, v in overrides.items() if v is not None}
     return parse_request(SkillRequest(query=query, **kwargs))
+
+
+_OPPORTUNITY_REQUEST = re.compile(
+    r"\b(?:opportunit(?:y|ies)|market gaps?|business ideas?)\b|创业机会|创业切入|产品机会|商业机会|需求空白|"
+    r"机会假设|市场空白|起業の機会|事業機会|ビジネス機会|市場の空白|창업 기회|사업 기회", re.I,
+)
+_OPPORTUNITY_EXCLUSION = re.compile(
+    r"\b(?:no|without|exclude|avoid|skip|don.t suggest|do not (?:suggest|include|propose))"
+    r"(?:\s+\w+){0,4}\s+(?:opportunit(?:y|ies)|market gaps?|business ideas?)\b|"
+    r"(?:不要|无需|不需要|不想|别给|不做|不提供).{0,12}(?:机会|创业建议|市场空白)|"
+    r"(?:事業機会|起業の機会|ビジネス機会).{0,12}(?:不要|含めない)|기회.{0,8}(?:제외|말고)", re.I,
+)
+_OPPORTUNITY_ACTION = re.compile(
+    r"\b(?:what|which|identify|find|assess|explore|suggest|propose|discover|evaluate|are there)\b|"
+    r"哪些|有什么|寻找|找出|识别|评估|探索|提出|分析|研究|发现|验证|探す|調べ|評価|分析|"
+    r"찾|분석|평가|무엇", re.I,
+)
+
+
+def requests_opportunities(query: str) -> bool:
+    """Conservative natural-language opt-in for the new CLI."""
+    return bool(_OPPORTUNITY_REQUEST.search(query) and _OPPORTUNITY_ACTION.search(query)
+                and not _OPPORTUNITY_EXCLUSION.search(query))

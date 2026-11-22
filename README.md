@@ -1,12 +1,12 @@
 # Vantage
 
-**On-Demand Intelligence Discovery Skill**
+**On-Demand Intelligence & Opportunity Discovery Skill**
 
 [简体中文](README.zh-CN.md) · [Examples](docs/examples/2026-10-04/README.md) · [Documentation](docs/README.md)
 
 Vantage helps founders, product managers, commercialization teams, consultants and researchers investigate industry changes, user needs and competitive signals across available platforms. Start by asking a research question. The default window is 30 days and can be adjusted.
 
-The Skill plans subquestions before searching, checks retained evidence against them, and can run one targeted round for material gaps. It deduplicates dated evidence and delivers a cited brief and reusable evidence file. Opportunity hypotheses and product or GTM recommendations are opt-in.
+The Skill plans subquestions before searching, checks retained evidence against them, and can run up to two targeted rounds for material gaps or corroboration. It deduplicates dated evidence and delivers a cited brief and reusable evidence file. Opportunity hypotheses and product or GTM recommendations are opt-in.
 
 ## What you can research
 
@@ -30,10 +30,17 @@ git clone https://github.com/NextVariable/Vantage.git ~/.codex/skills/vantage
 cd ~/.codex/skills/vantage
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
-.venv/bin/python -m sourceglint doctor
+.venv/bin/vantage doctor
 ```
 
 Then ask your agent to use Vantage. Keep the complete repository; `SKILL.md` alone is insufficient. On Windows, use `.venv\Scripts\python.exe`. The doctor command checks local readiness; actual research determines source availability.
+
+For direct use, `vantage` defaults to adaptive research with a three-round
+cap. The CLI requires a structured host model, for example
+`--model sourceglint.host_stdio:build_model` with a host answering its JSON
+requests. Use `--window DAYS` or inclusive UTC `--start-date` and `--end-date`.
+The legacy `sourceglint` executable and Python import remain available.
+See [four worked prompts and a recorded run](docs/examples/vantage-1.0.md).
 
 ## Results and coverage
 
@@ -48,7 +55,8 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 - [Recorded research examples](docs/examples/2026-10-04/README.md)
 - [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
 - [Agent integration and evidence exports](references/host-protocol.md)
-- [Adaptive research design and replay](docs/adaptive-research.md)
+- [1.0 development and release readiness](docs/vantage-1.0.md)
+- [Adaptive research baseline and replay](docs/adaptive-research.md)
 - [Validation records](docs/validation.md)
 - [Repository guide](docs/repository-guide.md) and [contributing](CONTRIBUTING.md)
 

@@ -1,0 +1,204 @@
+{
+  "cases": [
+    {
+      "id": "agent-tools",
+      "focus": "industry",
+      "question": "What recent tooling developments are people reporting around coding agents?",
+      "initial": "coding agents",
+      "followup": "coding agent",
+      "literal": "agent",
+      "days": 30,
+      "language": "en"
+    },
+    {
+      "id": "local-models",
+      "focus": "industry",
+      "question": "What is new in local LLM tooling and deployment?",
+      "initial": "local LLM",
+      "followup": "ollama",
+      "literal": "llm",
+      "days": 45,
+      "language": "en"
+    },
+    {
+      "id": "ai-video",
+      "focus": "industry",
+      "question": "What recent developments in AI video tooling have original evidence?",
+      "initial": "AI video",
+      "followup": "video generation",
+      "literal": "video",
+      "days": 30,
+      "language": "en"
+    },
+    {
+      "id": "browser-agents",
+      "focus": "industry",
+      "question": "What recent developments are reported for browser agents?",
+      "initial": "browser agent",
+      "followup": "browser automation",
+      "literal": "browser",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "日本語ローカルLLM",
+      "focus": "industry",
+      "question": "日本のローカルLLM開発で最近どんな実装が出ましたか？",
+      "initial": "ローカルLLM",
+      "followup": "Ollama",
+      "literal": "ollama",
+      "days": 60,
+      "language": "ja"
+    },
+    {
+      "id": "cursor-feedback",
+      "focus": "demand",
+      "question": "What problems do users of the Cursor AI editor describe?",
+      "initial": "Cursor AI editor",
+      "followup": "Cursor",
+      "literal": "cursor",
+      "days": 35,
+      "language": "en"
+    },
+    {
+      "id": "meeting-accuracy",
+      "focus": "demand",
+      "question": "What difficulties do users describe with AI meeting transcription?",
+      "initial": "meeting transcription",
+      "followup": "meeting notes",
+      "literal": "meeting",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "agent-review",
+      "focus": "demand",
+      "question": "What do developers report about reviewing coding-agent changes?",
+      "initial": "coding agent review",
+      "followup": "AI code review",
+      "literal": "review",
+      "days": 40,
+      "language": "en"
+    },
+    {
+      "id": "中文开发反馈",
+      "focus": "demand",
+      "question": "LLM 编程工具的开发者反馈有哪些？只要研究，不要提供创业建议。",
+      "initial": "AI 编程",
+      "followup": "Claude Code",
+      "literal": "claude",
+      "days": 45,
+      "language": "zh"
+    },
+    {
+      "id": "日本語議事録",
+      "focus": "demand",
+      "question": "会議の文字起こしで利用者が困る点と反例を調べてください。",
+      "initial": "文字起こし",
+      "followup": "議事録",
+      "literal": "議事録",
+      "days": 90,
+      "language": "ja"
+    },
+    {
+      "id": "notion-alternatives",
+      "focus": "competition",
+      "question": "Which recent alternatives to Notion are being discussed and what do sources actually compare?",
+      "initial": "Notion alternative",
+      "followup": "Notion",
+      "literal": "notion",
+      "days": 55,
+      "language": "en"
+    },
+    {
+      "id": "cursor-vs-claude",
+      "focus": "competition",
+      "question": "What evidence compares Cursor's AI editor and Claude Code?",
+      "initial": "Cursor Claude Code",
+      "followup": "Claude Code Cursor",
+      "literal": "cursor",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "linear-alternatives",
+      "focus": "competition",
+      "question": "What recent alternatives or comparisons concern Linear, the issue tracker?",
+      "initial": "Linear issue tracker",
+      "followup": "Linear alternative",
+      "literal": "linear",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "中文向量数据库",
+      "focus": "competition",
+      "question": "哪些近期公开资料比较向量数据库，尤其是 Qdrant 和 pgvector？",
+      "initial": "向量数据库",
+      "followup": "pgvector",
+      "literal": "pgvector",
+      "days": 90,
+      "language": "zh"
+    },
+    {
+      "id": "日本語VSCode",
+      "focus": "competition",
+      "question": "VS Code のコーディング支援ツールの違いを調べてください。",
+      "initial": "VS Code",
+      "followup": "GitHub Copilot",
+      "literal": "copilot",
+      "days": 90,
+      "language": "ja"
+    },
+    {
+      "id": "offline-meetings",
+      "focus": "opportunity",
+      "question": "Which testable opportunity could offline meeting transcription suggest?",
+      "initial": "offline transcription",
+      "followup": "Whisper",
+      "literal": "whisper",
+      "days": 90,
+      "language": "en"
+    },
+    {
+      "id": "dev-documentation",
+      "focus": "opportunity",
+      "question": "What product opportunities might user friction with developer documentation suggest?",
+      "initial": "developer documentation",
+      "followup": "docs search",
+      "literal": "doc",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "support-automation",
+      "focus": "opportunity",
+      "question": "Which opportunity hypotheses could recent support automation evidence motivate?",
+      "initial": "customer support AI",
+      "followup": "customer support",
+      "literal": "support",
+      "days": 60,
+      "language": "en"
+    },
+    {
+      "id": "thin-fictitious",
+      "focus": "opportunity",
+      "question": "Are there testable opportunities for the fictional ZoivaxQX-491 market?",
+      "initial": "ZoivaxQX-491",
+      "followup": "ZoivaxQX-491 alternatives",
+      "literal": "zoivaxqx",
+      "days": 7,
+      "language": "en"
+    },
+    {
+      "id": "日本語ローカル翻訳",
+      "focus": "opportunity",
+      "question": "ローカル翻訳の課題から事業機会を探し、検証方法も提案してください。",
+      "initial": "ローカル翻訳",
+      "followup": "オフライン翻訳",
+      "literal": "翻訳",
+      "days": 90,
+      "language": "ja"
+    }
+  ]
+}

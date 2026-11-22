@@ -164,3 +164,21 @@ def test_semantic_scholar_requires_key_before_network():
     with pytest.raises(AdapterAuthMissing):
         SemanticScholarAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert http.calls == []
+
+
+@pytest.mark.parametrize(("adapter", "dataset", "query"), [
+    (DevToAdapter, [
+        {"id": 1, "title": "Calendar apps", "url": "https://dev.to/calendar",
+         "published_at": "2026-09-02"},
+        {"id": 2, "title": "Offline transcription on a laptop", "url": "https://dev.to/transcribe",
+         "published_at": "2026-09-02"},
+    ], "offline transcription"),
+    (QiitaAdapter, [
+        {"id": 1, "title": "ログ設計", "url": "https://qiita.com/logging", "created_at": "2026-09-02"},
+        {"id": 2, "title": "ローカル翻訳の測定", "url": "https://qiita.com/transcribe", "created_at": "2026-09-02"},
+    ], "ローカル翻訳"),
+])
+def test_open_source_topic_guard_excludes_unrelated_upstream_results(adapter, dataset, query):
+    http = StubHttp(dataset)
+    rows = adapter(http_client=http, require_topic_match=True).retrieve(PLAN, {**REQUEST, "query": query})
+    assert [row.source_native_id for row in rows] == ["2"]

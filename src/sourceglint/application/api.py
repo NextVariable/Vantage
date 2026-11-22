@@ -14,9 +14,11 @@ runtime (model + adapters + registry) and packages the result.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+from time import monotonic
 from typing import Any, Mapping, Sequence
 
+from ..deadline import deadline_scope
 from ..interface.parser import parse_request
 from ..interface.request import MODES, SkillRequest
 from ..interface.result import SkillResult, Status
@@ -61,6 +63,10 @@ def run_sourceglint(
     raw_output: str | None = None,
     adaptive: bool = False,
     opportunities: bool = False,
+    start_date: str = "",
+    end_date: str = "",
+    research_rounds: int = 2,
+    research_timeout_seconds: float = 90,
 ) -> SkillResult:
     """Run the canonical sourceglint pipeline for one request.
 
@@ -91,6 +97,8 @@ def run_sourceglint(
         mode=mode,
         market=market,
         window_days=window_days,
+        start_date=start_date,
+        end_date=end_date,
         languages=tuple(languages),
         entities=tuple(entities),
         target=target,
@@ -129,22 +137,30 @@ def run_sourceglint(
         semantic_cache=semantic_cache,
     )
 
-    from ..pipeline.adaptive import AdaptiveResearch
+    from ..pipeline.adaptive import AdaptiveResearch, ResearchBudget
     plan = parsed.to_plan()
+    if "start" in plan["time_window"]:
+        cutoff = as_of_dt.replace(tzinfo=timezone.utc) if as_of_dt.tzinfo is None else as_of_dt.astimezone(timezone.utc)
+        if _to_iso(plan["time_window"]["start"]) > cutoff:
+            raise ValueError("research range starts after as_of")
+        plan["time_window"]["end"] = min(_to_iso(plan["time_window"]["end"]), cutoff).isoformat()
     if adaptive and len(ctx.ledger):
         raise ValueError("adaptive research requires a fresh evidence ledger")
-    adaptive_run = AdaptiveResearch(model, plan, source_list) if adaptive else None
+    budget = ResearchBudget(research_rounds, research_timeout_seconds) if adaptive else None
+    adaptive_run = AdaptiveResearch(model, plan, source_list, budget=budget, opportunities=opportunities) if budget else None
+    run_deadline = monotonic() + budget.timeout_seconds + 45 if budget else None
 
     # 3) Run the full engine.
-    outcome = orchestrate(
-        parsed,
-        plan=plan,
-        sources=source_list,
-        ctx=ctx,
-        target_entity=target or parsed.target,
-        include_recommendations=decision_support,
-        adaptive=adaptive_run,
-    )
+    with deadline_scope(run_deadline):
+        outcome = orchestrate(
+            parsed,
+            plan=plan,
+            sources=source_list,
+            ctx=ctx,
+            target_entity=target or parsed.target,
+            include_recommendations=decision_support,
+            adaptive=adaptive_run,
+        )
 
     # 4) Package.
     diagnostics: dict[str, Any] = {
@@ -164,7 +180,11 @@ def run_sourceglint(
     brief = outcome.markdown
     if opportunities:
         from ..recommendations.opportunities import discover_opportunities, render_opportunities
-        hypotheses, state = discover_opportunities(model, parsed.query, outcome.insights, ctx.ledger)
+        with deadline_scope(run_deadline):
+            hypotheses, state = discover_opportunities(
+                model, parsed.query, outcome.insights, ctx.ledger,
+                research_assessments=adaptive_run.assessments if adaptive_run else (),
+            )
         diagnostics["opportunity_discovery"] = {"status": state, "hypotheses": hypotheses}
         if brief:
             brief += render_opportunities(hypotheses, ctx.ledger, state)
