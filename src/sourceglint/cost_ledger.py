@@ -63,8 +63,11 @@ def _acquire(handle) -> None:
     if fcntl is not None:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
     elif msvcrt is not None:  # pragma: no cover - Windows CI
-        handle.seek(0)
-        if not handle.read(1):
+        # Windows byte-range locks are mandatory: another handle reading the
+        # locked byte fails with PermissionError. Never read the lock byte.
+        # Ensure the file has one byte so the range exists, then lock it.
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
             handle.write(b"\0")
             handle.flush()
         handle.seek(0)
