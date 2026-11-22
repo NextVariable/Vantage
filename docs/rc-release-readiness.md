@@ -1,6 +1,6 @@
 # Vantage 1.0 release readiness
 
-**BETA_ONLY** · `1.0.0.dev1` · `dev/vantage-1.0`
+**BETA_ONLY** · `1.0.0b1` · `release/vantage-1.0-beta`
 
 The [original 1.0 development audit](vantage-1.0.md) compared the development branch with `main` (`0a93cc1`). This sprint compares the prior development engine (`7e1757e`) with the live benchmark engine (`13a0635`). Per-run metadata records the full commit and whether its checkout was dirty. The historical 20-case live retrieval evaluation used scripted model judgments. The RC benchmark uses a logged-in Codex host for the model exchanges and live public retrieval.
 
@@ -51,6 +51,27 @@ The [independent review rubric](../evals/rc-rubric.md) defines semantic scores a
 
 Full run reports, ledgers, evidence snippets and tool event logs may contain user research and upstream data. Keep `runs/`, caches and local configuration out of source control. Review source permissions separately from installation readiness. See [source access](source-access-matrix.md) and [fallbacks](source-fallback-playbook.md).
 
+## Beta blocker closure
+
+The independent audit (`e59f4f1`) left three release blockers. All are closed on
+`release/vantage-1.0-beta`.
+
+| Blocker | Fix | Regression evidence |
+| --- | --- | --- |
+| STDIO timeout starvation | Requests carry `protocol: sourceglint-host/v2` and a deterministic `request_id`; replies echo it. A timed-out id is abandoned, its late reply is skipped by id, and later requests continue. Legacy streams that never echo an id are closed after a timeout (fail closed). One stream reader queues lines, so an abandoned read cannot consume the next reply. | `tests/unit/test_host_recovery.py` uses real `os.pipe` pairs and controllable delays: contradiction timeout, late-reply isolation, FACT dispatch under its own id, a coalesced late/FACT burst, legacy fail-closed, duplicate/cross-request rejection. |
+| FACT support not established | Each FACT carries atomic claims with a verbatim excerpt from the cited item. The engine rejects unrelated ids, paraphrased or stitched quotes, vendor material presented as independent testing, and same-origin reposts counted as corroboration. `supported` is the best deterministic outcome; only the separate semantic stage can return `verified`, and an unavailable model leaves facts unverified. | `tests/unit/insights/test_evidence_support_contract.py` and `scripts/replay_frozen_quality.py`. |
+| Unassessed relevance scored as zero | `compute_score` excludes unassessed factors and renormalises the remaining weights. Diagnostics expose `score_completeness`, `score_coverage`, `unassessed_factors` and per-factor `missing_reasons`; weak-signal nomination ignores an unassessed relevance. | `tests/unit/intelligence/test_missing_factors.py`, including input-order swaps and the weak-signal boundary. |
+
+`scripts/stdio_recovery_acceptance.py` repeats the timeout scenario against the
+real installed Codex host over pipes, and `scripts/run_real_benchmark.py` now
+writes `provenance.json` with commit SHA, working-tree state, budgets, evidence
+hash, call accounting and the token split. A dirty checkout is stored with
+`release_evidence: false`. On 2026-11-23 the real host answered `clustering`
+(request `clustering-0001`) and returned a late `contradiction` reply 18.2 s
+after its 0.05 s deadline; the engine skipped that frame, dispatched
+`fact_synthesis` as `fact_synthesis-0003`, and matched its payload. All seven
+checks passed with no cross-framing.
+
 ## Real benchmark results
 
 [Per-case machine results](../evals/rc-results.json) · [Independent source spot checks and quality comparison](rc-quality-review.md) · [Four example reports](examples/rc/README.md)
@@ -72,4 +93,8 @@ Initial and follow-up routes made 75 adapter requests. Forty-five returned no ro
 | Improvement over the previous engine | Five paired prompts retained more records and failed fewer adapter routes, with a substantial latency and Host interaction penalty. Semantic improvement remains unproven. |
 | Clean install, command paths and platform support | Verified locally for macOS and in the six-job Windows/macOS/Ubuntu matrix at `d3ea40c`. |
 
-Keep the development branch in beta and defer merge and release. The next iteration should reserve time for synthesis and stop low-yield lanes earlier, resolve publisher provenance separately from route identity, and compare sources and question coverage through a blinded rerun before reconsidering RC.
+The beta candidate closes the three release blockers and is published from
+`release/vantage-1.0-beta`. Remaining improvements are post-beta backlog, not
+release blockers: reserve more synthesis time and stop low-yield lanes earlier,
+resolve publisher provenance separately from route identity, and compare
+sources and question coverage through a blinded rerun.

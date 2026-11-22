@@ -175,6 +175,31 @@ def _best_excerpt(claim: str, text: str) -> str:
     return normalized[:_EXCERPT_WINDOW]
 
 
+_CJK_CHARS = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+
+def script_of(text: str) -> str:
+    cjk = len(_CJK_CHARS.findall(text))
+    latin = len(re.findall(r"[A-Za-z]", text))
+    if cjk and latin:
+        return "mixed"
+    if cjk:
+        return "cjk"
+    if latin:
+        return "latin"
+    return "none"
+
+
+def _lexically_comparable(left: str, right: str) -> bool:
+    """Token overlap is only meaningful within one writing system.
+
+    A Chinese claim quoting an English passage shares no tokens by
+    construction. That is not evidence of an unrelated citation, so the fact is
+    routed to the semantic stage instead of being rejected.
+    """
+    return bool(_CJK_CHARS.search(left)) == bool(_CJK_CHARS.search(right))
+
+
 def _claim_support(
     claim: str,
     evidence_id: str,
@@ -184,7 +209,7 @@ def _claim_support(
     ev = evidence_by_id.get(evidence_id)
     independent = not is_vendor_material(ev)
     if ev is None:
-        return ClaimSupport(claim, evidence_id, excerpt, "unverifiable",
+        return ClaimSupport(claim, evidence_id, excerpt, "missing",
                             ("evidence id is not in the ledger",), independent)
     source = normalize(evidence_text(ev))
     quote = normalize(excerpt)
@@ -199,6 +224,12 @@ def _claim_support(
         return ClaimSupport(claim, evidence_id, excerpt, "unverifiable",
                             ("excerpt does not occur verbatim in the cited evidence",),
                             independent)
+    if not _lexically_comparable(claim, quote):
+        return ClaimSupport(
+            claim, evidence_id, excerpt, "needs_semantic",
+            ("claim and excerpt use different scripts; only semantic verification can connect them",),
+            independent,
+        )
     ratio = overlap_ratio(claim, quote)
     if ratio >= DIRECT_OVERLAP:
         return ClaimSupport(claim, evidence_id, excerpt, "direct", (), independent)
@@ -238,6 +269,7 @@ def verify_fact_support(
         # but is never reported as fully verified on its own.
         union_text = "\n".join(evidence_text(evidence_by_id.get(eid)) for eid in evidence_ids)
         composite_overlap = overlap_ratio(statement, union_text)
+        comparable = _lexically_comparable(statement, union_text)
         for eid in evidence_ids:
             ev = evidence_by_id.get(eid)
             text = evidence_text(ev)
@@ -260,7 +292,7 @@ def verify_fact_support(
                     support.independent,
                 )
             supports.append(support)
-        if composite_overlap == 0.0:
+        if composite_overlap == 0.0 and comparable:
             supports = [
                 ClaimSupport(s.claim, s.evidence_id, s.excerpt, "unrelated", s.reasons, s.independent)
                 for s in supports
@@ -275,6 +307,12 @@ def verify_fact_support(
     if not supports:
         return FactSupport("unverified", (), ("no usable excerpt for the cited evidence",), origins, rejected=True)
 
+    if any(s.verdict == "missing" for s in supports):
+        return FactSupport(
+            "unverified", tuple(supports),
+            tuple(dict.fromkeys(r for s in supports if s.verdict == "missing" for r in s.reasons)),
+            origins, rejected=True,
+        )
     if any(s.verdict == "unrelated" for s in supports):
         return FactSupport(
             "unverified", tuple(supports),
@@ -300,6 +338,20 @@ def verify_fact_support(
             "vendor_only", tuple(supports),
             ("only vendor-published material supports this statement",), origins,
         )
+
+    if all(s.verdict == "needs_semantic" for s in supports):
+        # Every quote is genuine but no lexical comparison is meaningful.
+        # Keep the fact visible as unverified; only the semantic stage can
+        # upgrade it.
+        return FactSupport(
+            "unverified", tuple(supports),
+            ("support depends on cross-language meaning and was not semantically verified",),
+            origins,
+        )
+
+    if any(s.verdict == "needs_semantic" for s in supports):
+        reasons.append("some claims use a different script and need semantic verification")
+        return FactSupport("partial", tuple(supports), tuple(reasons), origins)
 
     if all(s.verdict == "partial" for s in supports):
         return FactSupport("partial", tuple(supports), reasons, origins)
@@ -349,14 +401,15 @@ def apply_semantic_verdicts(
                                        "unverifiable", (*claim.reasons, "semantic verifier did not confirm support"),
                                        claim.independent))
         else:
-            claims.append(claim)
+            claims.append(ClaimSupport(claim.claim, claim.evidence_id, claim.excerpt,
+                                       "direct", claim.reasons, claim.independent))
     if conflicts:
         return FactSupport("conflicting", tuple(claims), (*support.reasons, "semantic verifier reports a conflict"),
                            support.independent_origins, "conflicting")
     if unverified:
         return FactSupport("partial", tuple(claims), (*support.reasons, "semantic verifier did not confirm every claim"),
                            support.independent_origins, "partial")
-    if support.status == "supported":
+    if support.status in {"supported", "unverified"}:
         return FactSupport("verified", tuple(claims), support.reasons,
                            support.independent_origins, "supported")
     return FactSupport(support.status, tuple(claims), support.reasons,

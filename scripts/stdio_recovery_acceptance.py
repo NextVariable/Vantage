@@ -104,18 +104,18 @@ def serve(argv: list[str]) -> int:
                 if os.path.exists(last):
                     with open(last, encoding="utf-8") as handle:
                         text = handle.read()
+                for event in proc.stdout.splitlines():
+                    try:
+                        parsed = json.loads(event)
+                    except ValueError:
+                        continue
+                    if parsed.get("type") == "turn.completed":
+                        raw = parsed.get("usage") or {}
+                        for key in usage:
+                            usage[key] += int(raw.get(key) or 0)
                 if proc.returncode == 0 and text.strip():
                     payload = _parse(text)
                 else:
-                    for event in proc.stdout.splitlines():
-                        try:
-                            parsed = json.loads(event)
-                        except ValueError:
-                            continue
-                        if parsed.get("type") == "turn.completed":
-                            raw = parsed.get("usage") or {}
-                            for key in usage:
-                                usage[key] += int(raw.get(key) or 0)
                     tail = [row for row in (proc.stderr or "").strip().splitlines()
                             if row and " INFO " not in row and " WARN " not in row]
                     error = (" | ".join(tail[-2:]) or f"exit {proc.returncode} without a reply")[:300]

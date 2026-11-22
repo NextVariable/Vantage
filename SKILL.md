@@ -73,6 +73,14 @@ Retain counterexamples. Use verified publication dates and original URLs;
 unknown dates, inferred engagement and invented quotations are not evidence.
 Without a prior comparison window, recent discussion is not proof of growth.
 
+For every FACT, cite an excerpt that occurs verbatim in the cited evidence item.
+A valid-looking but unrelated evidence id is rejected, as are paraphrased or
+stitched quotes. Vendor announcements only support "the vendor states X"; they
+never prove an independent test. The result reports each fact as `supported`,
+`verified`, `partial`, `vendor_only` or `unverified`. Only `verified` had the
+separate semantic check; present anything else as quoted or unconfirmed
+evidence, not as an independently verified fact.
+
 `SUCCESS` means a brief was produced. It does not certify completeness,
 representativeness, or research quality. Show missing aspects and small-sample
 limits even when the pipeline succeeds. `NO_EVIDENCE` is not a market conclusion.

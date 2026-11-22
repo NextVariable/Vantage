@@ -2,6 +2,23 @@
 
 Python 3.10 compatibility is exercised by the public CI matrix; recommendation ID construction avoids syntax that requires Python 3.12.
 
+## 1.0.0b1 — beta
+
+- Add request/response correlation to the default STDIO host. Timed-out replies
+  are skipped by `request_id`, later analysis continues on the same stream, and
+  legacy hosts that cannot echo an id fail closed instead of reusing the stream.
+- Verify every FACT against a verbatim excerpt from its cited evidence. Reject
+  unrelated ids, paraphrased or stitched quotes, and vendor material presented
+  as independent testing; only the separate semantic stage may mark a fact
+  `verified`.
+- Exclude unassessed semantic factors from the score and renormalise the
+  remaining weights, so a skipped relevance check is not scored as zero. Report
+  score completeness, coverage and missing reasons.
+- Record commit SHA, working-tree state, budgets, host type, evidence hash, call
+  accounting and token split per real run; mark dirty checkouts as diagnostics.
+- Replay frozen evidence ledgers side by side with the previous citation-id-only
+  gate. Frozen replay is regression evidence, not a new research result.
+
 ## 1.0.0.dev1 — development
 
 - Define and validate the Host source reply contract and record search outcomes per query.

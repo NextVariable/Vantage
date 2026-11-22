@@ -166,6 +166,38 @@ def test_direct_sufficient_citation_passes():
     assert support.claims[0].verdict == "direct"
 
 
+def test_cross_language_verbatim_quote_is_unverified_not_rejected():
+    """A Chinese claim over an English quote is genuine but needs semantics."""
+    text = "OpenCode Plus shipped release v1.2 on 2026-10-01."
+    evidence = {"ev1": ev("ev1", text)}
+    statement = "OpenCode Plus 于 2026-10-01 发布了 v1.2 版本。"
+    support = verify_fact_support(
+        statement, ("ev1",), [claim(statement, "ev1", text)], evidence
+    )
+    assert not support.rejected
+    assert support.status == "unverified"
+    assert support.claims[0].verdict == "needs_semantic"
+
+    unavailable = apply_semantic_verdicts(support, ())
+    assert unavailable.status == "unverified"
+
+    verified = apply_semantic_verdicts(support, [{"claim_index": 0, "verdict": "supported"}])
+    assert verified.status == "verified"
+
+
+def test_same_language_unrelated_quote_is_still_rejected():
+    text = "版本更新把工具栏从蓝色改成了绿色，并新增了三个快捷键。"
+    evidence = {"ev1": ev("ev1", text)}
+    support = verify_fact_support(
+        "该产品完全离线运行，不需要任何网络连接。",
+        ("ev1",),
+        [claim("该产品完全离线运行。", "ev1", text)],
+        evidence,
+    )
+    assert support.rejected
+    assert support.claims[0].verdict == "unrelated"
+
+
 def test_semantic_stage_is_the_only_path_to_verified():
     text = "OpenCode Plus shipped release v1.2 on 2026-10-01."
     evidence = {"ev1": ev("ev1", text)}
