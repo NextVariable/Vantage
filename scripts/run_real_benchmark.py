@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -49,7 +50,106 @@ def write_json(path, value):
 def commit_state(checkout):
     def git(*args):
         return subprocess.check_output(["git", "-C", str(checkout), *args], text=True).strip()
-    return {"commit_sha": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain"))}
+    porcelain = git("status", "--porcelain")
+    dirty_paths = [line[3:] for line in porcelain.splitlines()][:50]
+    return {
+        "commit_sha": git("rev-parse", "HEAD"),
+        "commit_subject": git("log", "-1", "--pretty=%s"),
+        "dirty": bool(porcelain),
+        "dirty_paths": dirty_paths,
+        "provenance_kind": "dirty_checkout" if porcelain else "clean_commit",
+        "dirty_note": (
+            "dirty checkout: development diagnostic only, not release evidence"
+            if porcelain else ""
+        ),
+    }
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def call_accounting(usage_log, result):
+    """Separate attempted, dispatched, succeeded, timed out and refused calls."""
+    rows = []
+    if usage_log.exists():
+        for line in usage_log.read_text(encoding="utf-8").splitlines():
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                continue
+    statuses = {}
+    for row in rows:
+        status = str(row.get("status") or "unknown")
+        statuses[status] = statuses.get(status, 0) + 1
+    refusals = ((result or {}).get("diagnostics") or {}).get("synthesis", {}).get("refusals") or []
+    return {
+        "attempted": len(rows) + len(refusals),
+        "dispatched_to_host": len(rows),
+        "succeeded": statuses.get("success", 0),
+        "timed_out": statuses.get("timeout", 0),
+        "unavailable": statuses.get("unavailable", 0),
+        "invalid": statuses.get("invalid_output", 0),
+        "refused_by_engine": len(refusals),
+        "statuses": statuses,
+        "refusal_reasons": [row.get("reason") for row in refusals][:50],
+    }
+
+
+def write_provenance(target, state, args, case, result, usage_log):
+    """Persist what a clean A/B needs and keep dirty runs labelled as such."""
+    evidence_path = target / "evidence.jsonl"
+    registry = args.registry
+    diagnostics = (result or {}).get("diagnostics") or {}
+    support = diagnostics.get("fact_support") or []
+    usage = {}
+    if usage_log.exists():
+        for line in usage_log.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            nested = (row.get("usage") or {}).get("usage") or {}
+            for key in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
+                usage[key] = usage.get(key, 0) + int(nested.get(key) or 0)
+    write_json(target / "provenance.json", {
+        "kind": "real_run",
+        "provenance": state,
+        "case": case,
+        "as_of": args.as_of,
+        "model": args.model,
+        "host_adapter": args.host_adapter,
+        "seconds": args.seconds,
+        "run_budget_usd": args.run_budget_usd,
+        "budget_usd": args.budget_usd,
+        "registry_sha256": _sha256(registry) if registry.exists() else None,
+        "evidence": {
+            "path": evidence_path.name,
+            "sha256": _sha256(evidence_path) if evidence_path.exists() else None,
+            "rows": sum(1 for line in evidence_path.read_text(encoding="utf-8").splitlines()
+                        if line.strip()) if evidence_path.exists() else 0,
+        },
+        "call_accounting": call_accounting(usage_log, result),
+        "tokens": {**usage, "usd_cost": "unknown (subscription host)"},
+        "status": (result or {}).get("status"),
+        "delivery_level": diagnostics.get("delivery_level"),
+        "fact_support": {
+            "facts": len(support),
+            "verified": sum(1 for row in support if row.get("status") == "verified"),
+            "supported": sum(1 for row in support if row.get("status") == "supported"),
+            "partial": sum(1 for row in support if row.get("status") == "partial"),
+            "vendor_only": sum(1 for row in support if row.get("status") == "vendor_only"),
+            "unverified": sum(1 for row in support if row.get("status") == "unverified"),
+            "semantic_checked": sum(1 for row in support if row.get("semantic") in {"supported", "partial", "conflicting"}),
+        },
+        "release_evidence": not state.get("dirty", False),
+    })
 
 
 def host_prompt(case, web_budget):
@@ -243,8 +343,12 @@ def run_case(case, args, state):
     summary = {"case": case["id"], "run_id": case["id"], "elapsed_seconds": elapsed,
                "engine_exit": engine.returncode,
                "status": (result or {}).get("status"), "exchanges": exchanges, "failure": failure or None,
+               "provenance_kind": state.get("provenance_kind"),
                **usage(events_path, usage_log, args.cost_ledger)}
     write_json(target / "status.json", summary)
+    # Persist the full provenance/call-accounting record. A dirty checkout is
+    # stored with release_evidence=false so it cannot be quoted as release proof.
+    write_provenance(target, state, args, case, result, usage_log)
     return summary
 
 

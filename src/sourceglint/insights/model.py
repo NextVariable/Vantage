@@ -23,13 +23,15 @@ from ..intelligence.model import (
 
 #: Task identifiers (modular, single-responsibility prompts).
 TASK_FACT_SYNTHESIS = "fact_synthesis"
+TASK_CLAIM_VERIFICATION = "claim_support_verification"
 TASK_INFERENCE_SYNTHESIS = "inference_synthesis"
 TASK_GTM_IMPLICATIONS = "gtm_implications"
 TASK_INSIGHT_DEDUP = "insight_dedup"
 
 #: Prompt versions — bump when the Markdown prompt changes semantics.
 PROMPT_VERSIONS: dict[str, str] = {
-    TASK_FACT_SYNTHESIS: "fact_synthesis:v1",
+    TASK_FACT_SYNTHESIS: "fact_synthesis:v2",
+    TASK_CLAIM_VERIFICATION: "claim_support_verification:v1",
     TASK_INFERENCE_SYNTHESIS: "inference_synthesis:v1",
     TASK_GTM_IMPLICATIONS: "gtm_implications:v1",
     TASK_INSIGHT_DEDUP: "insight_dedup:v1",
@@ -60,6 +62,40 @@ FACT_SYNTHESIS_RESPONSE_SCHEMA: Mapping[str, Any] = {
                         "minItems": 1,
                     },
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "rationale": {"type": "string"},
+                    "claims": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["claim", "evidence_id", "excerpt"],
+                            "properties": {
+                                "claim": {"type": "string", "minLength": 1},
+                                "evidence_id": {"type": "string"},
+                                "excerpt": {"type": "string", "minLength": 20},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    },
+}
+
+CLAIM_VERIFICATION_RESPONSE_SCHEMA: Mapping[str, Any] = {
+    "type": "object",
+    "required": ["verifications"],
+    "properties": {
+        "verifications": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["claim_index", "verdict"],
+                "properties": {
+                    "claim_index": {"type": "integer", "minimum": 0},
+                    "verdict": {
+                        "type": "string",
+                        "enum": ["supported", "partial", "conflicting", "unrelated", "unverifiable"],
+                    },
                     "rationale": {"type": "string"},
                 },
             },

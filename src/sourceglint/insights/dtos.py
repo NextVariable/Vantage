@@ -124,15 +124,19 @@ class FactDraft:
     evidence_ids: tuple[str, ...]
     confidence: float
     rationale: str = ""
+    claims: tuple[Mapping[str, Any], ...] = ()
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "statement": self.statement,
             "signal_ids": list(self.signal_ids),
             "evidence_ids": list(self.evidence_ids),
             "confidence": self.confidence,
             "rationale": self.rationale,
         }
+        if self.claims:
+            out["claims"] = [dict(claim) for claim in self.claims]
+        return out
 
 
 @dataclass(frozen=True)
@@ -208,6 +212,11 @@ class InsightDiagnostics:
     weak_signal: bool = False
     contradiction_preserved: bool = False
     warnings: tuple[str, ...] = ()
+    support_status: str = ""
+    support_claims: tuple[dict, ...] = ()
+    support_reasons: tuple[str, ...] = ()
+    independent_origins: int = 0
+    semantic_verification: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -221,6 +230,11 @@ class InsightDiagnostics:
             "weak_signal": self.weak_signal,
             "contradiction_preserved": self.contradiction_preserved,
             "warnings": list(self.warnings),
+            "support_status": self.support_status,
+            "support_claims": [dict(claim) for claim in self.support_claims],
+            "support_reasons": list(self.support_reasons),
+            "independent_origins": self.independent_origins,
+            "semantic_verification": self.semantic_verification,
         }
 
 

@@ -79,7 +79,11 @@ def test_positive_fact_statement_is_untouched():
             ),
         )
     )
-    result = synthesize_facts([_signal()], model, {"ev_1": {}})
+    result = synthesize_facts(
+        [_signal()], model,
+        {"ev_1": {"title": "Releases",
+                  "snippet": "One candidate shipped two releases this month."}},
+    )
     assert result.validated[0].statement == "One candidate shipped two releases."
 
 

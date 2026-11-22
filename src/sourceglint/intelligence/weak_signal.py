@@ -35,6 +35,7 @@ def assess(
     decision_relevance: float,
     semantic_novelty: Optional[float] = None,
     code_novelty: float = 0.0,
+    relevance_assessed: bool = True,
 ) -> WeakSignalAssessment:
     """Classify one cluster as a weak-signal candidate or not.
 
@@ -69,7 +70,7 @@ def assess(
     reasons: list[str] = []
     if novelty >= NOVELTY_NOMINATION:
         reasons.append(f"novel content (novelty {novelty:.2f})")
-    if dr >= RELEVANCE_NOMINATION:
+    if relevance_assessed and dr >= RELEVANCE_NOMINATION:
         reasons.append(f"high decision relevance ({dr:.2f})")
     if bool(getattr(features, "appeared_only_current", False)):
         reasons.append("absent from baseline window (newly appearing)")

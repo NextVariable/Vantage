@@ -280,7 +280,8 @@ class TestSynthesizeFacts:
             FakeFactScript(signal_ids=("sig_a",), statement="Cached fact.",
                           evidence_ids=("ev_1",), confidence=0.9)
         ])
-        ev = {"ev_1": {}, "ev_2": {}}
+        ev = {"ev_1": {"title": "Cached fact", "snippet": "Cached fact from the source text."},
+              "ev_2": {"title": "Other", "snippet": "Other material."}}
         ctx = ResearchContext()
         cache = SemanticCache()
         # First call populates cache
@@ -301,7 +302,8 @@ class TestSynthesizeFacts:
             FakeFactScript(signal_ids=("sig_fake",), statement="Invalid fact.",
                           evidence_ids=("ev_fake",), confidence=0.9),
         ])
-        ev = {"ev_1": {}, "ev_2": {}}
+        ev = {"ev_1": {"title": "Valid fact", "snippet": "Valid fact reported by the source."},
+              "ev_2": {"title": "Other", "snippet": "Other material."}}
         ctx = ResearchContext()
         result = synthesize_facts(signals, model, ev, research_context=ctx)
         assert len(result.validated) == 1

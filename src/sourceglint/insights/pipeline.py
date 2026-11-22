@@ -19,22 +19,27 @@ RECOMMENDATION, no action, no final brief.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Iterable, Mapping
 
 from ..deadline import deadline_scope
 from ..intelligence.cache import SemanticCache
 from ..intelligence.dtos import ResearchContext
 from ..synthesis_budget import SynthesisBudget
+from .claim_verification import verify_claims
 from .dedup import deduplicate_insights
 from .dtos import FACT, INFERENCE, InsightDiagnostics, InsightPipelineResult
+from .evidence_support import FactSupport, apply_semantic_verdicts
 from .facts import synthesize_facts
 from .gtm_implications import GTMImplicationResult, derive_gtm_implications
 from .inferences import InferenceSynthesisResult, synthesize_inferences
+from .model import TASK_CLAIM_VERIFICATION
 from .preparation import prepare_signals
 from .support import compute_support_strength, distinct_source_count
 from .validation import validate_insight_schema
 
 _FACT_STAGE = "fact_synthesis"
+_CLAIM_STAGE = "claim_verification"
 _INFERENCE_STAGE = "inference_synthesis"
 _GTM_STAGE = "gtm_implications"
 
@@ -97,6 +102,57 @@ def run_insight_pipeline(
             _FACT_STAGE,
             "ok" if fact_result.model_status == "success" else "degraded",
         )
+
+    # 2b. Verify claim → evidence → excerpt support (explicit stage).
+    support_by_id: dict[str, FactSupport] = {
+        iid: support
+        for iid, support in zip(fact_result.insight_ids, fact_result.supports)
+    }
+    if budget is not None and fact_result.supports:
+        claim_rows: list[dict[str, Any]] = []
+        row_index: list[tuple[str, int]] = []
+        for iid, support in support_by_id.items():
+            for local, claim in enumerate(support.claims):
+                if claim.verdict not in {"direct", "partial"}:
+                    continue
+                claim_rows.append({
+                    "claim_index": len(claim_rows),
+                    "claim": claim.claim,
+                    "excerpt": claim.excerpt,
+                    "source_role": "independent" if claim.independent else "vendor",
+                })
+                row_index.append((iid, local))
+        if not claim_rows:
+            budget.mark_stage(_CLAIM_STAGE, "skipped", "no structurally supported claims")
+        else:
+            allowed, reason = budget.allow(TASK_CLAIM_VERIFICATION)
+            if not allowed:
+                budget.record_refusal(TASK_CLAIM_VERIFICATION, reason)
+                budget.mark_stage(_CLAIM_STAGE, "skipped", reason)
+            else:
+                with deadline_scope(budget.stage_deadline(_CLAIM_STAGE)):
+                    verification = verify_claims(claim_rows, model)
+                warnings.extend(verification.warnings)
+                grouped: dict[str, list[dict[str, Any]]] = {}
+                for verdict in verification.verdicts:
+                    index = int(verdict["claim_index"])
+                    if 0 <= index < len(row_index):
+                        insight_id, _ = row_index[index]
+                        grouped.setdefault(insight_id, []).append(verdict)
+                for iid, verdicts in grouped.items():
+                    support_by_id[iid] = apply_semantic_verdicts(
+                        support_by_id[iid], verdicts
+                    )
+                fact_result = replace(
+                    fact_result,
+                    supports=tuple(support_by_id.get(iid, FactSupport("unverified"))
+                                   for iid in fact_result.insight_ids),
+                )
+                budget.mark_stage(
+                    _CLAIM_STAGE,
+                    "ok" if verification.model_status == "success" else "degraded",
+                    "" if verification.model_status == "success" else "semantic verification unavailable",
+                )
 
     # 3. Synthesize inferences
     inference_skip = ""
@@ -250,6 +306,22 @@ def run_insight_pipeline(
             supporting_evidence_ids=evidence_ids,
             weak_signal=weak,
             contradiction_preserved=contradiction,
+            support_status=support_by_id.get(ins_dict["insight_id"], FactSupport("")).status,
+            support_claims=tuple(
+                claim.to_dict()
+                for claim in support_by_id.get(
+                    ins_dict["insight_id"], FactSupport("")
+                ).claims
+            ),
+            support_reasons=support_by_id.get(
+                ins_dict["insight_id"], FactSupport("")
+            ).reasons,
+            independent_origins=support_by_id.get(
+                ins_dict["insight_id"], FactSupport("")
+            ).independent_origins,
+            semantic_verification=support_by_id.get(
+                ins_dict["insight_id"], FactSupport("")
+            ).semantic_status,
         ))
 
     # 10. Model status

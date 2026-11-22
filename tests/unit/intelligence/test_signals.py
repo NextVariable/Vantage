@@ -237,7 +237,7 @@ def test_score_equals_frozen_geometric_mean():
     signal, diag = signals.build_signal(
         cluster, features, _assessment(cluster), fset, evidence_by_id=_all(a)
     )
-    expected = sc.compute_score(fset.factors).score
+    expected = sc.compute_score(fset.factors, unassessed=fset.unassessed).score
     assert signal["score"] == pytest.approx(expected)
     assert diag.score == pytest.approx(expected)
 
@@ -250,8 +250,10 @@ def test_diagnostics_carry_full_factor_trail():
     assert diag.raw_factors["decision_relevance"] == pytest.approx(0.7)
     assert diag.clamped_factors == {
         k: diag.raw_factors[k] < diag.effective_factors[k]
-        for k in diag.raw_factors
+        for k in diag.effective_factors
     }
+    assert diag.score_completeness in {"complete", "partial"}
+    assert diag.score_coverage > 0
     assert diag.weak_signal is not None
 
 

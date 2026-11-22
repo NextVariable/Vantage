@@ -3,6 +3,27 @@
 The engine stays provider-neutral. Each semantic call is emitted as one JSON
 line; the host agent supplies the corresponding structured response on stdin.
 No model credentials or vendor client are required inside this package.
+
+## Request correlation (host protocol v2)
+
+Every request carries a unique ``request_id`` and ``protocol`` marker. A host
+that supports correlation echoes the same ``request_id`` in its response.
+Correlation is negotiated implicitly: the first response that echoes an id
+upgrades the stream to ``correlated`` mode. A host may also declare support
+up front by setting ``SOURCEGLINT_HOST_PROTOCOL=v2``.
+
+Timeouts are handled differently per mode:
+
+* ``correlated`` — a timed-out request is abandoned and the stream stays
+  usable. Late, duplicate, out-of-order and cross-request frames are skipped
+  until the frame matching the current request id arrives. A response that
+  suddenly omits ``request_id`` is rejected (fail-closed).
+* ``legacy``/``unknown`` — the sequential protocol has no way to tell a late
+  reply from the next one, so the stream is closed after a timeout. Later
+  calls fail closed instead of reading a mismatched frame.
+
+This keeps every existing v1 host working while allowing a v2 host to recover
+from one slow stage without losing later FACT calls.
 """
 from __future__ import annotations
 
@@ -24,59 +45,196 @@ from .pipeline.adapters import AdapterInvalidResponse, AdapterTimeout, AdapterUn
 
 
 _expired_streams: WeakSet = WeakSet()
-_pipe_buffers: WeakKeyDictionary = WeakKeyDictionary()
 _MAX_HOST_LINE_BYTES = 8 * 1024 * 1024
 
+PROTOCOL_VERSION = "sourceglint-host/v2"
+_PROTOCOL_ENV = "SOURCEGLINT_HOST_PROTOCOL"
 
-def _read_host_line(stream: TextIO) -> str:
+
+@dataclass
+class _StreamState:
+    """Negotiated capabilities for one stdin stream."""
+
+    capability: str = "unknown"  # unknown | legacy | correlated
+    abandoned: set[str] = field(default_factory=set)
+    sequence: int = 0
+
+
+_stream_states: WeakKeyDictionary = WeakKeyDictionary()
+
+
+def _stream_state(stream: TextIO) -> _StreamState:
+    state = _stream_states.get(stream)
+    if state is None:
+        state = _StreamState()
+        declared = os.environ.get(_PROTOCOL_ENV, "").strip().lower()
+        if declared in {"v2", "2", "correlated"}:
+            state.capability = "correlated"
+        _stream_states[stream] = state
+    return state
+
+
+def _next_request_id(state: _StreamState, task: str) -> str:
+    """Deterministic per-stream id — no clocks or random primitives."""
+    state.sequence += 1
+    return f"{task}-{state.sequence:04d}"
+
+
+class _LineReader:
+    """One background reader per stream.
+
+    A per-call reader would keep consuming bytes after its call timed out and
+    drop them, so a late reply could steal the next request's frame. This
+    reader owns the stream for its lifetime and queues every line; a call that
+    times out simply stops waiting, and the line it left behind is still
+    available for the next call to skip by id.
+    """
+
+    def __init__(self, stream: TextIO) -> None:
+        self.stream = stream
+        self.queue: "Queue[Any]" = Queue()
+        self.thread = Thread(target=self._pump, daemon=True)
+        self.thread.start()
+
+    def _pump(self) -> None:
+        try:
+            try:
+                fd = self.stream.fileno()
+            except (OSError, ValueError):
+                fd = None
+            if fd is None:
+                while True:
+                    line = self.stream.readline()
+                    if not line:
+                        break
+                    if len(line) > _MAX_HOST_LINE_BYTES:
+                        self.queue.put(ValueError("host JSON frame exceeds size limit"))
+                        return
+                    self.queue.put(line)
+                self.queue.put("")
+                return
+            buffer = b""
+            while True:
+                try:
+                    chunk = os.read(fd, 8192)
+                except OSError as exc:
+                    self.queue.put(exc)
+                    return
+                if not chunk:
+                    break
+                buffer += chunk
+                if len(buffer) > _MAX_HOST_LINE_BYTES and b"\n" not in buffer:
+                    self.queue.put(ValueError("host JSON frame exceeds size limit"))
+                    return
+                while b"\n" in buffer:
+                    raw, _, buffer = buffer.partition(b"\n")
+                    self.queue.put(raw.decode(self.stream.encoding or "utf-8") + "\n")
+            if buffer:
+                self.queue.put(buffer.decode(self.stream.encoding or "utf-8"))
+            self.queue.put("")
+        except Exception as exc:  # pragma: no cover - defensive
+            self.queue.put(exc)
+
+
+_readers: WeakKeyDictionary = WeakKeyDictionary()
+
+
+def _reader(stream: TextIO) -> _LineReader:
+    reader = _readers.get(stream)
+    if reader is None:
+        reader = _LineReader(stream)
+        _readers[stream] = reader
+    return reader
+
+
+def _read_host_line(stream: TextIO, *, expire_on_timeout: bool = True) -> str:
     if stream in _expired_streams:
         return ""
     remaining = remaining_time()
-    pending = _pipe_buffers.get(stream, b"")
-    if remaining is None and not pending:
-        return stream.readline()
     if remaining is not None and remaining <= 0:
         raise TimeoutError("host response deadline exceeded")
-    reply: Queue[tuple[str, bytes] | Exception] = Queue(maxsize=1)
-
-    def read() -> None:
-        try:
-            try:
-                fd = stream.fileno()
-            except (OSError, ValueError):
-                reply.put((stream.readline(), b""))
-                return
-            # os.read avoids leaving a Python buffered-stdin lock held by a
-            # blocked daemon at process shutdown. Keep any subsequent frame.
-            data = bytearray(pending)
-            while b"\n" not in data:
-                chunk = os.read(fd, 8192)
-                if not chunk:
-                    break
-                data.extend(chunk)
-                if len(data) > _MAX_HOST_LINE_BYTES:
-                    raise ValueError("host JSON frame exceeds size limit")
-            line, separator, tail = data.partition(b"\n")
-            reply.put((bytes(line + separator).decode(stream.encoding or "utf-8"), bytes(tail)))
-        except Exception as exc:
-            reply.put(exc)
-
-    Thread(target=read, daemon=True).start()
+    reader = _reader(stream)
     try:
-        result = reply.get(timeout=remaining)
+        if remaining is None:
+            result = reader.queue.get()
+        else:
+            result = reader.queue.get(timeout=remaining)
     except Empty as exc:
-        # A late response belongs to this request. Do not read it as the next response.
-        _expired_streams.add(stream)
+        # A late response belongs to this request. A legacy stream cannot
+        # distinguish it from the next reply, so close it; a correlated stream
+        # can skip it safely.
+        if expire_on_timeout:
+            _expired_streams.add(stream)
         raise TimeoutError("host response deadline exceeded") from exc
     if isinstance(result, Exception):
         _expired_streams.add(stream)
         raise result
-    line, tail = result
-    if tail:
-        _pipe_buffers[stream] = tail
-    else:
-        _pipe_buffers.pop(stream, None)
-    return line
+    return result
+
+
+@dataclass(frozen=True)
+class _Reply:
+    """Outcome of waiting for one correlated reply."""
+
+    line: str = ""
+    error: str = ""
+    status: ModelStatus = ModelStatus.SUCCESS
+
+
+def _await_reply(stream: TextIO, *, request_id: str) -> _Reply:
+    """Read frames until the reply that belongs to ``request_id`` arrives.
+
+    Frames carrying another request id (late, duplicate, out-of-order or from a
+    different request) are discarded. A frame without an id is accepted only
+    while the stream is still in legacy sequential mode.
+    """
+    state = _stream_state(stream)
+    while True:
+        try:
+            line = _read_host_line(
+                stream, expire_on_timeout=state.capability != "correlated"
+            )
+        except TimeoutError as exc:
+            if state.capability == "correlated":
+                # The request is abandoned; its late reply will be skipped.
+                state.abandoned.add(request_id)
+            return _Reply(error=str(exc), status=ModelStatus.TIMEOUT)
+        except (ValueError, OSError) as exc:
+            return _Reply(error=type(exc).__name__, status=ModelStatus.INVALID_OUTPUT)
+        if not line:
+            return _Reply(
+                error="host input closed before a model response",
+                status=ModelStatus.UNAVAILABLE,
+            )
+        try:
+            frame = json.loads(line)
+        except json.JSONDecodeError:
+            if state.capability == "correlated":
+                continue  # malformed noise; never accept it as a reply
+            return _Reply(
+                error="host response was not JSON",
+                status=ModelStatus.INVALID_OUTPUT,
+            )
+        if not isinstance(frame, dict):
+            if state.capability == "correlated":
+                continue
+            return _Reply(
+                error="expected a response object",
+                status=ModelStatus.INVALID_OUTPUT,
+            )
+        frame_id = frame.get("request_id")
+        if frame_id is not None:
+            state.capability = "correlated"
+            if str(frame_id) != request_id:
+                continue  # late or cross-request frame
+            return _Reply(line=line)
+        if state.capability == "correlated":
+            return _Reply(
+                error="host response omitted request_id after correlation was established",
+                status=ModelStatus.INVALID_OUTPUT,
+            )
+        state.capability = "legacy"
+        return _Reply(line=line)
 
 
 @dataclass
@@ -94,8 +252,11 @@ class StdioHostModel:
     ) -> ModelResponse:
         if remaining_time() == 0 or self.input_stream in _expired_streams:
             return ModelResponse(task=task, status=ModelStatus.TIMEOUT, error="host response deadline exceeded")
+        request_id = _next_request_id(_stream_state(self.input_stream), task)
         request = {
             "type": "model_request",
+            "protocol": PROTOCOL_VERSION,
+            "request_id": request_id,
             "task": task,
             "payload": dict(payload),
             "response_schema": dict(response_schema),
@@ -104,15 +265,10 @@ class StdioHostModel:
         self.output_stream.write(json.dumps(request, ensure_ascii=False) + "\n")
         self.output_stream.flush()
 
-        try:
-            line = _read_host_line(self.input_stream)
-        except TimeoutError as exc:
-            return ModelResponse(task=task, status=ModelStatus.TIMEOUT, error=str(exc))
-        except (ValueError, OSError) as exc:
-            return ModelResponse(task=task, status=ModelStatus.INVALID_OUTPUT, error=type(exc).__name__)
-        if not line:
-            return ModelResponse(task=task, status=ModelStatus.UNAVAILABLE,
-                                 error="host input closed before a model response")
+        reply = _await_reply(self.input_stream, request_id=request_id)
+        if reply.error:
+            return ModelResponse(task=task, status=reply.status, error=reply.error)
+        line = reply.line
         try:
             response = json.loads(line)
         except json.JSONDecodeError:
@@ -226,8 +382,12 @@ class StdioHostSource:
         self.coverage_reported = False
         if remaining_time() == 0 or self.input_stream in _expired_streams:
             raise AdapterTimeout(self.name, "host response deadline exceeded")
+        request_id = _next_request_id(
+            _stream_state(self.input_stream), f"source-{self.name}"
+        )
         message: dict[str, Any] = {
             "type": "source_request", "source": self.name,
+            "protocol": PROTOCOL_VERSION, "request_id": request_id,
             "plan": dict(plan), "request": dict(request),
             "allowed_source_types": _SOURCE_TYPES,
             "response_schema": _source_response_schema(self.name),
@@ -265,14 +425,14 @@ class StdioHostSource:
                 message["target_warning"] = f"source catalog unavailable: {type(exc).__name__}"
         self.output_stream.write(json.dumps(message, ensure_ascii=False) + "\n")
         self.output_stream.flush()
-        try:
-            line = _read_host_line(self.input_stream)
-        except TimeoutError as exc:
-            raise AdapterTimeout(self.name, str(exc)) from exc
-        except (ValueError, OSError) as exc:
-            raise AdapterInvalidResponse(self.name, type(exc).__name__) from exc
-        if not line:
-            raise AdapterUnavailable(self.name, "host input closed")
+        reply = _await_reply(self.input_stream, request_id=request_id)
+        if reply.error:
+            if reply.status is ModelStatus.TIMEOUT:
+                raise AdapterTimeout(self.name, reply.error)
+            if reply.status is ModelStatus.UNAVAILABLE:
+                raise AdapterUnavailable(self.name, reply.error)
+            raise AdapterInvalidResponse(self.name, reply.error)
+        line = reply.line
         try:
             response = json.loads(line)
         except json.JSONDecodeError as exc:

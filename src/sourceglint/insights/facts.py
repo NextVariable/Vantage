@@ -26,6 +26,7 @@ from ..intelligence.dtos import ResearchContext
 from ..intelligence.guardrails import detect_recommendation_leakage
 from ..intelligence.model import ModelResponse
 from .dtos import FACT, FactDraft
+from .evidence_support import FactSupport, verify_fact_support
 from .grounding import VOC_PREFIXES, check_fact_grounding
 from .ids import derive_insight_id
 from .model import (
@@ -196,6 +197,7 @@ class FactSynthesisResult:
     insight_ids: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     model_status: str = "success"
+    supports: tuple[FactSupport, ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -204,6 +206,7 @@ class FactSynthesisResult:
             "insight_ids": list(self.insight_ids),
             "warnings": list(self.warnings),
             "model_status": self.model_status,
+            "supports": [s.to_dict() for s in self.supports],
         }
 
 
@@ -312,6 +315,7 @@ def _parse_fact_response(
     validated: list[FactDraft] = []
     rejected: list[FactDraft] = []
     insight_ids: list[str] = []
+    supports: list[FactSupport] = []
     warnings: list[str] = []
 
     malformed = 0
@@ -321,12 +325,22 @@ def _parse_fact_response(
             warnings.append(f"fact_synthesis: draft {i} must be an object")
             continue
         try:
+            claims = tuple(
+                {
+                    "claim": str(row.get("claim") or ""),
+                    "evidence_id": str(row.get("evidence_id") or ""),
+                    "excerpt": str(row.get("excerpt") or ""),
+                }
+                for row in (fact_raw.get("claims") or [])
+                if isinstance(row, Mapping)
+            )
             draft = FactDraft(
                 statement=str(fact_raw.get("statement") or ""),
                 signal_ids=tuple(str(s) for s in fact_raw.get("signal_ids") or []),
                 evidence_ids=tuple(str(e) for e in fact_raw.get("evidence_ids") or []),
                 confidence=float(fact_raw.get("confidence") or 0.0),
                 rationale=str(fact_raw.get("rationale") or ""),
+                claims=claims,
             )
         except (TypeError, ValueError, OverflowError) as exc:
             malformed += 1
@@ -340,6 +354,13 @@ def _parse_fact_response(
             signal_evidence_map=signal_evidence_map,
             code_counts=code_counts,
         )
+        support = verify_fact_support(
+            draft.statement, draft.evidence_ids, draft.claims, evidence_by_id,
+        )
+        if support.rejected and not violations:
+            violations.append(
+                "evidence support: " + "; ".join(support.reasons or ("unusable citation",))
+            )
         if violations:
             rejected.append(draft)
             warnings.append(
@@ -348,6 +369,7 @@ def _parse_fact_response(
             )
         else:
             validated.append(draft)
+            supports.append(support)
             # Derive deterministic insight_id
             ins_id = derive_insight_id(
                 type=FACT,
@@ -368,4 +390,5 @@ def _parse_fact_response(
         insight_ids=tuple(insight_ids),
         warnings=tuple(warnings),
         model_status=status,
+        supports=tuple(supports),
     )

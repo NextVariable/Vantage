@@ -124,6 +124,8 @@ def research_context(ctx: BriefContext) -> str:
     }.get(ctx.delivery_level)
     if delivery:
         lines.append(f"**Delivery:** {_inline(delivery)}")
+    if ctx.support_note:
+        lines.append(f"**Evidence support:** {_inline(ctx.support_note)}")
     return "\n".join(lines) + "\n\n"
 
 

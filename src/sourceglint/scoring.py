@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Iterable, Mapping
 
 import yaml
 
@@ -89,6 +89,14 @@ class ScoreBreakdown:
     min_factor: float
     weights: dict
     components: dict  # {factor: {"raw": float, "clamped_value": float, "was_clamped": bool}}
+    unassessed: tuple[str, ...] = ()
+    coverage: float = 1.0
+
+    @property
+    def completeness(self) -> str:
+        if not self.unassessed:
+            return "complete"
+        return "partial" if self.components else "none"
 
     def to_dict(self) -> dict:
         return {
@@ -96,6 +104,9 @@ class ScoreBreakdown:
             "formula": self.formula,
             "min_factor": self.min_factor,
             "weights": dict(self.weights),
+            "unassessed": list(self.unassessed),
+            "coverage": self.coverage,
+            "completeness": self.completeness,
             "components": {
                 k: {"raw": v["raw"], "clamped_value": v["clamped_value"],
                      "was_clamped": bool(v.get("was_clamped", False))}
@@ -127,6 +138,7 @@ def compute_score(
     factors: Mapping[str, object],
     *,
     cfg: ScoringConfig | None = None,
+    unassessed: Iterable[str] = (),
 ) -> ScoreBreakdown:
     """Compute a deterministic weighted-geometric signal score.
 
@@ -136,16 +148,25 @@ def compute_score(
             module remains forward-compatible.
         cfg: Optional ScoringConfig override. Defaults to v0.2 D9 frozen
             weights + 0.05 floor.
+        unassessed: Factors that were NOT measured (semantic stage skipped,
+            timeout, no source data). They are excluded from the geometric
+            mean and its weight renormalised, so "unknown" is never scored
+            as a real zero. The breakdown discloses the missing factors and
+            the assessed weight coverage.
 
     Returns:
         ScoreBreakdown with score, weights, components, and the formula
         identifier used.
     """
     cfg = cfg or ScoringConfig.default()
+    missing = tuple(name for name in unassessed if name in DEFAULT_FACTORS)
+    missing_set = set(missing)
 
     components: dict = {}
     # Phase-2 forward-compat: only known factors contribute.
     for factor_name in DEFAULT_FACTORS:
+        if factor_name in missing_set:
+            continue
         if factor_name not in factors:
             raise ScoringConfigError(
                 f"factor payload missing required key: {factor_name}"
@@ -158,7 +179,7 @@ def compute_score(
             "was_clamped": clamped_value > raw + _FLOAT_EPS,
         }
 
-    # Weighted geometric mean.
+    # Weighted geometric mean over assessed factors only.
     log_score = 0.0
     total_weight = 0.0
     for factor_name, comp in components.items():
@@ -167,9 +188,10 @@ def compute_score(
         total_weight += w
     # Defensive in case future customization adds zero-weight factors.
     if abs(total_weight) > _FLOAT_EPS:
-        score = math.exp(log_score / total_weight) if total_weight else 0.0
+        score = math.exp(log_score / total_weight)
     else:
         score = 0.0
+    coverage = max(0.0, min(1.0, total_weight))
 
     return ScoreBreakdown(
         score=float(score),
@@ -177,4 +199,6 @@ def compute_score(
         min_factor=cfg.min_factor,
         weights={k: float(v) for k, v in cfg.weights.items()},
         components=components,
+        unassessed=missing,
+        coverage=coverage,
     )

@@ -50,6 +50,7 @@ class BriefContext:
     decision_context: str = ""
     discovery_only: bool = False
     delivery_level: str = ""
+    support_note: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -65,6 +66,7 @@ class BriefContext:
             "decision_context": self.decision_context,
             "discovery_only": self.discovery_only,
             "delivery_level": self.delivery_level,
+            "support_note": self.support_note,
         }
 
 

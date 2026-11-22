@@ -84,6 +84,33 @@ def test_semantic_call_cap_uses_observed_latency():
     assert budget.semantic_call_cap == 2
 
 
+def test_claim_verification_is_admitted_before_inference_and_refused_when_tight():
+    clock = FakeClock()
+    budget = SynthesisBudget.from_remaining(120, clock=clock)
+    clock.advance(20)
+    budget.record_call("clustering", input_chars=10, seconds=20.0, ok=True)
+    # 100 s left: inference reserve + brief floor + one observed call still fit.
+    assert budget.allow("claim_support_verification")[0] is True
+    # Late in the run the verification stage must yield to inference and brief.
+    clock.advance(80)
+    allowed, reason = budget.allow("claim_support_verification")
+    assert allowed is False
+    assert "claim_verification" in reason
+    # The stage is ordered before inference so a refusal is explainable.
+    from sourceglint.synthesis_budget import STAGE_ORDER
+    assert STAGE_ORDER.index("claim_verification") < STAGE_ORDER.index("inference_synthesis")
+
+
+def test_host_contract_discloses_cooperative_timeout_and_legacy_limit():
+    budget = SynthesisBudget.from_remaining(90)
+    contract = budget.to_dict()["host_contract"]
+    assert contract["protocol"] == "sourceglint-host/v2"
+    assert "request_id" in contract["correlation"]
+    assert contract["timeout_enforcement"].startswith("cooperative")
+    # A host that cannot correlate must fail closed rather than reuse the stream.
+    assert "fail closed" in contract["recovery"]
+
+
 # ---------------------------------------------------------------------------
 # Metered model
 # ---------------------------------------------------------------------------

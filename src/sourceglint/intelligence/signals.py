@@ -122,7 +122,9 @@ def build_signal(
 ) -> tuple[dict, SignalDiagnostics]:
     """Build one frozen-schema signal dict + its full diagnostics trail."""
     signal_type = classify_signal_type(features, assessment)
-    breakdown = scoring.compute_score(factor_set.factors, cfg=cfg)
+    breakdown = scoring.compute_score(
+        factor_set.factors, cfg=cfg, unassessed=factor_set.unassessed,
+    )
 
     raw_factors = dict(factor_set.factors)
     effective = {
@@ -139,6 +141,7 @@ def build_signal(
         decision_relevance=factor_set.decision_relevance,
         semantic_novelty=factor_set.semantic_flags.get("semantic_novelty"),
         code_novelty=factor_set.novelty,
+        relevance_assessed="decision_relevance" not in factor_set.unassessed,
     )
 
     signal_id = derive_signal_id(cluster.cluster_id)
@@ -153,6 +156,10 @@ def build_signal(
         warnings=factor_set.warnings,
         weak_signal=weak,
         semantic_flags=dict(factor_set.semantic_flags),
+        score_completeness=breakdown.completeness,
+        unassessed_factors=tuple(sorted(factor_set.unassessed)),
+        score_coverage=float(breakdown.coverage),
+        missing_reasons=dict(factor_set.missing_reasons),
     )
 
     signal: dict[str, Any] = {

@@ -84,6 +84,8 @@ class FactorSet:
     warnings: tuple[str, ...] = ()
     degraded: bool = False
     model_status: str = ModelStatus.SUCCESS.value
+    unassessed: frozenset[str] = frozenset()
+    missing_reasons: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def factors(self) -> dict[str, float]:
@@ -96,6 +98,14 @@ class FactorSet:
             "novelty": self.novelty,
         }
 
+    @property
+    def assessed_factors(self) -> dict[str, float]:
+        """Only the factors that were actually measured."""
+        return {
+            name: value for name, value in self.factors.items()
+            if name not in self.unassessed
+        }
+
     def to_dict(self) -> dict:
         return {
             "cluster_id": self.cluster_id,
@@ -104,6 +114,8 @@ class FactorSet:
             "warnings": list(self.warnings),
             "degraded": self.degraded,
             "model_status": self.model_status,
+            "unassessed": sorted(self.unassessed),
+            "missing_reasons": dict(self.missing_reasons),
         }
 
 
@@ -293,16 +305,23 @@ def derive_factors(
         evidence_by_id[eid] for eid in cluster.evidence_ids if eid in evidence_by_id
     ]
     warnings: list[str] = []
+    missing_reasons: dict[str, str] = {}
     degraded = False
 
     quality, quality_warnings = _member_quality(members)
     warnings.extend(quality_warnings)
+    if quality_warnings:
+        missing_reasons["evidence_quality"] = quality_warnings[0]
 
     recency, recency_warnings = _member_recency(members, as_of)
     warnings.extend(recency_warnings)
+    if recency_warnings:
+        missing_reasons["recency"] = recency_warnings[0]
 
     novelty, novelty_warnings = code_novelty(features)
     warnings.extend(novelty_warnings)
+    if novelty_warnings:
+        missing_reasons["novelty"] = novelty_warnings[0]
 
     ms = market_signal_factor(features)
 
@@ -318,10 +337,17 @@ def derive_factors(
             [reason],
             True,
         )
+        missing_reasons["decision_relevance"] = reason
     else:
         dr, flags, model_status, sem_warnings, sem_degraded = _semantic_assessment(
             cluster, members, model=model, research_context=ctx, cache=cache
         )
+        if model_status != ModelStatus.SUCCESS.value or any(
+            "decision_relevance missing" in warning for warning in sem_warnings
+        ):
+            missing_reasons["decision_relevance"] = (
+                sem_warnings[0] if sem_warnings else "decision relevance not assessed"
+            )
     warnings.extend(sem_warnings)
     degraded = degraded or sem_degraded
 
@@ -336,4 +362,6 @@ def derive_factors(
         warnings=tuple(warnings),
         degraded=degraded,
         model_status=model_status,
+        unassessed=frozenset(missing_reasons),
+        missing_reasons=missing_reasons,
     )

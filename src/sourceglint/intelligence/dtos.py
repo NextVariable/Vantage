@@ -315,6 +315,10 @@ class SignalDiagnostics:
     warnings: tuple[str, ...] = ()
     weak_signal: WeakSignalAssessment | None = None
     semantic_flags: Mapping[str, Any] = field(default_factory=dict)
+    score_completeness: str = "complete"
+    unassessed_factors: tuple[str, ...] = ()
+    score_coverage: float = 1.0
+    missing_reasons: Mapping[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -330,6 +334,10 @@ class SignalDiagnostics:
                 self.weak_signal.to_dict() if self.weak_signal else None
             ),
             "semantic_flags": dict(self.semantic_flags),
+            "score_completeness": self.score_completeness,
+            "unassessed_factors": list(self.unassessed_factors),
+            "score_coverage": self.score_coverage,
+            "missing_reasons": dict(self.missing_reasons),
         }
 
 

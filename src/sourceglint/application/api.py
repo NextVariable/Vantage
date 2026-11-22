@@ -256,6 +256,20 @@ def run_sourceglint(
         diagnostics["delivery_level"] = outcome.delivery_level
     if outcome.synthesis:
         diagnostics["synthesis"] = dict(outcome.synthesis)
+    fact_support = [
+        {
+            "insight_id": row.get("insight_id"),
+            "status": row.get("support_status"),
+            "semantic": row.get("semantic_verification"),
+            "origins": row.get("independent_origins"),
+            "claims": row.get("support_claims") or [],
+            "reasons": row.get("support_reasons") or [],
+        }
+        for row in (outcome.insight_diagnostics or {}).values()
+        if isinstance(row, Mapping) and str(row.get("type")) == "FACT"
+    ]
+    if fact_support:
+        diagnostics["fact_support"] = fact_support
     if getattr(ctx.ledger, "path", None) is not None:
         diagnostics["evidence_ledger"] = str(ctx.ledger.path)
     if raw_output:

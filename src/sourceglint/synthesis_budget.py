@@ -27,6 +27,7 @@ STAGE_ORDER = (
     "contradiction",
     "semantic_factors",
     "fact_synthesis",
+    "claim_verification",
     "inference_synthesis",
     "gtm_implications",
     "recommendations",
@@ -38,11 +39,12 @@ STAGE_PRIORITY = {
     "clustering": 1,
     "contradiction": 2,
     "fact_synthesis": 3,
-    "brief": 4,
-    "inference_synthesis": 5,
-    "semantic_factors": 6,
-    "gtm_implications": 7,
-    "recommendations": 8,
+    "claim_verification": 4,
+    "brief": 5,
+    "inference_synthesis": 6,
+    "semantic_factors": 7,
+    "gtm_implications": 8,
+    "recommendations": 9,
 }
 
 TASK_TO_STAGE = {
@@ -50,6 +52,7 @@ TASK_TO_STAGE = {
     "contradiction": "contradiction",
     "semantic_factors": "semantic_factors",
     "fact_synthesis": "fact_synthesis",
+    "claim_support_verification": "claim_verification",
     "inference_synthesis": "inference_synthesis",
     "gtm_implications": "gtm_implications",
     "recommendations": "recommendations",
@@ -168,6 +171,12 @@ class SynthesisBudget:
                 - self.inference_reserve_seconds
                 - self.brief_floor_seconds
             )
+        if stage == "claim_verification":
+            return (
+                self.deadline
+                - self.inference_reserve_seconds
+                - self.brief_floor_seconds
+            )
         if stage in ("fact_synthesis", "inference_synthesis", "gtm_implications", "recommendations"):
             return self.deadline - self.brief_floor_seconds
         return self.deadline
@@ -191,6 +200,12 @@ class SynthesisBudget:
             )
         elif stage == "fact_synthesis":
             need = self.brief_floor_seconds
+        elif stage == "claim_verification":
+            need = (
+                self.inference_reserve_seconds
+                + self.brief_floor_seconds
+                + min(self.observed_call_seconds(), 10.0)
+            )
         elif stage == "inference_synthesis":
             need = self.brief_floor_seconds + 1.0
         elif stage in ("gtm_implications", "recommendations"):
@@ -258,6 +273,15 @@ class SynthesisBudget:
                 "host_usage": dict(self.host_usage) if self.host_usage else None,
             },
             "refusals": list(self.refusals[-25:]),
+            "host_contract": {
+                "protocol": "sourceglint-host/v2",
+                "correlation": "host echoes request_id; legacy sequential hosts stay supported",
+                "timeout_enforcement": "cooperative — engine admission gates plus the host per-call timeout",
+                "recovery": (
+                    "correlated hosts may continue after a timeout; "
+                    "legacy hosts close the stream and later calls fail closed"
+                ),
+            },
         }
 
 

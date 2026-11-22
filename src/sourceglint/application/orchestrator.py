@@ -106,6 +106,7 @@ class ApplicationResult:
     recommendations: tuple[dict, ...] = ()
     delivery_level: str = ""
     synthesis: Mapping[str, Any] | None = None
+    insight_diagnostics: Mapping[str, dict] = field(default_factory=dict)
 
     @property
     def markdown(self) -> str:
@@ -468,6 +469,7 @@ def orchestrate(
             stage_statuses=stage,
             signals=tuple(signals),
             insights=tuple(insights),
+            insight_diagnostics=insight_diags,
         )
 
     rec_result, rec_warnings = _run_recommendations(
@@ -531,10 +533,38 @@ def orchestrate(
         signals=tuple(signals),
         insights=tuple(insights),
         recommendations=tuple(recommendations),
+        insight_diagnostics=diag_by_id,
     )
 
 
 # ------------------------------------------------------------- brief helpers
+
+def _support_note(insight_diagnostics: Mapping[str, Any] | None) -> str:
+    """One sentence describing fact-level citation support (never a verdict)."""
+    rows = [
+        row for row in (insight_diagnostics or {}).values()
+        if isinstance(row, Mapping) and str(row.get("type")) == "FACT"
+    ]
+    if not rows:
+        return ""
+    total = len(rows)
+    verified = sum(1 for row in rows if row.get("support_status") == "verified")
+    supported = sum(
+        1 for row in rows if row.get("support_status") in {"verified", "supported"}
+    )
+    vendor = sum(1 for row in rows if row.get("support_status") == "vendor_only")
+    unverified = total - supported - vendor
+    parts = [f"{supported} of {total} facts quote a located supporting excerpt"]
+    if verified:
+        parts.append(f"{verified} passed the semantic check")
+    else:
+        parts.append("none has been promoted to verified")
+    if vendor:
+        parts.append(f"{vendor} rest on vendor material only")
+    if unverified:
+        parts.append(f"{unverified} remain unverified")
+    return "; ".join(parts) + "."
+
 
 def _brief_input(
     parsed: Any,
@@ -565,6 +595,7 @@ def _brief_input(
             decision_context=parsed.decision_context,
             discovery_only=discovery_only,
             delivery_level=delivery_level,
+            support_note=_support_note(insight_diagnostics),
         ),
         ledger=ledger,
         signals=tuple(signals),
