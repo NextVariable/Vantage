@@ -447,13 +447,25 @@ def _optional_float(name: str) -> float | None:
     return float(raw) if raw else None
 
 
+def _split_command(raw: str, *, windows: bool | None = None) -> list[str]:
+    """Split a configured command without mangling Windows path separators.
+
+    ``shlex.split`` in POSIX mode treats backslashes as escapes, which turns
+    ``C:\\Python\\python.exe`` into ``C:Pythonpython.exe`` on Windows.
+    """
+    if windows is None:
+        windows = os.name == "nt"
+    parts = shlex.split(raw, posix=not windows)
+    return [part.strip('"') for part in parts] if windows else parts
+
+
 def build_model() -> CommandHostModel:
     """Factory for ``--model sourceglint.host_command:build_model``."""
     raw = os.environ.get("SOURCEGLINT_HOST_CMD", "").strip()
     if not raw:
         raise ValueError("SOURCEGLINT_HOST_CMD is required (a local command that answers one prompt)")
     try:
-        command = shlex.split(raw)
+        command = _split_command(raw)
     except ValueError as exc:
         # Never echo the raw command: it may carry a token in its arguments.
         raise ValueError(f"SOURCEGLINT_HOST_CMD is not parseable: {_sanitize(str(exc))}") from None

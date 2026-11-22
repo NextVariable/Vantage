@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from sourceglint.cost_ledger import CostLedger
-from sourceglint.host_command import CommandHostModel, _extract_json, build_model
+from sourceglint.host_command import CommandHostModel, _extract_json, _split_command, build_model
 from sourceglint.intelligence.model import ModelStatus
 
 SCHEMA = {
@@ -110,6 +110,11 @@ def test_malformed_command_config_never_echoes_its_raw_value(monkeypatch):
     with pytest.raises(ValueError) as error:
         build_model()
     assert "sk-SECRET123456" not in str(error.value)
+
+
+def test_windows_command_split_preserves_backslashes():
+    parts = _split_command(r'"C:\Program Files\Python\python.exe" -c pass', windows=True)
+    assert parts == [r"C:\Program Files\Python\python.exe", "-c", "pass"]
 
 
 def test_argv_prompt_mode_passes_the_prompt_without_a_shell():
