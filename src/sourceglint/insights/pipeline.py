@@ -21,13 +21,15 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
 
+from ..deadline import deadline_scope
 from ..intelligence.cache import SemanticCache
 from ..intelligence.dtos import ResearchContext
+from ..synthesis_budget import SynthesisBudget
 from .dedup import deduplicate_insights
 from .dtos import FACT, INFERENCE, InsightDiagnostics, InsightPipelineResult
 from .facts import synthesize_facts
-from .gtm_implications import derive_gtm_implications
-from .inferences import synthesize_inferences
+from .gtm_implications import GTMImplicationResult, derive_gtm_implications
+from .inferences import InferenceSynthesisResult, synthesize_inferences
 from .preparation import prepare_signals
 from .support import compute_support_strength, distinct_source_count
 from .validation import validate_insight_schema
@@ -46,6 +48,7 @@ def run_insight_pipeline(
     cache: SemanticCache | None = None,
     weak_signal_ids: set[str] | None = None,
     include_gtm_implications: bool = True,
+    budget: SynthesisBudget | None = None,
 ) -> InsightPipelineResult:
     """Run the full Signal → FACT → INFERENCE → Insight pipeline (Phase 6A).
 
@@ -66,26 +69,64 @@ def run_insight_pipeline(
     ctx = research_context or ResearchContext()
 
     # 2. Synthesize facts
-    fact_result = synthesize_facts(
-        prepared, model, evidence_by_id,
-        research_context=ctx, cache=cache,
-    )
+    if budget is not None:
+        with deadline_scope(budget.stage_deadline(_FACT_STAGE)):
+            fact_result = synthesize_facts(
+                prepared, model, evidence_by_id,
+                research_context=ctx, cache=cache,
+            )
+    else:
+        fact_result = synthesize_facts(
+            prepared, model, evidence_by_id,
+            research_context=ctx, cache=cache,
+        )
     warnings.extend(fact_result.warnings)
     if not fact_result.validated:
+        if budget is not None:
+            budget.mark_stage(
+                _FACT_STAGE, "failed", "no valid facts produced"
+            )
         warnings.append("fact_synthesis: no valid facts produced")
         # Facts are required for inferences; but we still return empty
         return InsightPipelineResult(
             warnings=tuple(warnings),
             model_status={_FACT_STAGE: fact_result.model_status},
         )
+    if budget is not None:
+        budget.mark_stage(
+            _FACT_STAGE,
+            "ok" if fact_result.model_status == "success" else "degraded",
+        )
 
     # 3. Synthesize inferences
-    inference_result = synthesize_inferences(
-        list(fact_result.validated), list(fact_result.insight_ids),
-        prepared, model, evidence_by_id,
-        research_context=ctx, cache=cache,
-    )
+    inference_skip = ""
+    if budget is not None:
+        allowed, reason = budget.allow(_INFERENCE_STAGE)
+        if allowed:
+            with deadline_scope(budget.stage_deadline(_INFERENCE_STAGE)):
+                inference_result = synthesize_inferences(
+                    list(fact_result.validated), list(fact_result.insight_ids),
+                    prepared, model, evidence_by_id,
+                    research_context=ctx, cache=cache,
+                )
+        else:
+            inference_skip = reason
+            inference_result = InferenceSynthesisResult(
+                warnings=(reason,), model_status="unavailable"
+            )
+            budget.mark_stage(_INFERENCE_STAGE, "skipped", reason)
+    else:
+        inference_result = synthesize_inferences(
+            list(fact_result.validated), list(fact_result.insight_ids),
+            prepared, model, evidence_by_id,
+            research_context=ctx, cache=cache,
+        )
     warnings.extend(inference_result.warnings)
+    if budget is not None and not inference_skip:
+        budget.mark_stage(
+            _INFERENCE_STAGE,
+            "ok" if inference_result.model_status == "success" else "degraded",
+        )
 
     # 4. Derive GTM implications (for each validated fact + inference)
     fact_insights = [
@@ -99,14 +140,36 @@ def run_insight_pipeline(
     all_insights = fact_insights + inference_insights
 
     if include_gtm_implications:
-        gtm_result = derive_gtm_implications(
-            all_insights, model, research_context=ctx, cache=cache,
-        )
+        gtm_skip = ""
+        if budget is not None and all_insights:
+            allowed, reason = budget.allow(_GTM_STAGE)
+            if allowed:
+                with deadline_scope(budget.stage_deadline(_GTM_STAGE)):
+                    gtm_result = derive_gtm_implications(
+                        all_insights, model, research_context=ctx, cache=cache,
+                    )
+            else:
+                gtm_skip = reason
+                gtm_result = GTMImplicationResult(
+                    warnings=(reason,), model_status="unavailable"
+                )
+                budget.mark_stage(_GTM_STAGE, "skipped", reason)
+        else:
+            gtm_result = derive_gtm_implications(
+                all_insights, model, research_context=ctx, cache=cache,
+            )
         warnings.extend(gtm_result.warnings)
         gtm_map = {gi.insight_id: gi.implications for gi in gtm_result.implications}
+        if budget is not None and not gtm_skip and all_insights:
+            budget.mark_stage(
+                _GTM_STAGE,
+                "ok" if gtm_result.model_status == "success" else "degraded",
+            )
     else:
         gtm_result = None
         gtm_map = {}
+        if budget is not None:
+            budget.mark_stage(_GTM_STAGE, "skipped", "not requested")
 
     # 5. Build insight dicts (conforming to insight.schema.json)
     insight_dicts: list[dict] = []

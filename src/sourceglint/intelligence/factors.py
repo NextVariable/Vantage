@@ -188,6 +188,7 @@ def _semantic_assessment(
     model: IntelligenceModel,
     research_context: ResearchContext,
     cache: SemanticCache | None = None,
+    content_budget: int = 20_000,
 ) -> tuple[float, dict[str, Any], str, list[str], bool]:
     """One semantic_factors call (cache-aware). Returns
     (decision_relevance, flags, model_status, warnings, degraded)."""
@@ -196,7 +197,11 @@ def _semantic_assessment(
         "label": cluster.label,
         "claim": cluster.claim,
         "evidence_ids": list(cluster.evidence_ids),
-        "evidence_items": model_payloads(members, topic=research_context.topic + " " + cluster.claim),
+        "evidence_items": model_payloads(
+            members,
+            topic=research_context.topic + " " + cluster.claim,
+            content_budget=content_budget,
+        ),
         "research_context": research_context.to_dict(),
     }
     cache_key: str | None = None
@@ -275,12 +280,14 @@ def derive_factors(
     model: IntelligenceModel | None = None,
     research_context: ResearchContext | None = None,
     cache: SemanticCache | None = None,
+    semantic_reason: str = "",
 ) -> FactorSet:
     """Assemble the five-factor payload for `scoring.compute_score`.
 
     `model=None` is allowed for deterministic-only tests / partial runs:
     decision relevance is then NOT assessed (0.0 + degraded) rather than
-    invented. `cache` skips repeated semantic calls.
+    invented. `cache` skips repeated semantic calls. `semantic_reason`, when
+    set, skips the model call under budget pressure and records the reason.
     """
     members = [
         evidence_by_id[eid] for eid in cluster.evidence_ids if eid in evidence_by_id
@@ -300,12 +307,15 @@ def derive_factors(
     ms = market_signal_factor(features)
 
     ctx = research_context or ResearchContext()
-    if model is None:
+    if model is None or semantic_reason:
+        reason = semantic_reason or (
+            f"no model supplied; decision relevance not assessed for {cluster.cluster_id}"
+        )
         dr, flags, model_status, sem_warnings, sem_degraded = (
             0.0,
-            {},
+            {"semantic_skipped": reason},
             ModelStatus.UNAVAILABLE.value,
-            [f"no model supplied; decision relevance not assessed for {cluster.cluster_id}"],
+            [reason],
             True,
         )
     else:

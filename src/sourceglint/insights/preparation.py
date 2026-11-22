@@ -14,6 +14,10 @@ from .dtos import PreparedSignal
 WINDOW_CURRENT = "current"
 WINDOW_BASELINE = "baseline"
 
+#: Per-evidence summary cap for the fact payload. The ledger keeps the full
+#: text; this only bounds what one model call receives.
+MAX_FACT_SUMMARY_CHARS = 3000
+
 
 def _extract_summary(ev: Mapping[str, Any] | None) -> str:
     """Extract the best available text summary from an evidence item."""
@@ -22,7 +26,11 @@ def _extract_summary(ev: Mapping[str, Any] | None) -> str:
     content = str(ev.get("content") or "")
     if content:
         from ..excerpts import select_excerpt
-        return select_excerpt(content, str(ev.get("query") or ev.get("title") or ""), 6000)
+        return select_excerpt(
+            content,
+            str(ev.get("query") or ev.get("title") or ""),
+            MAX_FACT_SUMMARY_CHARS,
+        )
     snippet = str(ev.get("snippet") or "")
     if snippet:
         return snippet

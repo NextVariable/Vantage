@@ -17,6 +17,7 @@ rate_limited, timeout → timeout, malformed JSON → invalid_response.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Sequence
@@ -36,6 +37,7 @@ TAGS_URL = "https://api.github.com/repos/{full_name}/tags"
 DEFAULT_PER_REPO = 10
 DEFAULT_MAX_REPOS = 5
 DEFAULT_MAX_TAG_REPOS = 3
+MAX_RELEASE_PAGES = 3
 
 _RELEASE_INTENT = (
     "release", "released", "releases", "version", "versions", "changelog",
@@ -146,6 +148,40 @@ def _get_json(
         return response.json()
     except Exception as exc:  # noqa: BLE001 - classified below
         raise _InvalidBody(f"body not JSON: {exc}") from exc
+
+
+def _get_json_page(
+    http_client: HttpClient,
+    url: str,
+    headers: Mapping[str, str],
+) -> tuple[Any, Mapping[str, str]]:
+    """Like `_get_json`, but keep response headers for Link pagination."""
+    response = http_client.request(url, headers=dict(headers))
+    if response.status != 200:
+        if response.status in (401, 403, 404, 429) or response.status >= 500:
+            raise HttpPermanentError(status=response.status, url=url)
+        raise _InvalidBody(f"unexpected status {response.status}")
+    try:
+        payload = response.json()
+    except Exception as exc:  # noqa: BLE001 - classified by caller
+        raise _InvalidBody(f"body not JSON: {exc}") from exc
+    return payload, dict(getattr(response, "headers", {}) or {})
+
+
+def _next_link(headers: Mapping[str, str]) -> str:
+    """Return the rel="next" URL from a GitHub Link header, if present."""
+    value = ""
+    for key, header_value in headers.items():
+        if str(key).lower() == "link":
+            value = str(header_value)
+            break
+    for part in value.split(","):
+        if 'rel="next"' not in part.replace(" ", ""):
+            continue
+        match = re.search(r"<([^>]+)>", part)
+        if match:
+            return match.group(1)
+    return ""
 
 
 def _observation(
@@ -269,18 +305,35 @@ def fetch_releases(
         full_name = str(repo.get("full_name") or "").strip()
         if not full_name:
             continue
-        url = f"{RELEASES_URL.format(full_name=full_name)}?per_page={max(1, per_repo)}"
+        page_url = f"{RELEASES_URL.format(full_name=full_name)}?per_page={max(1, per_repo)}"
+        repo_results: list[RawSourceResult] = []
+        public_count = 0
+        in_window = 0
+        pages_fetched = 0
+        pagination_complete = True
         try:
-            payload = _get_json(http_client, url, headers)
-            repo_results, public_count, in_window = _release_results(
-                full_name, repo, payload,
-                window=window,
-                checked_at=checked_at,
-                query=query,
-                language=language,
-                market=market,
-                limitations=limitations,
-            )
+            while True:
+                payload, page_headers = _get_json_page(http_client, page_url, headers)
+                pages_fetched += 1
+                page_results, page_public, page_in_window = _release_results(
+                    full_name, repo, payload,
+                    window=window,
+                    checked_at=checked_at,
+                    query=query,
+                    language=language,
+                    market=market,
+                    limitations=limitations,
+                )
+                repo_results.extend(page_results)
+                public_count += page_public
+                in_window += page_in_window
+                next_url = _next_link(page_headers)
+                # Releases are newest-first; stop as soon as the window is
+                # covered, or when the page cap is reached.
+                if in_window > 0 or not next_url or pages_fetched >= MAX_RELEASE_PAGES:
+                    pagination_complete = not next_url
+                    break
+                page_url = next_url
         except Exception as exc:  # classified, never raised to caller
             status, detail = _classify_failure(exc)
             observations.append(
@@ -299,8 +352,10 @@ def fetch_releases(
         results.extend(repo_results)
         if public_count == 0:
             status = "verified_absent"
-        elif in_window == 0:
+        elif in_window == 0 and pagination_complete:
             status = "only_outside_window"
+        elif in_window == 0:
+            status = "pagination_incomplete"
         else:
             status = "present"
         observations.append(
@@ -312,13 +367,15 @@ def fetch_releases(
                 in_window_count=in_window,
                 checked_at=checked_at,
                 detail=(
-                    f"{full_name}: Releases API returned {public_count} release(s), "
-                    f"{in_window} inside the research window"
+                    f"{full_name}: Releases API returned {public_count} release(s) "
+                    f"across {pages_fetched} page(s), {in_window} inside the research "
+                    f"window"
+                    + ("" if pagination_complete else "; pagination incomplete")
                 ),
             )
         )
 
-        if public_count == 0 and tag_budget > 0:
+        if public_count == 0 and pagination_complete and tag_budget > 0:
             tag_budget -= 1
             observations.append(
                 _tag_observation(

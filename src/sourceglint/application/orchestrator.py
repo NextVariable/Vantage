@@ -21,6 +21,7 @@ from typing import Any, Mapping, Sequence
 
 from ..brief.dtos import BriefContext, BriefInput
 from ..brief.pipeline import run_brief_pipeline
+from ..deadline import remaining_time
 from ..insights.pipeline import run_insight_pipeline
 from ..intelligence.dtos import ResearchContext
 from ..intelligence.model import IntelligencePipelineError
@@ -30,6 +31,7 @@ from ..pipeline.adaptive import AdaptiveResearch
 from ..pipeline.degradation import AllSourcesFailedError
 from ..pipeline.orchestrator import ResearchPipeline, ResearchPipelineResult
 from ..recommendations.pipeline import run_recommendation_pipeline
+from ..synthesis_budget import MeteredModel, SynthesisBudget
 
 STAGE_OK = "ok"
 STAGE_NONE = "none"
@@ -40,6 +42,49 @@ STAGE_SKIPPED = "skipped"
 
 def _stage(value: str) -> str:
     return value
+
+
+def _delivery_level(
+    insights: Sequence[Mapping[str, Any]],
+    budget: SynthesisBudget | None,
+    *,
+    include_gtm: bool,
+) -> str:
+    """Delivery layer — never changes Status, never promotes unverified facts."""
+    facts = sum(1 for row in insights if str(row.get("type")) == "FACT")
+    if not facts:
+        return "evidence_only_report"
+    if budget is None:
+        return "full_brief"
+    stages = budget.to_dict()["stages"]
+    required = [
+        "clustering",
+        "contradiction",
+        "fact_synthesis",
+        "inference_synthesis",
+        "semantic_factors",
+    ]
+    if include_gtm:
+        required.append("gtm_implications")
+    if any(stages.get(name, {}).get("status") != "ok" for name in required):
+        return "evidence_backed_brief"
+    return "full_brief"
+
+
+def _mark_brief(budget: SynthesisBudget | None) -> None:
+    if budget is not None:
+        budget.mark_stage("brief", "ok")
+
+
+def _synthesis_payload(
+    budget: SynthesisBudget | None,
+    metered: MeteredModel | None,
+) -> dict[str, Any] | None:
+    if budget is None:
+        return None
+    if metered is not None:
+        metered.finalize()
+    return budget.to_dict()
 
 
 @dataclass(frozen=True)
@@ -58,6 +103,8 @@ class ApplicationResult:
     signals: tuple[dict, ...] = ()
     insights: tuple[dict, ...] = ()
     recommendations: tuple[dict, ...] = ()
+    delivery_level: str = ""
+    synthesis: Mapping[str, Any] | None = None
 
     @property
     def markdown(self) -> str:
@@ -105,6 +152,7 @@ def _run_insights(
     cache: Any,
     weak_signal_ids: set[str],
     include_gtm_implications: bool = True,
+    budget: SynthesisBudget | None = None,
 ) -> tuple[Any, list[str]]:
     """Phase 6A. Raises nothing for ordinary emptiness (pipeline returns
     an empty result with warnings)."""
@@ -117,6 +165,7 @@ def _run_insights(
         cache=cache,
         weak_signal_ids=weak_signal_ids,
         include_gtm_implications=include_gtm_implications,
+        budget=budget,
     )
     warnings.extend(f"insights: {w}" for w in result.warnings)
     return result, warnings
@@ -251,6 +300,7 @@ def orchestrate(
             evidence_count=0,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
+            delivery_level="no_evidence",
             stage_statuses={
                 "research": STAGE_FAILED if all_failed else stage["research"],
                 "signals": STAGE_SKIPPED,
@@ -261,6 +311,13 @@ def orchestrate(
         )
 
     # ---- Phase 5: signals -------------------------------------------------
+    synthesis_budget: SynthesisBudget | None = None
+    metered: MeteredModel | None = None
+    remaining = remaining_time()
+    if remaining is not None and remaining > 0:
+        synthesis_budget = SynthesisBudget.from_remaining(remaining)
+        metered = MeteredModel(ctx.model, synthesis_budget)
+        ctx = replace(ctx, model=metered)
     try:
         signal_result = run_intelligence_pipeline(
             [rec.to_payload() for rec in ctx.ledger] if adaptive else ctx.ledger,
@@ -269,19 +326,24 @@ def orchestrate(
             research_context=research_ctx,
             cache=ctx.semantic_cache,
             drop_baseline_only=ctx.drop_baseline_only,
+            budget=synthesis_budget,
         )
     except IntelligencePipelineError as exc:
         warnings.append(f"signals: {exc}")
         brief = _render_without_signals(
             parsed, research_result, ctx.ledger, ctx.as_of,
             discovery_only=not include_recommendations,
+            delivery_level="evidence_only_report",
         )
+        _mark_brief(synthesis_budget)
         return ApplicationResult(
             status="PARTIAL",
             brief=brief,
             evidence_count=evidence_count,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
+            delivery_level="evidence_only_report",
+            synthesis=_synthesis_payload(synthesis_budget, metered),
             stage_statuses={
                 **stage,
                 "signals": STAGE_FAILED,
@@ -298,7 +360,9 @@ def orchestrate(
         brief = _render_without_signals(
             parsed, research_result, ctx.ledger, ctx.as_of,
             discovery_only=not include_recommendations,
+            delivery_level="evidence_only_report",
         )
+        _mark_brief(synthesis_budget)
         return ApplicationResult(
             status="PARTIAL",
             brief=brief,
@@ -306,6 +370,8 @@ def orchestrate(
             signal_count=0,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
+            delivery_level="evidence_only_report",
+            synthesis=_synthesis_payload(synthesis_budget, metered),
             stage_statuses={
                 **stage,
                 "insights": STAGE_SKIPPED,
@@ -325,17 +391,23 @@ def orchestrate(
         cache=ctx.semantic_cache,
         weak_signal_ids=weak_ids,
         include_gtm_implications=include_recommendations,
+        budget=synthesis_budget,
     )
     warnings.extend(ins_warnings)
     insights = insight_result.insights
     stage["insights"] = STAGE_DEGRADED if not insights else STAGE_OK
+    delivery = _delivery_level(
+        insights, synthesis_budget, include_gtm=include_recommendations
+    )
 
     # ---- Phase 6B: recommendations ----------------------------------------
     if not insights:
         brief = _render_insights_only(
             parsed, research_result, ctx.ledger, ctx.as_of, signals, (),
             discovery_only=not include_recommendations,
+            delivery_level="evidence_only_report",
         )
+        _mark_brief(synthesis_budget)
         return ApplicationResult(
             status="PARTIAL",
             brief=brief,
@@ -344,6 +416,8 @@ def orchestrate(
             insight_count=0,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
+            delivery_level="evidence_only_report",
+            synthesis=_synthesis_payload(synthesis_budget, metered),
             stage_statuses={
                 **stage,
                 "recommendations": STAGE_SKIPPED,
@@ -361,9 +435,15 @@ def orchestrate(
             parsed, research_result, ctx.ledger, ctx.as_of,
             signals, insights, (), insight_diags, {}, (),
             discovery_only=True,
+            delivery_level=delivery,
         )
         stage["recommendations"] = STAGE_SKIPPED
         stage["brief"] = STAGE_OK
+        if synthesis_budget is not None:
+            synthesis_budget.mark_stage(
+                "recommendations", "skipped", "not requested"
+            )
+        _mark_brief(synthesis_budget)
         return ApplicationResult(
             status="PARTIAL" if research_result.coverage.failed_sources else "SUCCESS",
             brief=brief,
@@ -373,6 +453,8 @@ def orchestrate(
             recommendation_count=0,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
+            delivery_level=delivery,
+            synthesis=_synthesis_payload(synthesis_budget, metered),
             stage_statuses=stage,
             signals=tuple(signals),
             insights=tuple(insights),
@@ -413,10 +495,12 @@ def orchestrate(
         diag_by_id,
         rec_diag_by_id,
         rec_result.conflicts,
+        delivery_level=delivery,
     )
 
     status = "PARTIAL" if research_result.coverage.failed_sources else "SUCCESS"
     stage["brief"] = STAGE_OK
+    _mark_brief(synthesis_budget)
     return ApplicationResult(
         status=status,
         brief=brief,
@@ -426,6 +510,8 @@ def orchestrate(
         recommendation_count=len(recommendations),
         coverage=research_result.coverage,
         warnings=tuple(warnings),
+        delivery_level=delivery,
+        synthesis=_synthesis_payload(synthesis_budget, metered),
         stage_statuses=stage,
         signals=tuple(signals),
         insights=tuple(insights),
@@ -448,6 +534,7 @@ def _brief_input(
     recommendation_diagnostics: Mapping[str, Any] | None = None,
     conflicts: Sequence[Any] = (),
     discovery_only: bool = False,
+    delivery_level: str = "",
 ) -> BriefInput:
     return BriefInput(
         context=BriefContext(
@@ -462,6 +549,7 @@ def _brief_input(
             entities=tuple(parsed.entities),
             decision_context=parsed.decision_context,
             discovery_only=discovery_only,
+            delivery_level=delivery_level,
         ),
         ledger=ledger,
         signals=tuple(signals),
@@ -486,6 +574,7 @@ def _compose_brief(
     recommendation_diagnostics: Mapping[str, Any],
     conflicts: Sequence[Any],
     discovery_only: bool = False,
+    delivery_level: str = "",
 ) -> Any:
     brief_input = _brief_input(
         parsed,
@@ -499,6 +588,7 @@ def _compose_brief(
         recommendation_diagnostics=recommendation_diagnostics,
         conflicts=conflicts,
         discovery_only=discovery_only,
+        delivery_level=delivery_level,
     )
     return run_brief_pipeline(brief_input)
 
@@ -517,12 +607,12 @@ def _render_empty_brief(
 
 def _render_without_signals(
     parsed: Any, research_result: ResearchPipelineResult, ledger: Any, as_of: datetime,
-    *, discovery_only: bool = False,
+    *, discovery_only: bool = False, delivery_level: str = "",
 ) -> Any:
     return run_brief_pipeline(
         _brief_input(
             parsed, coverage=research_result.coverage, ledger=ledger, as_of=as_of,
-            discovery_only=discovery_only,
+            discovery_only=discovery_only, delivery_level=delivery_level,
         )
     )
 
@@ -534,7 +624,7 @@ def _render_insights_only(
     as_of: datetime,
     signals: Sequence[Mapping[str, Any]],
     insights: Sequence[Mapping[str, Any]],
-    *, discovery_only: bool = False,
+    *, discovery_only: bool = False, delivery_level: str = "",
 ) -> Any:
     return run_brief_pipeline(
         _brief_input(
@@ -545,5 +635,6 @@ def _render_insights_only(
             signals=signals,
             insights=insights,
             discovery_only=discovery_only,
+            delivery_level=delivery_level,
         )
     )

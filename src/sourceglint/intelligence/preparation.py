@@ -142,11 +142,16 @@ def model_payloads(
     max_title_chars: int = MAX_TITLE_CHARS,
     max_snippet_chars: int = MAX_SNIPPET_CHARS,
     topic: str = "",
+    content_budget: int = 48000,
 ) -> list[dict]:
-    """Convenience helper: the exact list handed to the semantic model."""
+    """Convenience helper: the exact list handed to the semantic model.
+
+    `content_budget` bounds total content characters across the payload. The
+    ledger keeps the full text; only the per-call excerpt is trimmed.
+    """
     items = list(prepared)
     bodies = sum(bool(item.content) for item in items)
-    content_cap = min(6000, 48000 // max(1, bodies))
+    content_cap = min(6000, max(500, content_budget) // max(1, bodies))
     from ..excerpts import select_excerpt
     out = []
     for item in items:

@@ -111,6 +111,22 @@ def execute(model, replies, *, sources=None, query="Recent AI products", **optio
     return result, result.diagnostics["coverage"]["adaptive_research"], calls, ledger
 
 
+def test_adaptive_run_records_synthesis_budget_and_delivery_level():
+    result, _, _, _ = execute(
+        ScriptedModel(),
+        lambda name, request: [observation(name)],
+        sources=[source("hacker_news")],
+        research_rounds=1,
+        research_timeout_seconds=60,
+    )
+    synthesis = result.diagnostics["synthesis"]
+    assert synthesis["budget_seconds"] > 0
+    assert synthesis["fact_reserve_seconds"] > 0
+    assert synthesis["model_io"]["total_calls"] >= 1
+    assert result.delivery_level in {"full_brief", "evidence_backed_brief"}
+    assert result.diagnostics["delivery_level"] == result.delivery_level
+
+
 def test_supported_subquestion_stops_after_first_round_and_keeps_feedback_separate():
     model = ScriptedModel(assess=lambda payload: {
         "feedback_ids": [payload["evidence"][0]["id"], "unknown-id"],

@@ -37,6 +37,7 @@ class SkillResult:
     warnings: tuple[str, ...] = ()
     stage_statuses: Mapping[str, str] = field(default_factory=dict)
     diagnostics: Mapping[str, Any] = field(default_factory=dict)  # debug only
+    delivery_level: str = ""  # full_brief | evidence_backed_brief | evidence_only_report | no_evidence
 
     @property
     def ok(self) -> bool:
@@ -49,6 +50,8 @@ class SkillResult:
             "warnings": list(self.warnings),
             "stage_statuses": dict(self.stage_statuses),
         }
+        if self.delivery_level:
+            out["delivery_level"] = self.delivery_level
         if self.request is not None:
             out["request"] = {
                 "query": self.request.query,

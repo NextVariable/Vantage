@@ -143,9 +143,20 @@ class TestContextFromObservations:
             ]
         )
         assert ctx.verified_objects == frozenset({"release"})
-        text, checks = qualify_text("No releases found.", context=ctx)
+        text, checks = qualify_text("a/b has no releases.", context=ctx)
         assert checks[0]["status"] == VERIFIED_ABSENT
         assert "Unverified" not in text
+
+    def test_unscoped_claim_is_not_verified_outside_checked_repositories(self):
+        ctx = AbsenceContext.from_observations(
+            [
+                {"kind": "releases", "status": "verified_absent", "repository": "a/b"},
+                {"kind": "releases", "status": "verified_absent", "repository": "c/d"},
+            ]
+        )
+        text, checks = qualify_text("No releases found.", context=ctx)
+        assert checks[0]["status"] == NOT_RETRIEVED
+        assert "Unverified absence" in text
 
     def test_single_repo_absence_is_not_market_wide(self):
         ctx = AbsenceContext.from_observations(

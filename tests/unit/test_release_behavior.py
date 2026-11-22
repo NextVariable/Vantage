@@ -53,7 +53,7 @@ def test_synthesis_reserve_scales_with_complexity_and_stays_bounded():
     low, low_complexity = _synthesis_reserve(345, entities=0, languages=1, mode="market")
     high, high_complexity = _synthesis_reserve(345, entities=4, languages=3, mode="competitor")
     assert low_complexity < high_complexity
-    assert 60 <= low < high <= 130
+    assert 60 <= low < high <= 140
     tiny, _ = _synthesis_reserve(60, entities=4, languages=3, mode="competitor")
     assert 0 < tiny <= 60 * 0.45
 

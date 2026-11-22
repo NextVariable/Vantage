@@ -37,25 +37,45 @@ __all__ = ["run_sourceglint"]
 # (entities, languages, mode) instead of assuming one fixed percentage fits
 # every run; it is still capped by a share of the total budget.
 _SYNTHESIS_RESERVE_MIN = 60.0
-_SYNTHESIS_RESERVE_MAX = 130.0
+_SYNTHESIS_RESERVE_MAX = 140.0
 _SYNTHESIS_RESERVE_SHARE_CAP = 0.45
 _RESEARCH_FLOOR_SECONDS = 30.0
+_DECISION_HEAVY_MODES = {"competitor", "opportunity", "market"}
+# The adaptive planner runs after the reserve is fixed. Typical plans contain
+# 2-4 subquestions; 3 is the observed median for industry/competitor requests.
+_DEFAULT_EXPECTED_SUBQUESTIONS = 3
 
 
-def _synthesis_reserve(total: float, *, entities: int, languages: int, mode: str) -> tuple[float, int]:
-    """Return (seconds, complexity score) reserved for synthesis.
+def _synthesis_reserve(
+    total: float,
+    *,
+    entities: int,
+    languages: int,
+    mode: str,
+    subquestions: int = 0,
+) -> tuple[float, int]:
+    """Return (seconds, complexity score, preferred target) for synthesis.
 
     The reserve is always non-negative and never exceeds the share cap, so a
     short budget cannot reserve more time than the run actually has. The
     preferred minimum shrinks with the budget instead of overriding it.
+
+    Synthesis cost scales with the number of evidence clusters and therefore
+    with the number of research subquestions; entities and languages add
+    clustering payload but at a smaller rate.
     """
-    complexity = 1 + min(4, max(0, entities)) + min(3, max(0, languages))
-    if mode in {"competitor", "opportunity"}:
-        complexity += 1
+    complexity = (
+        1
+        + min(4, max(0, entities))
+        + min(3, max(0, languages))
+        + min(6, max(0, subquestions))
+    )
     if total <= 0:
         return 0.0, complexity
     upper = min(_SYNTHESIS_RESERVE_MAX, total * _SYNTHESIS_RESERVE_SHARE_CAP)
-    target = 45.0 + 9.0 * complexity
+    target = 40.0 + 11.0 * complexity
+    if mode in _DECISION_HEAVY_MODES:
+        target += 8.0
     reserve = max(min(_SYNTHESIS_RESERVE_MIN, upper), min(upper, target))
     return max(0.0, min(upper, reserve)), complexity
 
@@ -183,6 +203,9 @@ def run_sourceglint(
     research_reserve = 0.0
     research_deadline = None
     reserve_complexity = 0
+    reserve_target = 0.0
+    reserve_subquestions = len(plan.get("subquestions") or ())
+    estimated_subquestions = reserve_subquestions or _DEFAULT_EXPECTED_SUBQUESTIONS
     short_budget = False
     if run_deadline is not None:
         total_seconds = run_deadline - started
@@ -191,7 +214,11 @@ def run_sourceglint(
             entities=len(parsed.entities),
             languages=len(parsed.languages),
             mode=parsed.mode,
+            subquestions=estimated_subquestions,
         )
+        reserve_target = 40.0 + 11.0 * reserve_complexity
+        if parsed.mode in _DECISION_HEAVY_MODES:
+            reserve_target += 8.0
         # Research gets exactly what synthesis does not reserve. The two phases
         # can never claim overlapping time, and the window is never negative.
         research_seconds = max(0.0, total_seconds - research_reserve)
@@ -224,6 +251,10 @@ def run_sourceglint(
         "insight_count": outcome.insight_count,
         "recommendation_count": outcome.recommendation_count,
     }
+    if outcome.delivery_level:
+        diagnostics["delivery_level"] = outcome.delivery_level
+    if outcome.synthesis:
+        diagnostics["synthesis"] = dict(outcome.synthesis)
     if getattr(ctx.ledger, "path", None) is not None:
         diagnostics["evidence_ledger"] = str(ctx.ledger.path)
     if raw_output:
@@ -247,6 +278,9 @@ def run_sourceglint(
             "synthesis_reserve_seconds": round(research_reserve, 1) if research_reserve else None,
             "synthesis_reserve_basis": {
                 "complexity": reserve_complexity,
+                "subquestions": reserve_subquestions,
+                "estimated_subquestions": estimated_subquestions,
+                "target_seconds": round(reserve_target, 1),
                 "min_seconds": _SYNTHESIS_RESERVE_MIN,
                 "max_seconds": _SYNTHESIS_RESERVE_MAX,
                 "share_cap": _SYNTHESIS_RESERVE_SHARE_CAP,
@@ -305,4 +339,5 @@ def run_sourceglint(
         warnings=outcome.warnings,
         stage_statuses=outcome.stage_statuses,
         diagnostics=diagnostics,
+        delivery_level=outcome.delivery_level,
     )

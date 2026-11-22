@@ -100,6 +100,9 @@ class AbsenceContext:
     window_checked: bool = False
     searched: bool = True
     basis: tuple[str, ...] = ()
+    coverage_incomplete: bool = False
+    verified_scopes: frozenset[str] = frozenset()
+    present_scopes: frozenset[str] = frozenset()
 
     @classmethod
     def from_observations(
@@ -119,6 +122,9 @@ class AbsenceContext:
         checked: dict[str, int] = {}
         unavailable = False
         window_checked = False
+        coverage_incomplete = False
+        verified_scopes: set[str] = set()
+        present_scopes: set[str] = set()
         basis: list[str] = []
         for obs in observations:
             kind = str(obs.get("kind") or "")
@@ -127,15 +133,25 @@ class AbsenceContext:
             if not obj:
                 continue
             checked[obj] = checked.get(obj, 0) + 1
+            repository = str(obs.get("repository") or "").strip().lower()
             if status == "present":
                 present.add(obj)
+                if repository:
+                    present_scopes.add(repository)
                 continue
             if status == VERIFIED_ABSENT:
                 verified.add(obj)
+                if repository:
+                    verified_scopes.add(repository)
                 basis.append(str(obs.get("detail") or f"{kind}: verified absent"))
             elif status == "only_outside_window":
                 window_checked = True
+                if repository:
+                    present_scopes.add(repository)
                 basis.append(str(obs.get("detail") or f"{kind}: only outside window"))
+            elif status == "pagination_incomplete":
+                coverage_incomplete = True
+                basis.append(str(obs.get("detail") or f"{kind}: pagination incomplete"))
             elif status in {
                 "rate_limited", "auth_missing", "timeout", "unavailable",
                 "invalid_response", "forbidden", "not_found",
@@ -155,6 +171,9 @@ class AbsenceContext:
             window_checked=window_checked,
             searched=searched,
             basis=tuple(basis),
+            coverage_incomplete=coverage_incomplete,
+            verified_scopes=frozenset(verified_scopes) if verified else frozenset(),
+            present_scopes=frozenset(present_scopes),
         )
 
     def for_object(self, obj: str) -> "AbsenceContext":
@@ -163,13 +182,31 @@ class AbsenceContext:
         A verified absence only applies to the object it covers. Failure
         and window flags stay global because they block every check.
         """
+        verified = obj in self.verified_objects
         return AbsenceContext(
-            verified_objects=frozenset({obj}) if obj in self.verified_objects else frozenset(),
+            verified_objects=frozenset({obj}) if verified else frozenset(),
             source_unavailable=self.source_unavailable,
             window_checked=self.window_checked,
             searched=self.searched,
             basis=self.basis,
+            coverage_incomplete=self.coverage_incomplete,
+            verified_scopes=self.verified_scopes if verified else frozenset(),
+            present_scopes=self.present_scopes,
         )
+
+
+def _scope_mentioned(sentence: str, scopes: frozenset[str]) -> bool:
+    """True when the sentence names one of the deterministically checked repos."""
+    lowered = sentence.lower()
+    for scope in scopes:
+        if scope and scope in lowered:
+            return True
+        short = scope.rsplit("/", 1)[-1] if scope else ""
+        if len(short) >= 3 and re.search(
+            rf"(?<![\w-]){re.escape(short)}(?![\w-])", lowered
+        ):
+            return True
+    return False
 
 
 def _sentences(text: str) -> list[str]:
@@ -207,12 +244,15 @@ def classify_absence(
     source_unavailable: bool,
     window_checked: bool,
     searched: bool,
+    coverage_incomplete: bool = False,
 ) -> str:
     """Map known facts about one object onto the five-state vocabulary."""
     if verified_absent:
         return VERIFIED_ABSENT
     if source_unavailable:
         return SOURCE_UNAVAILABLE
+    if coverage_incomplete:
+        return NOT_RETRIEVED
     if window_checked:
         return OUT_OF_WINDOW
     if searched:
@@ -253,12 +293,16 @@ def qualify_text(
     status_by_sentence: dict[str, str] = {}
     for claim in claims:
         scoped = context.for_object(claim.object)
+        verified = claim.object in scoped.verified_objects
+        if verified and scoped.verified_scopes:
+            verified = _scope_mentioned(claim.text, scoped.verified_scopes)
         status = classify_absence(
             claim.object,
-            verified_absent=claim.object in scoped.verified_objects,
+            verified_absent=verified,
             source_unavailable=scoped.source_unavailable,
             window_checked=scoped.window_checked,
             searched=scoped.searched,
+            coverage_incomplete=scoped.coverage_incomplete,
         )
         checks.append(
             {

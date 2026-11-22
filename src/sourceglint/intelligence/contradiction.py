@@ -137,7 +137,9 @@ def analyze_contradictions(
             "claim": cluster.claim,
             "label": cluster.label,
             "evidence_ids": list(member_ids),
-            "evidence_items": model_payloads(members, topic=cluster.claim + " " + ctx.topic),
+            "evidence_items": model_payloads(
+                members, topic=cluster.claim + " " + ctx.topic, content_budget=32_000
+            ),
             "research_context": ctx_dict,
         }
         cache_key: str | None = None
