@@ -26,6 +26,7 @@ from ..intelligence.dtos import ResearchContext
 from ..intelligence.model import IntelligencePipelineError
 from ..intelligence.pipeline import run_intelligence_pipeline
 from ..ledger import EvidenceLedger
+from ..pipeline.adaptive import AdaptiveResearch
 from ..pipeline.degradation import AllSourcesFailedError
 from ..pipeline.orchestrator import ResearchPipeline, ResearchPipelineResult
 from ..recommendations.pipeline import run_recommendation_pipeline
@@ -76,6 +77,7 @@ def build_research_context(
         decision_context=str(plan.get("decision_context") or ""),
         languages=tuple(languages or (plan.get("languages") or ["en"])),
         topic=str(plan.get("topic") or ""),
+        subquestions=tuple(row["question"] for row in plan.get("subquestions", ())),
     )
 
 
@@ -164,6 +166,7 @@ def orchestrate(
     ctx: OrchestrationContext,
     target_entity: str = "",
     include_recommendations: bool = True,
+    adaptive: AdaptiveResearch | None = None,
 ) -> ApplicationResult:
     """Run the canonical full pipeline for one parsed request.
 
@@ -172,9 +175,6 @@ def orchestrate(
     """
     warnings: list[str] = []
     stage: dict[str, str] = {}
-    research_ctx = build_research_context(
-        plan, languages=tuple(parsed.languages)
-    )
 
     # ---- Phase 3: research (evidence + coverage) -------------------------
     try:
@@ -182,6 +182,7 @@ def orchestrate(
             plan=plan,
             sources=sources,
             ledger=ctx.ledger,
+            **({"adaptive": adaptive, "target": target_entity} if adaptive is not None else {}),
         )
     except AllSourcesFailedError as exc:
         stage["research"] = STAGE_FAILED
@@ -198,6 +199,9 @@ def orchestrate(
             stage_statuses=stage,
         )
 
+    research_ctx = build_research_context(
+        adaptive.plan if adaptive else plan, languages=tuple(parsed.languages),
+    )
     evidence_count = research_result.coverage.final_evidence_count
     stage["research"] = (
         STAGE_DEGRADED
@@ -217,14 +221,15 @@ def orchestrate(
             parsed, research_result, ctx.ledger, ctx.as_of,
             discovery_only=not include_recommendations,
         )
+        all_failed = bool(research_result.coverage.attempted_sources and not research_result.coverage.successful_sources)
         return ApplicationResult(
-            status="NO_EVIDENCE",
+            status="FAILED" if all_failed else "NO_EVIDENCE",
             brief=brief,
             evidence_count=0,
             coverage=research_result.coverage,
             warnings=tuple(warnings),
             stage_statuses={
-                "research": stage["research"],
+                "research": STAGE_FAILED if all_failed else stage["research"],
                 "signals": STAGE_SKIPPED,
                 "insights": STAGE_SKIPPED,
                 "recommendations": STAGE_SKIPPED,

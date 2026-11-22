@@ -1,0 +1,42 @@
+{
+  "as_of": "2026-09-09T00:00:00Z",
+  "cases": [
+    {
+      "id": "industry-dynamics",
+      "query": "What changed in FluxBook's releases and integrations in the last 30 days?",
+      "subject": "FluxBook",
+      "aspects": [
+        {"question": "What was released?", "source": "github", "query": "FluxBook release notes", "term": "release notes", "evidence_type": "T1_official", "text": "FluxBook release notes announce an offline editor."},
+        {"question": "Which integration changed?", "source": "hacker_news", "query": "FluxBook integration discussion", "term": "integration discussion", "evidence_type": "T2_community", "text": "FluxBook integration discussion describes a calendar connector."}
+      ]
+    },
+    {
+      "id": "user-needs",
+      "query": "NoteBench complaints: what do users say about speaker labels and exports?",
+      "subject": "NoteBench",
+      "aspects": [
+        {"question": "What is the speaker labeling problem?", "source": "reddit", "query": "NoteBench speaker labels complaint", "term": "speaker labels complaint", "evidence_type": "T2_community", "text": "My NoteBench speaker labels swapped after a long meeting."},
+        {"question": "What is the export complaint?", "source": "hacker_news", "query": "NoteBench export overview", "term": "missing export timestamps", "followup": "NoteBench missing export timestamps", "evidence_type": "T2_community", "text": "My NoteBench transcript export was missing timestamps."}
+      ]
+    },
+    {
+      "id": "competitive-intelligence",
+      "query": "What has DeckNest changed in pricing and migration support?",
+      "subject": "DeckNest",
+      "aspects": [
+        {"question": "What changed in pricing?", "source": "github", "query": "DeckNest pricing announcement", "term": "pricing announcement", "evidence_type": "T1_official", "text": "DeckNest pricing announcement adds monthly billing."},
+        {"question": "What migration problem remains?", "source": "reddit", "query": "DeckNest switch review", "term": "migration missing comments", "followup": "DeckNest migration missing comments", "evidence_type": "T2_community", "text": "My DeckNest migration kept slides but dropped comments."}
+      ]
+    },
+    {
+      "id": "opportunity-discovery",
+      "query": "What testable opportunity might RecordPilot's offline capture and export complaints suggest?",
+      "subject": "RecordPilot",
+      "opportunities": true,
+      "aspects": [
+        {"question": "Where is offline capture useful?", "source": "reddit", "query": "RecordPilot offline capture report", "term": "offline capture report", "evidence_type": "T2_community", "text": "I used RecordPilot offline capture on a train."},
+        {"question": "What is the export friction?", "source": "hacker_news", "query": "RecordPilot export overview", "term": "export loses list formatting", "followup": "RecordPilot export loses list formatting", "evidence_type": "T2_community", "text": "My RecordPilot export loses list formatting when shared."}
+      ]
+    }
+  ]
+}

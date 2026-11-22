@@ -26,6 +26,7 @@ from .request import (
 # ---------------------------------------------------------------- language --
 
 _KANA = re.compile(r"[\u3040-\u30ff]")
+_HANGUL = re.compile(r"[\uac00-\ud7a3]")
 _HAN = re.compile(r"[\u4e00-\u9fff]")
 
 
@@ -36,6 +37,8 @@ def detect_query_language(text: str) -> str:
         return "en"
     if _KANA.search(text):
         return "ja"
+    if _HANGUL.search(text):
+        return "ko"
     if _HAN.search(text):
         return "zh"
     return "en"
@@ -77,6 +80,8 @@ _MARKET_ALIASES: dict[str, str] = {
     "korea": "kr",
     "korean": "kr",
     "韩国": "kr",
+    "한국": "kr",
+    "대한민국": "kr",
     "cn": "cn",
     "china": "cn",
     "中国": "cn",
@@ -87,7 +92,7 @@ _MARKET_TOKEN = re.compile(
     r"us|uk|britain|united kingdom|france|french|korea|korean|china|global)\b",
     re.IGNORECASE,
 )
-_CJK_MARKET_TOKEN = re.compile(r"日本|美国|英国|德国|法国|韩国|中国|米国")
+_CJK_MARKET_TOKEN = re.compile(r"日本|美国|英国|德国|法国|韩国|中国|米国|한국|대한민국")
 
 
 def resolve_market(text: str, explicit: str = "") -> str:
@@ -229,8 +234,8 @@ MODE_FALLBACK = "general"
 # CJK units are word characters, so `\b` after them fails whenever more CJK text follows
 # (过去3个月的变化). Only a following Latin letter or digit means the unit is not finished.
 _UNIT_END = r"(?![A-Za-z0-9_])"
-_WINDOW_DAYS = re.compile(r"(?:last\s+)?(\d+)\s*(?:days?\b|日|天)" + _UNIT_END, re.IGNORECASE)
-_WINDOW_MONTHS = re.compile(r"(\d+)\s*(?:months?\b|ヶ月|个月|か月)" + _UNIT_END, re.IGNORECASE)
+_WINDOW_DAYS = re.compile(r"(?:last\s+)?(\d+)\s*(?:days?\b|日|天|일)" + _UNIT_END, re.IGNORECASE)
+_WINDOW_MONTHS = re.compile(r"(\d+)\s*(?:months?\b|ヶ月|个月|か月|개월)" + _UNIT_END, re.IGNORECASE)
 _WINDOW_QUARTER = re.compile(r"\b(quarter|quarterly)\b", re.IGNORECASE)
 
 
@@ -406,7 +411,7 @@ def parse_request(request: SkillRequest) -> ParsedRequest:
     window, window_text = resolve_window(text, window_days=request.window_days)
 
     entities = resolve_entities(text, request.entities, mode=mode)
-    if not entities and qlang in ("zh", "ja"):
+    if not entities and qlang in ("zh", "ja", "ko"):
         entities = _latin_entities_in_cjk(text)
     target = request.target or (entities[0] if entities else "")
 

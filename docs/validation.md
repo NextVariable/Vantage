@@ -22,6 +22,16 @@ Install the wheel in a separate environment and run
 `scripts/check_installed_runtime.py` outside the checkout to check resources and
 the public API. `scripts/verify_first_install.sh` checks an export of committed files.
 
+## 自适应检索回放 · Adaptive replay
+
+运行 `python scripts/evaluate_adaptive.py` 对比旧单轮和自适应路径。
+[设计说明与结果](adaptive-research.md)记录了固定样本的指标、预算和真实检索边界。
+这些数据使用脚本模型和模拟来源。
+
+Run `python scripts/evaluate_adaptive.py` for a paired offline comparison.
+See the [design and results](adaptive-research.md) for the fixture metrics,
+budgets, and live validation boundaries.
+
 ## 实际研究 · Research checks
 
 `RUN_LIVE_TESTS=1` 启用真实网络测试；没有凭据而跳过的项目不算成功访问。可复用的问题保存在 [evals](../evals/retrieval-matrix.json)。实际研究须记录问题、版本、截止日期、来源状态和最终报告，核对相关性、日期、原文依据与反例，并说明缺失的来源和未回答的问题。

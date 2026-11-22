@@ -1,12 +1,12 @@
 # Vantage
 
-**Research the last 30 days across platforms.**
+**On-Demand Intelligence Discovery Skill**
 
 [简体中文](README.zh-CN.md) · [Examples](docs/examples/2026-10-04/README.md) · [Documentation](docs/README.md)
 
-Information is scattered across communities, social platforms, official sites and research papers. Vantage is an open-source Skill for product managers, GTM teams and tech explorers: research a question to discover what happened recently, what people are discussing, and which tools, needs and feedback deserve a closer look.
+Vantage helps founders, product managers, commercialization teams, consultants and researchers investigate industry changes, user needs and competitive signals across available platforms. Start by asking a research question. The default window is 30 days and can be adjusted.
 
-It searches available sources, combines duplicate coverage, and returns a report with dates and original links, plus evidence you can pass to an AI for further analysis. Product and GTM recommendations are available when explicitly requested.
+The Skill plans subquestions before searching, checks retained evidence against them, and can run one targeted round for material gaps. It deduplicates dated evidence and delivers a cited brief and reusable evidence file. Opportunity hypotheses and product or GTM recommendations are opt-in.
 
 ## What you can research
 
@@ -14,7 +14,8 @@ It searches available sources, combines duplicate coverage, and returns a report
 | --- | --- |
 | Product discovery | What are users praising or complaining about in AI meeting assistants? Which needs recur? |
 | Market research | What changed in Japan's AI meeting assistant market, and what are Japanese users discussing? |
-| Technology learning | Which AI video tools, technical developments and practical workflows appeared recently? |
+| Industry changes | Which AI video tools, technical developments and practical workflows appeared recently? |
+| Opportunity discovery | Which unmet needs suggest a testable opportunity, and what would disconfirm it? |
 
 After installation, ask your agent:
 
@@ -38,15 +39,16 @@ Then ask your agent to use Vantage. Keep the complete repository; `SKILL.md` alo
 
 You receive a cited report and an evidence file containing links, dates and source excerpts. Reports distinguish maker claims, user experiences and interpretations, retain counterexamples, and disclose missing sources or thin evidence.
 
-The default combines public GitHub, Reddit, Hacker News and YouTube retrieval with the agent's web search. Discussion, comment and caption enrichment is attempted where available. Platform credentials are optional enhancements; the agent's costs and usage limits still apply.
+The default Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube and agent web search. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. Platform credentials are optional enhancements; the agent's costs and usage limits still apply.
 
-Research is bounded sampling. Coverage depends on access, rate limits, language and topic. A completed report does not establish complete platform coverage or prove market demand. Historical-window growth comparison and default scheduled monitoring are not supported.
+Research is bounded sampling. Coverage depends on access, rate limits, language and topic. A completed report does not establish complete platform coverage or prove market demand. Historical-window growth comparison, continuous monitoring, news aggregation and scheduled delivery are outside this workflow. Raw CLI/API calls keep single-pass retrieval unless invoked with `--adaptive` or `adaptive=True`.
 
 ## More
 
 - [Recorded research examples](docs/examples/2026-10-04/README.md)
 - [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
 - [Agent integration and evidence exports](references/host-protocol.md)
+- [Adaptive research design and replay](docs/adaptive-research.md)
 - [Validation records](docs/validation.md)
 - [Repository guide](docs/repository-guide.md) and [contributing](CONTRIBUTING.md)
 

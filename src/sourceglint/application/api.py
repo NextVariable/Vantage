@@ -59,6 +59,8 @@ def run_sourceglint(
     as_of: datetime | str | None = None,
     ledger: Any = None,
     raw_output: str | None = None,
+    adaptive: bool = False,
+    opportunities: bool = False,
 ) -> SkillResult:
     """Run the canonical sourceglint pipeline for one request.
 
@@ -127,14 +129,21 @@ def run_sourceglint(
         semantic_cache=semantic_cache,
     )
 
+    from ..pipeline.adaptive import AdaptiveResearch
+    plan = parsed.to_plan()
+    if adaptive and len(ctx.ledger):
+        raise ValueError("adaptive research requires a fresh evidence ledger")
+    adaptive_run = AdaptiveResearch(model, plan, source_list) if adaptive else None
+
     # 3) Run the full engine.
     outcome = orchestrate(
         parsed,
-        plan=parsed.to_plan(),
+        plan=plan,
         sources=source_list,
         ctx=ctx,
         target_entity=target or parsed.target,
         include_recommendations=decision_support,
+        adaptive=adaptive_run,
     )
 
     # 4) Package.
@@ -152,11 +161,18 @@ def run_sourceglint(
             diagnostics["raw_source_archive"] = str(raw_output)
     if outcome.coverage is not None:
         diagnostics["coverage"] = outcome.coverage.to_dict()
+    brief = outcome.markdown
+    if opportunities:
+        from ..recommendations.opportunities import discover_opportunities, render_opportunities
+        hypotheses, state = discover_opportunities(model, parsed.query, outcome.insights, ctx.ledger)
+        diagnostics["opportunity_discovery"] = {"status": state, "hypotheses": hypotheses}
+        if brief:
+            brief += render_opportunities(hypotheses, ctx.ledger, state)
     return SkillResult(
         status=Status(outcome.status),
-        brief_markdown=outcome.markdown,
+        brief_markdown=brief,
         request=parsed,
-        research_plan=parsed.to_plan(),
+        research_plan=adaptive_run.plan if adaptive_run else plan,
         warnings=outcome.warnings,
         stage_statuses=outcome.stage_statuses,
         diagnostics=diagnostics,

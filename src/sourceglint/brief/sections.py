@@ -244,6 +244,23 @@ def recent_items(sel: SelectedBrief, ledger: object) -> str:
 # -------- Coverage (§18, §19) --------
 
 
+def research_questions(sel: SelectedBrief, lookup: Mapping[str, object]) -> str:
+    if not sel.research_assessments:
+        return ""
+    lines = []
+    for row in sel.research_assessments:
+        lines.append(f"- **{_untrusted_inline(row['question'])}** — {row['status']}")
+        if row["gap"]:
+            lines.append(f"  Gap: {_untrusted_inline(row['gap'])}")
+        for label, key in (("Supporting evidence", "evidence_ids"),
+                           ("Firsthand user feedback (reported)", "feedback_ids"),
+                           ("Counterevidence", "counterevidence_ids")):
+            cited = refs(lookup, [eid for eid in row.get(key, ()) if eid in lookup])
+            if cited:
+                lines.append(f"  {label}: {cited}")
+    return _heading(2, "Research questions and evidence") + "\n".join(lines) + "\n\n"
+
+
 def coverage(sel: SelectedBrief) -> str:
     if not sel.coverage_lines:
         return ""

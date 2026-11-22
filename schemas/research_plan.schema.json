@@ -81,6 +81,37 @@
       "items": { "type": "string", "minLength": 1 },
       "description": "Expanded queries. May be empty before expansion runs."
     },
+    "goal": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "\\S" },
+    "research_objects": {
+      "type": "array", "maxItems": 8, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S" }
+    },
+    "subquestions": {
+      "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "priority", "evidence_types", "preferred_sources",
+                     "completion_criterion", "minimum_origins", "query", "language"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^q[1-6]$" },
+          "question": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "\\S" },
+          "priority": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "evidence_types": {
+            "type": "array", "uniqueItems": true, "maxItems": 4,
+            "items": { "enum": ["T1_official", "T2_community", "T3_marketplace", "T4_secondary"] }
+          },
+          "preferred_sources": {
+            "type": "array", "uniqueItems": true, "maxItems": 4,
+            "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9_]+$" }
+          },
+          "completion_criterion": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "\\S" },
+          "minimum_origins": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "query": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "\\S" },
+          "language": { "type": "string", "pattern": "^[a-z]{2,3}$" }
+        }
+      }
+    },
     "source_priorities": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },

@@ -1,7 +1,7 @@
 ---
 name: vantage
 license: MIT
-description: Research a topic across available sources in the last 30 days, finding new tools, workflows, user needs, complaints and repeated discussions with dated original evidence. Use when the user asks what appeared or what people are saying recently. Add product or GTM advice only when explicitly requested.
+description: On-demand intelligence discovery for industry changes, user needs and competitive signals. Plan around the user’s question and research recent cross-platform evidence, defaulting to 30 days. Offer testable opportunity hypotheses or product advice only when explicitly requested.
 ---
 
 # Vantage
@@ -36,7 +36,7 @@ Run from the Skill folder in an interactive terminal:
 ```sh
 .venv/bin/python -m sourceglint 'USER QUERY' \
   --model sourceglint.host_stdio:build_model \
-  --host-sources-stdio --registry config/sources-hybrid.yaml \
+  --adaptive --host-sources-stdio --registry config/sources-hybrid.yaml \
   --ledger runs/research-unique-name/evidence.jsonl --json
 ```
 
@@ -45,15 +45,19 @@ Keep the session open and handle each `source_request` and `model_request` in
 order using the protocol. The model responses are your own grounded reasoning;
 never use canned answers. Search the relevant routed targets, not the entire
 catalog. Record targets actually searched and their outcomes. Return empty
-results or an honest error when no usable dated evidence is available.
+results or an honest error when no usable dated evidence is available. Answer the
+structured planning and coverage tasks in the bridge. The engine may request
+one extra round for an actionable gap. Do not independently add another round.
 
 Judge the subject and the requested intent separately. A post about using an
 AI to analyze customer complaints is not a complaint about that AI; words
 scattered across a long roundup do not establish a relevant observation.
 
-Add `--as-of` to pin the research window. Use `--mode`, `--market`, or `--language`
+Add `--as-of` to pin the cutoff or `--window DAYS` to override the 30-day default. Use `--mode`, `--market`, or `--language`
 only to preserve the user's scope. Add `--decision-support` only for an explicit
-question about implications, positioning, growth or actions. To enable direct
+question about implications, positioning, growth or actions. Add `--opportunities`
+only if the user explicitly asks for opportunity hypotheses. Keep the validation
+test and disconfirming result with each hypothesis. To enable direct
 connectors, use `config/sources.yaml`; their capabilities and authorization
 vary by source. Do not import browser cookies or activate paid providers without
 authorization. Try at most one compliant alternate route after a source failure.

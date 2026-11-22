@@ -488,6 +488,12 @@ def _coverage_lines(coverage: Any) -> list[str]:
     if unavailable:
         lines.append("Host targets unavailable: " + ", ".join(sorted(unavailable)))
     lines.extend("Coverage limitation: " + str(gap) for gap in (c.get("gaps") or []))
+    adaptive = c.get("adaptive_research") or {}
+    if adaptive:
+        lines.append(f"Research rounds: {len(adaptive['rounds'])} · Stop: {adaptive['stop_reason']}.")
+        if adaptive["planning_status"] != "planned":
+            lines.append("Structured planning was unavailable; used a bounded query expansion.")
+
     lines.append("Pipeline completion does not certify research completeness, market representativeness or a growing trend.")
     failed = [
         str(s)
@@ -640,5 +646,8 @@ def select_brief(brief_input: BriefInput) -> SelectedBrief:
         watchouts=tuple(watchout_sel.items),
         executive=executive,
         coverage_lines=tuple(coverage_lines),
+        research_assessments=tuple(
+            (_as_dict(brief_input.coverage).get("adaptive_research") or {}).get("subquestions", ())
+        ),
         diagnostics=diagnostics,
     )

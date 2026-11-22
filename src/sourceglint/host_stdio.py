@@ -135,6 +135,7 @@ class StdioHostSource:
                     mode=str(plan.get("mode") or "general"),
                     market=str(plan.get("market") or "global"),
                     language=str(request.get("query_language") or "en"),
+                    budget=int(request.get("host_target_budget", 10)),
                 )
                 message["targets"] = [t.to_host_request() for t in targets]
             except Exception as exc:

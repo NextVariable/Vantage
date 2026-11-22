@@ -183,7 +183,8 @@ def run_brief_pipeline(brief_input: BriefInput) -> RenderedBrief:
         md = renderer.render_no_evidence_markdown(ctx)
         if brief_input.coverage is not None:
             from . import sections
-            md += "\n" + sections.coverage(selection.select_brief(brief_input))
+            selected = selection.select_brief(brief_input)
+            md += "\n" + sections.research_questions(selected, {}) + sections.coverage(selected)
         diag = BriefDiagnostics(
             evidence_count=0,
             warning_count=len(warnings),

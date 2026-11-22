@@ -67,6 +67,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Reserved: exits with an error until prior-window retrieval is implemented.")
     p.add_argument("--decision-support", action="store_true",
                    help="Add product/GTM implications and recommendations when requested.")
+    p.add_argument("--adaptive", action="store_true",
+                   help="Plan research subquestions and allow one bounded follow-up round.")
+    p.add_argument("--opportunities", action="store_true",
+                   help="Add evidence-linked opportunity hypotheses when explicitly requested.")
     p.add_argument("--model", default=None, metavar="FILE|MOD:ATTR", help=_MODEL_HELP)
     p.add_argument("--host-sources-stdio", action="store_true",
                    help="Ask the host agent to handle host_web_search and official_web via JSON lines.")
@@ -178,6 +182,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             target=args.target,
             baseline=args.baseline,
             decision_support=args.decision_support,
+            adaptive=args.adaptive,
+            opportunities=args.opportunities,
             model=model,
             adapter_factory=adapter_factory,
             sources=sources,
@@ -213,6 +219,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("no usable result.", file=sys.stderr)
         for w in result.warnings:
             print(f"warning: {w}", file=sys.stderr)
+        if result.brief_markdown:
+            _emit(result, args, sys.stdout)
         return EXIT_PIPELINE_FAILED
 
     if result.status.value == "NO_EVIDENCE":

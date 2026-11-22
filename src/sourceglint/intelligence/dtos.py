@@ -148,6 +148,7 @@ class ResearchContext:
     decision_context: str = ""
     languages: tuple[str, ...] = ()
     topic: str = ""
+    subquestions: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -157,6 +158,7 @@ class ResearchContext:
             "decision_context": self.decision_context,
             "languages": list(self.languages),
             **({"topic": self.topic} if self.topic else {}),
+            **({"subquestions": list(self.subquestions)} if self.subquestions else {}),
         }
 
 

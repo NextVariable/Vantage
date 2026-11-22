@@ -175,14 +175,18 @@ def _infer_query_language(
       1. If text is already in the declared languages list, use it.
       2. Else, fall back to the first declared language.
 
-    We only mark a query as `ja` if (a) the plan declared `ja` and (b) the text
-    actually contains Japanese-script characters. We do NOT fabricate.
+    Detect a CJK script when it matches a declared language. Han-only text
+    can also be Japanese when only Japanese was declared. No translation.
     """
     if not declared_languages:
         return "en"
-    ja_chars = any(0x3040 <= ord(c) <= 0x30FF or 0x4E00 <= ord(c) <= 0x9FFF for c in text)
-    if ja_chars and "ja" in declared_languages:
-        return "ja"
+    from ..interface.parser import detect_query_language
+
+    language = detect_query_language(text)
+    if language != "en" and language in declared_languages:
+        return language
+    if language == "zh" and "ja" in declared_languages and "zh" not in declared_languages:
+        return "ja"  # Han-only topic in a Japanese scope.
     # Latin / default fallback
     return declared_languages[0]
 

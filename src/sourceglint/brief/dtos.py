@@ -187,6 +187,7 @@ class SelectedBrief:
     watchouts: tuple[SelectedWatchout, ...] = ()
     executive: tuple[str, ...] = ()
     coverage_lines: tuple[str, ...] = ()
+    research_assessments: tuple[Mapping[str, Any], ...] = ()
     diagnostics: "BriefDiagnostics" = field(default_factory=lambda: BriefDiagnostics())
 
     def is_empty(self) -> bool:

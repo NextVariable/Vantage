@@ -26,7 +26,7 @@ The orchestrator MUST NOT:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Iterable, Mapping, Sequence
 
 import jsonschema
@@ -37,6 +37,7 @@ from ..normalization import (
     normalize_raw,
     validate_evidence_payload,
 )
+from .adaptive import AdaptiveResearch
 from .adapters import AdapterError, RawSourceResult, SourceAdapter
 from .cache import RetrievalCache, cache_key_for
 from .coverage import CoverageReport, build_coverage_report
@@ -138,6 +139,8 @@ class ResearchPipeline:
         plan: Mapping[str, object],
         sources: Sequence[Mapping[str, object]],
         ledger: EvidenceLedger,
+        adaptive: AdaptiveResearch | None = None,
+        target: str = "",
     ) -> ResearchPipelineResult:
         # 1) Validate plan + registry before any I/O.
         _validate_plan_shape(plan)
@@ -153,11 +156,159 @@ class ResearchPipeline:
         # 4) Build retrieval plans.
         retrievals = build_retrieval_plans(plan, list(sources), expanded)
 
-        # 5) Execute retrievals per source, capturing status.
+        if adaptive:
+            retrievals = adaptive.prepare(retrievals, target=target)
+            plan = adaptive.plan
+
+        requested = {route.source for route in retrievals}
+        planned_routes = list(retrievals)
+        per_source: dict[str, SourceStatusReport] = {}
+        host_observations: list[dict] = []
+        raw_results: list[RawSourceResult] = []
+        warnings: list[str] = []
+        normalized: list[dict] = []
+        retained: list[dict] = []
+        dropped_by_time = 0
+        normalization_drops = 0
+        blocked: set[str] = set()
+        for round_number in (1, 2) if adaptive else (1,):
+            batch, reports, observations, trace = self._retrieve_batch(
+                plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
+            )
+            raw_results.extend(batch)
+            host_observations.extend(observations)
+            for name, report in reports.items():
+                previous = per_source.get(name)
+                if previous:
+                    report.count += previous.count
+                    for warning in previous.warnings:
+                        report.append_warning(warning)
+                    if previous.status in (SourceStatus.SUCCESS, SourceStatus.PARTIAL) and report.warnings:
+                        report.status = SourceStatus.PARTIAL
+                per_source[name] = report
+
+            # Normalize each raw record once. Both passes share the window and
+            # the final deduplication, so duplicate evidence counts only once.
+            batch_normalized, rejected = self._normalize(batch, warnings)
+            normalization_drops += rejected
+            normalized.extend(batch_normalized)
+            filtered = apply_time_filter(batch_normalized, plan["time_window"], as_of=self.config.as_of)
+            dropped_by_time += len(filtered.dropped)
+            retained.extend(filtered.kept)
+            if not adaptive:
+                break
+            snapshot = deduplicate(retained).kept
+            previous_ids = set(adaptive.rounds[-1]["retained_ids"]) if adaptive.rounds else set()
+            retained_ids = [item["evidence_id"] for item in snapshot]
+            adaptive.rounds.append({
+                "round": round_number, "planned_routes": len(retrievals),
+                "executed_routes": sum(status != "cached" for _, _, status, _ in trace),
+                "cached_routes": sum(status == "cached" for _, _, status, _ in trace),
+                "empty_routes": sum(status == "returned" and not rows for _, _, status, rows in trace),
+                "failed_routes": sum(status not in ("cached", "returned") for _, _, status, _ in trace),
+                "retained_evidence": len(snapshot),
+                "host_reported_gaps": list(dict.fromkeys(
+                    part for obs in observations for part in obs["unanswered_parts"]
+                ))[:12],
+                "retained_ids": retained_ids,
+                "new_evidence": len(set(retained_ids) - previous_ids),
+                "routes": [{"source": source, "query": query, "status": status, "raw_items": len(rows)}
+                           for source, query, status, rows in trace],
+            })
+            retrievals = adaptive.assess(
+                snapshot, blocked=blocked, allow_search=round_number == 1,
+                host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
+            )
+            adaptive.rounds[-1]["subquestions"] = adaptive.assessments
+            if round_number == 2 and adaptive.stop_reason == "followup_budget_reached" and not adaptive.rounds[-1]["new_evidence"]:
+                adaptive.stop_reason = "no_new_evidence"
+            if not retrievals:
+                break
+            planned_routes.extend(retrievals)
+            requested.update(route.source for route in retrievals)
+
+        if normalization_drops:
+            warnings.append(f"normalization_dropped={normalization_drops}")
+        if dropped_by_time:
+            warnings.extend((f"time_filter_dropped={dropped_by_time}",
+                             f"time_filter_normalized_before_drop={len(normalized)}"))
+        dedup = deduplicate(retained)
+        evidence_list = dedup.kept
+        if dedup.duplicate_count:
+            warnings.append(f"dedup_dropped={dedup.duplicate_count}")
+        warnings.append(f"dedup_pre_drop={len(retained)}")
+
+        # 9) Write ledger.
+        written: list[str] = []
+        for ev in evidence_list:
+            try:
+                rec = ledger.add(ev)
+                written.append(rec.evidence_id)
+            except Exception as exc:
+                warnings.append(f"ledger_reject: {ev.get('evidence_id', '<')}: {exc}")
+
+        # 10) Coverage report.
+        # `evidence_list` has been mutated through:
+        #   raw -> normalize -> time_filter -> dedup
+        # We pass the post-dedup list as `kept_evidence`; build_coverage
+        # will compute `final_evidence_count` from it and expose the
+        # pre-dedup / pre-time-filter counts too.
+        kept_evidence = evidence_list
+        coverage_queries = planned_routes if adaptive else expanded
+        coverage = build_coverage_report(
+            requested_sources=sorted(requested),
+            attempted_sources=sorted(per_source),
+            source_statuses=per_source,
+            expanded_queries=[
+                q.to_dict() if hasattr(q, "to_dict")
+                else {
+                    "text": getattr(q, "text", getattr(q, "query", "")),
+                    "intent": getattr(q, "intent", ""),
+                    "query_language": getattr(q, "query_language", ""),
+                    "market": getattr(q, "market", ""),
+                }
+                for q in coverage_queries
+            ],
+            raw_results=[rr.to_dict() for rr in raw_results],
+            normalized_evidence=normalized,
+            deduplicated_dropped=dedup.duplicate_count,
+            dropped_by_time_filter=dropped_by_time,
+            kept_evidence=kept_evidence,
+            host_observations=[
+                {**item, "unanswered_parts": ()}
+                for item in host_observations
+            ] if adaptive else host_observations,
+        )
+
+        if adaptive:
+            coverage = replace(
+                coverage, adaptive_research=adaptive.report(),
+                unanswered_parts=tuple(
+                    row["question"] for row in adaptive.assessments if row["status"] != "covered"
+                ),
+            )
+            adaptive.plan["queries"] = list(dict.fromkeys(route.query for route in planned_routes))
+        # 11) All-sources-failed guard.
+        if (
+            coverage.attempted_sources
+            and not coverage.successful_sources
+            and coverage.attempted_sources == coverage.failed_sources
+        ):
+            if not adaptive:
+                raise AllSourcesFailedError(per_source=per_source)
+
+        return ResearchPipelineResult(
+            evidence_ids=written,
+            coverage=coverage,
+            warnings=warnings,
+            source_statuses=per_source,
+        )
+
+    def _retrieve_batch(self, plan, retrievals, source_entries_by_name, blocked, *, adaptive):
         raw_results: list[RawSourceResult] = []
         per_source: dict[str, SourceStatusReport] = {}
-        warnings: list[str] = []
         host_observations: list[dict] = []
+        trace: list[tuple[str, str, str, list[RawSourceResult]]] = []
 
         # Group retrieval plans by source so each adapter call is one request
         # (the cache key includes the query, so a per-(source,query) request
@@ -166,13 +317,23 @@ class ResearchPipeline:
         for r in retrievals:
             by_source.setdefault(r.source, []).append(r)
 
-        for source_name in sorted(by_source.keys()):
+        for source_name in (by_source if adaptive else sorted(by_source)):
             rep = SourceStatusReport(source=source_name)
-            adapter = self.adapter_factory(source_name, plan)
+            try:
+                adapter = self.adapter_factory(source_name, plan)
+            except Exception as exc:
+                if not adaptive:
+                    raise
+                rep.status = SourceStatus.UNAVAILABLE
+                rep.append_warning(f"adapter initialization failed: {type(exc).__name__}")
+                per_source[source_name] = rep
+                blocked.add(source_name)
+                continue
             if adapter is None:
                 rep.status = SourceStatus.UNAVAILABLE
                 rep.append_warning("no adapter registered for source")
                 per_source[source_name] = rep
+                blocked.add(source_name)
                 continue
             adapter_results: list[RawSourceResult] = []
             for r in by_source[source_name]:
@@ -180,6 +341,7 @@ class ResearchPipeline:
                 cached = self._cache_get(source_name, r, plan)
                 if cached is not None:
                     adapter_results.extend(cached)
+                    trace.append((source_name, r.query, "cached", cached))
                     rep.append_warning("cached retrieval: source access and enrichment limits were not rechecked in this run")
                     continue
                 request = {
@@ -188,10 +350,14 @@ class ResearchPipeline:
                     "market": r.market,
                     "retrieved_at": self.config.as_of,
                 }
+                if adaptive:
+                    request["host_target_budget"] = 3
                 try:
                     out = adapter.retrieve(plan=plan, request=request)
                 except AdapterError as exc:
                     status = classify_adapter_exception(exc)
+                    blocked.add(source_name)
+                    trace.append((source_name, r.query, status.value, []))
                     for limitation in getattr(adapter, "limitations", []):
                         if limitation not in rep.warnings:
                             rep.append_warning(limitation)
@@ -209,6 +375,8 @@ class ResearchPipeline:
                         rep.append_warning(f"{status.value}: {exc.reason}")
                     break
                 except Exception as exc:  # pragma: no cover - defensive
+                    blocked.add(source_name)
+                    trace.append((source_name, r.query, "unavailable", []))
                     rep.status = SourceStatus.UNAVAILABLE
                     rep.append_warning(f"unavailable: {exc}")
                     break
@@ -235,6 +403,7 @@ class ResearchPipeline:
                     ttl_seconds=ttl,
                 )
                 adapter_results.extend(out)
+                trace.append((source_name, r.query, "returned", out))
 
             raw_results.extend(adapter_results)
             rep.count = len(adapter_results)
@@ -252,11 +421,12 @@ class ResearchPipeline:
                     "limitations": list(adapter.limitations),
                     "unanswered_parts": list(adapter.unanswered_parts),
                 })
+        return raw_results, per_source, host_observations, trace
 
-        # 6) Normalize raw -> Evidence.
+    def _normalize(self, batch: Sequence[RawSourceResult], warnings: list[str]) -> tuple[list[dict], int]:
         evidence_list: list[dict] = []
         normalization_warnings = 0
-        for raw in raw_results:
+        for raw in batch:
             try:
                 ev = normalize_raw(
                     raw,
@@ -269,87 +439,7 @@ class ResearchPipeline:
                 warnings.append(f"normalization_dropped: {raw.source}/{raw.source_native_id}: {exc}")
                 continue
             evidence_list.append(ev)
-        if normalization_warnings:
-            warnings.append(f"normalization_dropped={normalization_warnings}")
-
-        # 7) Time filter.
-        # Snapshot post-normalize length BEFORE filtering so the coverage
-        # report can show "X raw -> Y normalized -> T time_filter_dropped
-        # -> D dedup_dropped -> N final" with each stage clearly distinct.
-        normalized_count = len(evidence_list)
-        # Snapshot post-normalize evidence BEFORE time filter so coverage
-        # metrics can separate "normalized" from "time-filter-kept".
-        normalized_evidence_pre_filter = list(evidence_list)
-        tf = apply_time_filter(
-            evidence_list,
-            plan.get("time_window") or {},
-            as_of=self.config.as_of,
-        )
-        evidence_list = tf.kept
-        if tf.dropped:
-            warnings.append(f"time_filter_dropped={len(tf.dropped)}")
-            warnings.append(f"time_filter_normalized_before_drop={normalized_count}")
-
-        # 8) Deduplicate.
-        pre_dedup_count = len(evidence_list)
-        dedup = deduplicate(evidence_list)
-        evidence_list = dedup.kept
-        if dedup.duplicate_count:
-            warnings.append(f"dedup_dropped={dedup.duplicate_count}")
-        warnings.append(f"dedup_pre_drop={pre_dedup_count}")
-
-        # 9) Write ledger.
-        written: list[str] = []
-        for ev in evidence_list:
-            try:
-                rec = ledger.add(ev)
-                written.append(rec.evidence_id)
-            except Exception as exc:
-                warnings.append(f"ledger_reject: {ev.get('evidence_id', '<')}: {exc}")
-
-        # 10) Coverage report.
-        # `evidence_list` has been mutated through:
-        #   raw -> normalize -> time_filter -> dedup
-        # We pass the post-dedup list as `kept_evidence`; build_coverage
-        # will compute `final_evidence_count` from it and expose the
-        # pre-dedup / pre-time-filter counts too.
-        kept_evidence = evidence_list
-        coverage = build_coverage_report(
-            requested_sources=list({r.source for r in retrievals}),
-            attempted_sources=sorted(by_source.keys()),
-            source_statuses=per_source,
-            expanded_queries=[
-                q.to_dict() if hasattr(q, "to_dict")
-                else {
-                    "text": getattr(q, "text", ""),
-                    "intent": getattr(q, "intent", ""),
-                    "query_language": getattr(q, "query_language", ""),
-                    "market": getattr(q, "market", ""),
-                }
-                for q in expanded
-            ],
-            raw_results=[rr.to_dict() for rr in raw_results],
-            normalized_evidence=normalized_evidence_pre_filter,
-            deduplicated_dropped=dedup.duplicate_count,
-            dropped_by_time_filter=len(tf.dropped),
-            kept_evidence=kept_evidence,
-            host_observations=host_observations,
-        )
-
-        # 11) All-sources-failed guard.
-        if (
-            coverage.attempted_sources
-            and not coverage.successful_sources
-            and coverage.attempted_sources == coverage.failed_sources
-        ):
-            raise AllSourcesFailedError(per_source=per_source)
-
-        return ResearchPipelineResult(
-            evidence_ids=written,
-            coverage=coverage,
-            warnings=warnings,
-            source_statuses=per_source,
-        )
+        return evidence_list, normalization_warnings
 
     def _cache_get(
         self,

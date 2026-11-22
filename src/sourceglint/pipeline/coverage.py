@@ -52,6 +52,7 @@ class CoverageReport:
     searched_targets: tuple[str, ...] = ()
     unavailable_targets: tuple[str, ...] = ()
     unanswered_parts: tuple[str, ...] = ()
+    adaptive_research: Mapping[str, object] | None = None
 
     @property
     def deduplicated_count(self) -> int:
@@ -95,7 +96,11 @@ class CoverageReport:
             "searched_targets": list(self.searched_targets),
             "unavailable_targets": list(self.unavailable_targets),
             "unanswered_parts": list(self.unanswered_parts),
-            "research_quality": "LIMITED" if self.gaps else "NOT_ASSESSED",
+            "research_quality": "LIMITED" if self.gaps or any(
+                question["status"] != "covered"
+                for question in (self.adaptive_research or {}).get("subquestions", ())
+            ) else "NOT_ASSESSED",
+            **({"adaptive_research": self.adaptive_research} if self.adaptive_research is not None else {}),
         }
 
 
