@@ -178,6 +178,7 @@ def run_sourceglint(
     if outcome.coverage is not None:
         diagnostics["coverage"] = outcome.coverage.to_dict()
     brief = outcome.markdown
+    status = Status(outcome.status)
     if opportunities:
         from ..recommendations.opportunities import discover_opportunities, render_opportunities
         with deadline_scope(run_deadline):
@@ -186,10 +187,12 @@ def run_sourceglint(
                 research_assessments=adaptive_run.assessments if adaptive_run else (),
             )
         diagnostics["opportunity_discovery"] = {"status": state, "hypotheses": hypotheses}
+        if status == Status.SUCCESS and state == "model_unavailable":
+            status = Status.PARTIAL
         if brief:
             brief += render_opportunities(hypotheses, ctx.ledger, state)
     return SkillResult(
-        status=Status(outcome.status),
+        status=status,
         brief_markdown=brief,
         request=parsed,
         research_plan=adaptive_run.plan if adaptive_run else plan,

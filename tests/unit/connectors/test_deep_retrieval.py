@@ -418,6 +418,37 @@ def test_community_prefix_collision_does_not_query_minecraft_for_mcp():
     assert 'MCPServers' in queried
 
 
+def test_archive_migration_query_requires_product_context_for_inferred_communities():
+    from urllib.parse import parse_qs, urlparse
+
+    discovery, listings = [], []
+
+    class Client:
+        def request(self, url, **kwargs):
+            params = parse_qs(urlparse(url).query)
+            if "/subreddits/search?" in url:
+                discovery.extend(params["subreddit_prefix"])
+                return response({"data": [
+                    {"subreddit": "LinearApp", "description": "Linear issue tracker"},
+                    {"subreddit": "LinearAlgebra", "description": "Linear equations and matrix algebra"},
+                ]})
+            if "/posts/search?" in url:
+                listings.extend(params["subreddit"])
+            return response({"data": []})
+
+    query = "switched from Linear to experience"
+    plan = {**PLAN, "research_objects": ["Linear issue tracker", "Recent alternatives to Linear"]}
+    reddit_archive(Client(), query, plan, {"query": query}, [], [])
+    assert discovery == ["Linear"]
+    assert set(listings) == {"LinearApp"}
+
+    listings.clear()
+    gaps = []
+    reddit_archive(Client(), query, PLAN, {"query": query}, [], gaps)
+    assert not listings
+    assert any("migration target" in gap for gap in gaps)
+
+
 def test_archive_search_reports_when_a_non_latin_query_leaves_nothing_to_search_with():
     class Client:
         def __init__(self):

@@ -351,8 +351,19 @@ def reddit_archive(client, query, plan, request, parents, limitations, limit=20)
     # Observed/explicit communities take priority over inferred names.
     communities = list(request.get("subreddits") or [])
     observed = [str(x.raw_metadata.get("subreddit") or "") for x in parents]
-    words = re.findall(r"[A-Za-z0-9]+", subject_query(query))
+    # A migration query names an action before the product. Deriving archive
+    # communities from those verbs turns "switched from Linear" into r/switched.
+    migration = re.match(
+        r'^\s*(?:switch(?:ed|ing)?|migrat(?:e|ed|ing|ion)|mov(?:e|ed|ing))\s+(?:from|to)\s+"?([A-Za-z0-9_]+)',
+        query,
+        flags=re.IGNORECASE,
+    )
+    words = [migration[1]] if migration else re.findall(r"[A-Za-z0-9]+", subject_query(query))
     prefixes = list(dict.fromkeys(["".join(words[:2]), words[0] if words else ""]))
+    scoped_names = [
+        str(name) for name in plan.get("research_objects", ())
+        if migration and str(name).casefold().startswith(migration[1].casefold() + " ")
+    ]
     for prefix in prefixes[:2]:
         if not prefix:
             continue
@@ -371,17 +382,25 @@ def reddit_archive(client, query, plan, request, parents, limitations, limit=20)
                 # must not become a community for an MCP protocol question.
                 exact = name.casefold() == prefix.casefold()
                 contextual = re.search(r"(?<!\w)" + re.escape(words[0]) + r"(?!\w)", context, re.I) if words else None
-                if name.casefold().startswith(prefix.casefold()) and (exact or contextual):
+                verified_context = (
+                    any(subject_present({"title": context}, scoped_name) for scoped_name in scoped_names)
+                    if migration else exact or contextual
+                )
+                if name.casefold().startswith(prefix.casefold()) and verified_context:
                     communities.append(name)
         except Exception as exc:
             limitations.append(f"Reddit community discovery unavailable: {type(exc).__name__}")
-    communities += observed + prefixes
+    communities += observed
+    if not migration:
+        communities += prefixes
     candidates = {}
     for name in communities:
         if isinstance(name, str) and re.fullmatch(r"(?:r/)?[A-Za-z0-9_]{2,32}", name):
             cleaned = name.removeprefix("r/")
             candidates.setdefault(cleaned.casefold(), cleaned)
-    if not candidates:
+    if not candidates and migration:
+        limitations.append("Reddit public archive search skipped: no community could be matched to the migration target")
+    elif not candidates:
         # Community names are Latin letters, digits and underscores, so a Chinese or Japanese
         # query leaves nothing to search with. Say so rather than return silently.
         limitations.append(

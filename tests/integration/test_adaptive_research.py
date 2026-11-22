@@ -219,6 +219,23 @@ def test_opportunity_opt_in_filters_unresolvable_hypotheses_and_has_a_disconfirm
     assert not any(task == "opportunity_hypotheses" for task, _ in model.tasks)
 
 
+def test_opportunity_timeout_preserves_brief_but_marks_explicit_request_partial():
+    class OpportunityTimeoutModel(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "opportunity_hypotheses":
+                return ModelResponse(task=task, status=ModelStatus.TIMEOUT)
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    model = OpportunityTimeoutModel()
+    ordinary, _, _, _ = execute(model, lambda *_: [observation()])
+    assert ordinary.status == Status.SUCCESS
+    result, _, _, _ = execute(model, lambda *_: [observation()], opportunities=True)
+    assert result.status == Status.PARTIAL
+    assert result.diagnostics["opportunity_discovery"]["status"] == "model_unavailable"
+    assert result.brief_markdown.startswith(ordinary.brief_markdown)
+    assert "Structured opportunity assessment was unavailable" in result.brief_markdown
+
+
 def test_stdio_reports_bounded_targets_to_host():
     out = io.StringIO()
     host = StdioHostSource("host_web_search", input_stream=io.StringIO(

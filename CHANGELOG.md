@@ -7,6 +7,8 @@ Python 3.10 compatibility is exercised by the public CI matrix; recommendation I
 - Define and validate the Host source reply contract and record search outcomes per query.
 - Keep citation URLs free of embedded credentials and allow per-question source fallback.
 - Add public-source-only execution, a Japanese hybrid route, a real Host benchmark and a cross-platform wheel install check.
+- Reject unrelated Reddit archive communities inferred from migration queries.
+- Report a partial result when explicitly requested opportunity analysis is unavailable.
 
 - Add the `vantage` CLI and inclusive UTC date ranges. Keep `sourceglint`
   imports and the legacy command.

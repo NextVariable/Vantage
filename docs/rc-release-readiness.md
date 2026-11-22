@@ -36,3 +36,40 @@ python scripts/audit_real_benchmark.py runs/rc/reproduction --output runs/rc/rev
 The recorder retains exact questions and cutoffs, plans and replies, each query, source outcomes, raw and retained ledgers, cited briefs, timings and Host usage when reported. Raw records and review packets are ignored by Git. The projected web tool limit is a Host instruction; recorded web events are the observed count. Billed cost requires provider billing data and is unavailable from these traces. Exact-source replication can vary as public pages change or rate limits apply.
 
 The [independent review rubric](../evals/rc-rubric.md) defines semantic scores and denominators. Machine checks match citation IDs, URLs and dates against the run ledger, and check dates against the requested interval. Source verification separately checks the origin page and the proposition it supports.
+
+## Engineering verification
+
+| Check | Observed status |
+| --- | --- |
+| Offline baseline `7e1757e` | 2,140 passed, 14 live tests skipped. |
+| Final local regression | 2,150 passed, 14 live tests skipped. The final scope includes the Reddit archive and opportunity status regressions. |
+| Local macOS, Python 3.13 | Wheel build, isolated install, `pip check`, both entry points and installed runtime smoke passed. Editable installation and `vantage doctor` also passed. |
+| Codex Skill entry | A separate Codex process explicitly discovered `$vantage`, loaded `SKILL.md` and ran the installed `vantage doctor` with exit zero. This checks local discovery and startup. Full research is verified separately through the Host/CLI benchmark. |
+| First cross-platform CI | Four macOS/Linux jobs passed. Windows surfaced a path-dependent default skip and a hard-coded path separator assertion. |
+| Windows fixes `d3ea40c` | All six CI jobs passed, including offline tests and isolated wheel installation, on Windows, macOS and Ubuntu with Python 3.10 and 3.13. [GitHub Actions matrix](https://github.com/NextVariable/Vantage/actions/runs/44988447227) |
+| Data and credential checks | Repository scanner, tracked history check and ignored raw evidence verified. The benchmark used public lanes with no paid adapter credentials. Direct CLI users can opt into other configured routes. |
+
+Full run reports, ledgers, evidence snippets and tool event logs may contain user research and upstream data. Keep `runs/`, caches and local configuration out of source control. Review source permissions separately from installation readiness. See [source access](source-access-matrix.md) and [fallbacks](source-fallback-playbook.md).
+
+## Real benchmark results
+
+[Per-case machine results](../evals/rc-results.json) · [Independent source spot checks and quality comparison](rc-quality-review.md) · [Four example reports](examples/rc/README.md)
+
+The full `13a0635` run produced 20 records with briefs and ledgers where evidence survived. All 20 recorded Host plans, but 12 cases missed a timely reply and one engine was terminated after its partial payload had been saved. The recorded CLI totals were 13 `PARTIAL`, six `NO_EVIDENCE` and one `SUCCESS`. The `SUCCESS` case had an unavailable opportunity assessment despite the successful core brief, so it did not qualify as a complete opportunity report. That status composition was repaired after this matrix and regression-tested. The result file preserves the original status.
+
+The engine retained 42 dated records inside their recorded windows. All 32 displayed evidence IDs had matching URL/date pairs in the ledger. This is a traceability check. Independent spot checks found correctly attributed claims and original URLs that could not be reopened. There is no representative independent score for citation accuracy, key claim support or coverage. The engine itself marked zero of its 51 planned subquestions fully covered, although brief sections did provide partial answers and disclose gaps.
+
+Initial and follow-up routes made 75 adapter requests. Forty-five returned no rows and five failed. Nine of 24 follow-up rounds produced new retained candidates. The useful incremental findings in those rounds have not been independently established. The median time was 241.99 seconds and 72 Host web events were visible. Model usage was available for 18 cases, including input/cache breakdown. Actual charges were unavailable.
+
+## Release gates and next iteration
+
+| Gate | Judgment |
+| --- | --- |
+| Key claim support ≥95% and core questions answered or explicitly disclosed ≥80% | Unverified across the matrix. Selected origin checks alone cannot establish either rate. |
+| No undisclosed material factual errors | Unverified; material provenance and original-page gaps were observed. |
+| Falsifiable opportunities without unsupported demand claims | Both negative controls yielded no evidence. The fictional opportunity prompt abstained. One documentation study design was explicitly tentative, with an origin the reviewer could not reopen. |
+| Repeatable hosted research | Repeatable runner, pinned versions and 20 actual records. Too many late exchanges and unavailable sources for the RC quality gate. |
+| Improvement over the previous engine | Five paired prompts retained more records and failed fewer adapter routes, with a substantial latency and Host interaction penalty. Semantic improvement remains unproven. |
+| Clean install, command paths and platform support | Verified locally for macOS and in the six-job Windows/macOS/Ubuntu matrix at `d3ea40c`. |
+
+Keep the development branch in beta and defer merge and release. The next iteration should reserve time for synthesis and stop low-yield lanes earlier, resolve publisher provenance separately from route identity, and compare sources and question coverage through a blinded rerun before reconsidering RC.

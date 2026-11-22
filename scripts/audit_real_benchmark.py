@@ -66,18 +66,21 @@ def audit_case(folder):
     if "time_window" in plan:
         lower, upper = span(plan["time_window"], metadata)
         in_window = sum(lower <= timestamp(row["published_at"]) <= upper for row in ledger.values())
-    frames = sorted(folder.glob("request-*.json"))
+    frames = {path.stem.removeprefix("request-"): load(path) for path in folder.glob("request-*.json")}
     replies = {path.stem.removeprefix("reply-"): load(path) for path in folder.glob("reply-*.json")}
-    source_frames = [load(path) for path in frames if load(path).get("type") == "source_request"]
-    invalid_source = sum(
-        isinstance(reply, dict) and reply.get("type") == "source_response"
-        and "error" not in reply and not isinstance(reply.get("results"), list)
-        for reply in replies.values()
-    )
+    source_frames = {number for number, frame in frames.items() if frame.get("type") == "source_request"}
+    invalid_source = 0
+    for number in source_frames & replies.keys():
+        reply = replies[number]
+        if (not isinstance(reply, dict) or reply.get("type") != "source_response"
+                or reply.get("source") != frames[number]["source"]
+                or (not reply.get("error") and not isinstance(reply.get("results"), list))):
+            invalid_source += 1
     row = {
         "case": metadata["case"]["id"], "focus": metadata["case"]["focus"], "language": metadata["case"]["language"],
         "commit_sha": metadata["commit_sha"], "dirty": metadata["dirty"], "complete_record": bool(status and result),
-        "status": result.get("status"), "failure": status.get("failure"), "planned_by_host": adaptive.get("planning_status") == "planned",
+        "status": result.get("status"), "failure": status.get("failure"), "engine_exit": status.get("engine_exit"),
+        "host_exchanges_forwarded": status.get("exchanges"), "planned_by_host": adaptive.get("planning_status") == "planned",
         "had_actual_online_route": any(r.get("executed_routes", 0) for r in rounds),
         "retained_evidence": len(ledger), "in_window": in_window,
         "synthesis_evidence": adaptive.get("synthesis_evidence_count"),
@@ -86,12 +89,16 @@ def audit_case(folder):
         "unrecognized_ids": sorted(ids - ledger.keys()),
         "rounds": len(rounds), "stop_reason": adaptive.get("stop_reason"),
         "adapter_requests": sum(r.get("executed_routes", 0) for r in rounds),
+        "empty_adapter_requests": sum(r.get("empty_routes", 0) for r in rounds),
+        "failed_adapter_requests": sum(r.get("failed_routes", 0) for r in rounds),
         "followup_with_new_retained_candidates": sum(bool(r.get("new_evidence")) for r in rounds[1:]),
         "failed_sources": coverage.get("failed_sources", []), "host_unavailable_targets": coverage.get("unavailable_targets", []),
         "host_source_frames": len(source_frames), "host_invalid_source_reply": invalid_source,
+        "host_source_frames_without_reply_file": len(source_frames - replies.keys()),
         "model_frames": len(frames) - len(source_frames), "elapsed_seconds": status.get("elapsed_seconds"),
         "host_events": status.get("host_event_types"), "reported_tokens": status.get("reported_tokens"),
         "self_reported_questions": len(assessments), "self_reported_covered": sum(x["status"] == "covered" for x in assessments),
+        "opportunity_status": diagnostics.get("opportunity_discovery", {}).get("status"),
         "hypotheses": len(diagnostics.get("opportunity_discovery", {}).get("hypotheses", [])),
     }
     review = None
