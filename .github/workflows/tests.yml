@@ -6,9 +6,10 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python: ['3.10', '3.13']
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +20,4 @@ jobs:
       - run: python -m ruff check src scripts
       - run: python scripts/check_repository.py
       - run: python -m pytest tests -q
-      - run: python -m pip wheel --no-deps . --wheel-dir /tmp/sourceglint-dist
-      - run: |
-          python -m venv /tmp/sourceglint-installed
-          /tmp/sourceglint-installed/bin/python -m pip install /tmp/sourceglint-dist/*.whl
-          cd /tmp
-          /tmp/sourceglint-installed/bin/python "$GITHUB_WORKSPACE/scripts/check_installed_runtime.py"
+      - run: python scripts/verify_wheel_install.py

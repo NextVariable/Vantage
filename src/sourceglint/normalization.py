@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 import jsonschema
 from rfc3339_validator import validate_rfc3339
@@ -145,13 +146,18 @@ def normalize_raw(
     if window not in _EVIDENCE_VALID_WINDOWS:
         raise EvidenceNormalizationError(f"invalid window: {window!r}")
 
-    canonical_url = canonicalize_url(raw.url)
-    if not canonical_url:
-        raise EvidenceNormalizationError("raw.url missing (canonicalized empty)")
-    if not (canonical_url.startswith("http://") or canonical_url.startswith("https://")):
-        raise EvidenceNormalizationError(
-            f"raw.url scheme must be http(s); got {canonical_url[:16]}"
-        )
+    try:
+        if any(ord(char) < 32 or ord(char) == 127 for char in raw.url):
+            raise ValueError("URL contains control characters")
+        parts = urlsplit(raw.url.strip())
+        if parts.scheme not in ("http", "https") or not parts.hostname or any(c.isspace() for c in parts.hostname):
+            raise ValueError("HTTP(S) scheme and host required")
+        if parts.username is not None or parts.password is not None:
+            raise ValueError("credential-bearing URLs cannot be cited")
+        _ = parts.port  # Invalid ports raise ValueError.
+        canonical_url = canonicalize_url(raw.url)
+    except (ValueError, TypeError) as exc:
+        raise EvidenceNormalizationError("raw.url is not a valid credential-free HTTP(S) citation") from exc
 
     if raw.source_type not in _EVIDENCE_VALID_SOURCE_TYPES:
         raise EvidenceNormalizationError(
@@ -159,7 +165,6 @@ def normalize_raw(
             f"{sorted(_EVIDENCE_VALID_SOURCE_TYPES)}; got {raw.source_type!r}"
         )
 
-    canonical_url = canonicalize_url(raw.url)
     tier = _known_tier(raw.source)
     if raw.source == "github" and raw.raw_metadata.get("github_kind") in ("issue", "pull_request", "issue_comment"):
         # An official API transports community claims; it does not certify them.

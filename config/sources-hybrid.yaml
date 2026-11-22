@@ -131,3 +131,15 @@
   - en
   cache_ttl: 3600
   max_queries_per_run: 2
+- name: qiita
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 72
+  capabilities: [search]
+  markets: [global, jp]
+  languages: [ja]
+  cache_ttl: 900
+  max_queries_per_run: 2

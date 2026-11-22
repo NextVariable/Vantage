@@ -166,6 +166,44 @@ def build_model() -> StdioHostModel:
     return StdioHostModel()
 
 
+_SOURCE_TYPES = ["post", "comment", "review", "page", "release"]
+_TARGET_STATUSES = ["success", "no_results", "unavailable"]
+
+
+def _source_response_schema(name: str) -> dict:
+    return {
+        "type": "object",
+        "required": ["type", "source", "searched_targets"],
+        "oneOf": [{"required": ["results"], "not": {"required": ["error"]}},
+                  {"required": ["error"], "not": {"required": ["results"]}}],
+        "additionalProperties": False,
+        "properties": {
+            "type": {"const": "source_response"},
+            "source": {"const": name},
+            "error": {"type": "string", "minLength": 1},
+            "results": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "required": ["source_type", "source_native_id", "url", "title", "text", "published_at"],
+                "properties": {
+                    "source_type": {"enum": _SOURCE_TYPES},
+                    "source_native_id": {"type": "string", "minLength": 1},
+                    "url": {"type": "string", "pattern": "^https?://"},
+                    "title": {"type": "string", "minLength": 1},
+                    "text": {"type": "string", "minLength": 1},
+                    "published_at": {"type": "string", "format": "date-time"},
+                    **{key: {"type": "string"} for key in ("author", "market", "language")},
+                },
+            }},
+            "searched_targets": {"type": "array", "items": {
+                "type": "object", "required": ["name", "status"],
+                "properties": {"name": {"type": "string", "minLength": 1}, "status": {"enum": _TARGET_STATUSES}},
+            }},
+            "limitations": {"type": "array", "items": {"type": "string"}},
+            "unanswered_parts": {"type": "array", "items": {"type": "string"}},
+        },
+    }
+
+
 @dataclass
 class StdioHostSource:
     """Ask the host to retrieve one source query with its own tools."""
@@ -182,12 +220,24 @@ class StdioHostSource:
     def retrieve(
         self, plan: Mapping[str, object], request: Mapping[str, object]
     ) -> list[RawSourceResult]:
+        self.searched_targets.clear()
+        self.limitations.clear()
+        self.unanswered_parts.clear()
+        self.coverage_reported = False
         if remaining_time() == 0 or self.input_stream in _expired_streams:
             raise AdapterTimeout(self.name, "host response deadline exceeded")
         message: dict[str, Any] = {
             "type": "source_request", "source": self.name,
             "plan": dict(plan), "request": dict(request),
-            "allowed_source_types": ["post", "comment", "review", "page", "release"],
+            "allowed_source_types": _SOURCE_TYPES,
+            "response_schema": _source_response_schema(self.name),
+            "response_instruction": (
+                "Return a single source_response JSON object. Put results or error at top level, alongside "
+                "type, source and searched_targets. Do not use a payload wrapper. Include only published "
+                "items whose original URL and RFC3339 publication timestamp you can substantiate. "
+                "A visible complete calendar date can be written as midnight UTC with a precision limitation. "
+                "Use literal excerpts; keep review and inference outside the evidence text."
+            ),
             "coverage_response_fields": {
                 "searched_targets": "array of {name, status: success|no_results|unavailable}",
                 "limitations": "array of factual retrieval limitations",
@@ -231,8 +281,6 @@ class StdioHostSource:
             raise AdapterInvalidResponse(self.name, "expected source_response")
         if response.get("source") != self.name:
             raise AdapterInvalidResponse(self.name, "source name mismatch")
-        if response.get("error"):
-            raise AdapterUnavailable(self.name, str(response["error"]))
         targets = response.get("searched_targets")
         if targets is not None:
             if not isinstance(targets, list):
@@ -240,7 +288,7 @@ class StdioHostSource:
             self.coverage_reported = True
             for target in targets:
                 if (not isinstance(target, dict) or not target.get("name")
-                        or target.get("status") not in {"success", "no_results", "unavailable"}):
+                        or target.get("status") not in _TARGET_STATUSES):
                     raise AdapterInvalidResponse(self.name, "invalid searched target status")
                 self.searched_targets.append({
                     "name": str(target["name"]), "status": str(target["status"]),
@@ -250,6 +298,9 @@ class StdioHostSource:
             if not isinstance(values, list) or any(not isinstance(v, str) for v in values):
                 raise AdapterInvalidResponse(self.name, f"{field_name} must be an array of strings")
             getattr(self, field_name).extend(values)
+        if response.get("error"):
+            # Preserve reported per-target failures even when the overall host call fails.
+            raise AdapterUnavailable(self.name, str(response["error"]))
         items = response.get("results")
         if not isinstance(items, list):
             raise AdapterInvalidResponse(self.name, "results must be an array")
@@ -259,7 +310,7 @@ class StdioHostSource:
                 raise AdapterInvalidResponse(self.name, "result must be an object")
             try:
                 source_type = str(item["source_type"])
-                if source_type not in {"post", "comment", "review", "page", "release"}:
+                if source_type not in _SOURCE_TYPES:
                     raise AdapterInvalidResponse(
                         self.name,
                         "source_type must be one of post, comment, review, page, release",

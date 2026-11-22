@@ -1,0 +1,184 @@
+{
+  "cases": [
+    {
+      "id": "industry-agents",
+      "focus": "industry",
+      "mode": "trend",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "Which concrete open coding-agent tools were released recently? Separate announcements from independently observed behavior."
+    },
+    {
+      "id": "industry-video-cn",
+      "focus": "industry",
+      "mode": "market",
+      "market": "cn",
+      "language": "zh",
+      "days": 30,
+      "question": "最近 30 天，中国 AI 视频生成工具有哪些可核验的产品或功能发布？区分发布与用户体验。"
+    },
+    {
+      "id": "industry-inference-jp",
+      "focus": "industry",
+      "mode": "trend",
+      "market": "jp",
+      "language": "ja",
+      "days": 90,
+      "question": "日本語の公開資料から、家庭用ハードウェアで動くローカルLLMの実装・実測を調べてください。"
+    },
+    {
+      "id": "industry-browser",
+      "focus": "industry",
+      "mode": "trend",
+      "market": "global",
+      "language": "en",
+      "days": 7,
+      "question": "What browser-agent releases or breaking changes can be verified within exactly the last seven days?"
+    },
+    {
+      "id": "industry-agents-cn",
+      "focus": "industry",
+      "mode": "market",
+      "market": "cn",
+      "language": "zh",
+      "days": 60,
+      "question": "近 60 天国内开源代码智能体有哪些可追溯的发布？区分软件可用性和企业采用声明。"
+    },
+    {
+      "id": "demand-cursor",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 60,
+      "question": "What problems do actual users of the Cursor AI code editor report about pricing or usage limits? Include contrary experiences and distinguish Cursor from the common word."
+    },
+    {
+      "id": "demand-meeting-cn",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "cn",
+      "language": "zh",
+      "days": 60,
+      "question": "近 60 天国内会议转写用户在说话人区分和导出方面遇到哪些具体问题？明确区分用户自述和厂商宣传。"
+    },
+    {
+      "id": "demand-meeting-jp",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "jp",
+      "language": "ja",
+      "days": 90,
+      "question": "日本語の会議文字起こし利用者が実際に報告した不満や反例を調べてください。"
+    },
+    {
+      "id": "demand-openreview",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "What workflow friction do developers report from reviewing modifications by AI coding agents?"
+    },
+    {
+      "id": "demand-negative",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 7,
+      "question": "What verified complaints have actual users reported in the last seven days about the fictional tool ZoivaxQX-491? State if there is no evidence."
+    },
+    {
+      "id": "competition-linear",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "global",
+      "language": "en",
+      "days": 90,
+      "question": "Compare Linear, the issue tracker, with recent alternatives. Separate explicit comparisons, product capabilities and migration accounts."
+    },
+    {
+      "id": "competition-cursor",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "global",
+      "language": "en",
+      "days": 60,
+      "question": "Where do public sources actually compare Cursor AI editor and Claude Code for repository-wide changes? Disclose incomparable benchmarks."
+    },
+    {
+      "id": "competition-vectors",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "cn",
+      "language": "zh",
+      "days": 90,
+      "question": "哪些近期中文公开资料比较 Qdrant 与 pgvector？分别说明功能、验证条件和迁移证据。"
+    },
+    {
+      "id": "competition-vscode-jp",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "jp",
+      "language": "ja",
+      "days": 60,
+      "question": "VS Code 向け GitHub Copilot と代替コーディング支援ツールの違いを日本語資料で調べてください。"
+    },
+    {
+      "id": "competition-docs",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "How do Mintlify and Docusaurus differ for maintaining developer docs? Verify recent updates and disclose unresolved differences."
+    },
+    {
+      "id": "opportunity-offline",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 90,
+      "question": "What recent evidence describes offline meeting transcription tools and limitations, and which opportunity hypotheses could the evidence support?"
+    },
+    {
+      "id": "opportunity-translation-jp",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "jp",
+      "language": "ja",
+      "days": 90,
+      "question": "ローカル翻訳利用者の課題から検証可能な事業機会を探し、反証条件と既存代替を示してください。"
+    },
+    {
+      "id": "opportunity-docs",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 60,
+      "question": "Which testable opportunity hypotheses are supported by firsthand friction with developer documentation? Describe alternatives and disconfirming results."
+    },
+    {
+      "id": "opportunity-support-cn",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "cn",
+      "language": "zh",
+      "days": 90,
+      "question": "近 90 天中国小团队用 AI 客服遇到什么具体痛点？哪些创业机会假设有证据支撑，怎样证伪？"
+    },
+    {
+      "id": "opportunity-negative",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "What business opportunity could be validated for an invented ZoivaxQX-491 market? Abstain if the evidence is insufficient."
+    }
+  ]
+}

@@ -444,3 +444,14 @@ def test_normalize_author_present_passed_through():
 
 # ----- imports at module level for json use -----
 import json
+
+@pytest.mark.parametrize("url", [
+    "https://", "https://example.com:bad/path", "https://[bad", "https://user@example.com/article",
+])
+def test_invalid_citation_is_a_rejected_record_not_pipeline_failure(url):
+    from sourceglint.pipeline.adapters import RawSourceResult
+    raw = RawSourceResult(source="hacker_news", source_type="post", source_native_id="invalid-url",
+                          url=url, title="Marked invalid source", text="Public observation",
+                          published_at="2026-09-08T00:00:00Z")
+    with pytest.raises(EvidenceNormalizationError, match="credential-free HTTP"):
+        normalize_raw(raw, as_of="2026-09-09T00:00:00Z")

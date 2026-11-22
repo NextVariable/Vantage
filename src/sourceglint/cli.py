@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .application.api import run_sourceglint
-from .application.runtime import default_adapter_factory
+from .application.runtime import default_adapter_factory, default_sources
 from .host_stdio import StdioHostSource
 from .ledger import EvidenceLedger
 from .interface.request import MODES
@@ -85,6 +85,8 @@ def _build_parser(prog: str = "sourceglint") -> argparse.ArgumentParser:
     p.add_argument("--model", default=None, metavar="FILE|MOD:ATTR", help=_MODEL_HELP)
     p.add_argument("--host-sources-stdio", action="store_true",
                    help="Ask the host agent to handle host_web_search and official_web via JSON lines.")
+    p.add_argument("--public-sources-only", action="store_true",
+                   help="Use free, public routes without connector credentials or GitHub CLI authentication.")
     p.add_argument("--registry", default=None, metavar="YAML",
                    help="source registry YAML (default config/sources.yaml).")
     p.add_argument("--as-of", default=None, metavar="ISO",
@@ -172,11 +174,18 @@ def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
     try:
         sources = _load_registry(args.registry)
         model = _load_model(args.model)
+        if args.public_sources_only:
+            sources = [
+                row for row in (sources if sources is not None else default_sources())
+                if row.get("cost") == "free" and not row.get("auth_required")
+            ]
         adapter_factory = None
-        if args.host_sources_stdio:
+        if args.host_sources_stdio or args.public_sources_only:
             def adapter_factory(name, plan):
-                if name in ("host_web_search", "official_web"):
+                if args.host_sources_stdio and name in ("host_web_search", "official_web"):
                     return StdioHostSource(name)
+                if args.public_sources_only:
+                    return default_adapter_factory(name, plan, allow_credentials=False)
                 return default_adapter_factory(name, plan)
         ledger = None
         if args.ledger:

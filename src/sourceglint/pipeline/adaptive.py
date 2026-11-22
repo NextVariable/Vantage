@@ -232,8 +232,9 @@ class AdaptiveResearch:
         initial = []
         for question in self.plan["subquestions"] if response else ():
             preferences = self.plan.get("source_priorities") or []
-            names = sorted(question["preferred_sources"],
-                           key=lambda name: preferences.index(name) if name in preferences else len(preferences))
+            recommended = question["preferred_sources"]
+            names = sorted(recommended, key=lambda name: preferences.index(name) if name in preferences else len(preferences))
+            names.extend(entry["name"] for entry in self.eligible if entry["name"] not in recommended)
             for name in names:
                 route = self._route(question["query"], question["language"], name)
                 if self._claim(route):

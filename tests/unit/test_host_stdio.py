@@ -96,3 +96,47 @@ def test_host_web_search_request_contains_bounded_platform_targets():
     assert 1 <= len(request["targets"]) <= 10
     assert all("domains" in target for target in request["targets"])
     assert all("availability" in target for target in request["targets"])
+
+
+def test_host_source_observations_are_per_query_and_retained_on_error():
+    import pytest
+    from sourceglint.pipeline.adapters import AdapterUnavailable
+
+    responses = [
+        {"results": [], "searched_targets": [{"name": "hacker_news", "status": "success"}]},
+        {"error": "public source unavailable", "limitations": ["request limited"],
+         "searched_targets": [{"name": "qiita", "status": "unavailable"}]},
+    ]
+    incoming = io.StringIO("".join(json.dumps({
+        "type": "source_response", "source": "host_web_search", **value,
+    }) + "\n" for value in responses))
+    adapter = StdioHostSource("host_web_search", incoming, io.StringIO())
+    adapter.retrieve({}, {"query": "first"})
+    assert adapter.searched_targets[0]["name"] == "hacker_news"
+    with pytest.raises(AdapterUnavailable):
+        adapter.retrieve({}, {"query": "second"})
+    assert adapter.searched_targets == [{"name": "qiita", "status": "unavailable"}]
+    assert adapter.limitations == ["request limited"]
+
+
+def test_live_source_frame_contract_disallows_model_payload_wrapper():
+    import jsonschema
+
+    outgoing = io.StringIO()
+    incoming = io.StringIO(json.dumps({
+        "type": "source_response", "source": "host_web_search", "results": [],
+    }) + "\n")
+    StdioHostSource("host_web_search", incoming, outgoing).retrieve({}, {"query": "public product update"})
+    frame = json.loads(outgoing.getvalue())
+    schema = frame["response_schema"]
+    correct = {"type": "source_response", "source": "host_web_search",
+               "results": [{"source_type": "release", "source_native_id": "v2", "title": "v2",
+                            "url": "https://example.org/releases/v2", "text": "Version 2 released.",
+                            "published_at": "2026-11-02T00:00:00Z"}], "searched_targets": []}
+    validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    assert validator.is_valid(correct)
+    nested = dict(correct)
+    nested["payload"] = {"results": nested.pop("results")}
+    assert not validator.is_valid(nested)
+    del correct["results"][0]["source_native_id"]
+    assert not validator.is_valid(correct)

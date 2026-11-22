@@ -215,6 +215,7 @@ class ResearchPipeline:
                 "host_reported_gaps": list(dict.fromkeys(
                     part for obs in observations for part in obs["unanswered_parts"]
                 ))[:12],
+                "host_observations": observations,
                 "retained_ids": retained_ids,
                 "new_evidence": len(set(retained_ids) - previous_ids),
                 "routes": [{"source": source, "query": query, "status": status, "raw_items": len(rows)}
@@ -316,6 +317,17 @@ class ResearchPipeline:
             source_statuses=per_source,
         )
 
+    @staticmethod
+    def _record_host_observation(adapter, route, observations):
+        if hasattr(adapter, "searched_targets"):
+            observations.append({
+                "source": route.source, "query": route.query,
+                "coverage_reported": getattr(adapter, "coverage_reported", False),
+                "searched_targets": list(adapter.searched_targets),
+                "limitations": list(adapter.limitations),
+                "unanswered_parts": list(adapter.unanswered_parts),
+            })
+
     def _retrieve_batch(self, plan, retrievals, source_entries_by_name, blocked, *, adaptive):
         raw_results: list[RawSourceResult] = []
         per_source: dict[str, SourceStatusReport] = {}
@@ -374,6 +386,7 @@ class ResearchPipeline:
                 try:
                     out = adapter.retrieve(plan=plan, request=request)
                 except AdapterError as exc:
+                    self._record_host_observation(adapter, r, host_observations)
                     status = classify_adapter_exception(exc)
                     blocked.add(source_name)
                     trace.append((source_name, r.query, status.value, []))
@@ -399,6 +412,7 @@ class ResearchPipeline:
                     rep.status = SourceStatus.UNAVAILABLE
                     rep.append_warning(f"unavailable: {exc}")
                     break
+                self._record_host_observation(adapter, r, host_observations)
                 # Adapters reset per-query diagnostics. Capture each query's
                 # limits before the next variant can clear them, including
                 # empty but incomplete retrievals.
@@ -433,13 +447,6 @@ class ResearchPipeline:
                 rep.status = SourceStatus.PARTIAL
             per_source[source_name] = rep
 
-            if hasattr(adapter, "searched_targets"):
-                host_observations.append({
-                    "coverage_reported": getattr(adapter, "coverage_reported", False),
-                    "searched_targets": list(adapter.searched_targets),
-                    "limitations": list(adapter.limitations),
-                    "unanswered_parts": list(adapter.unanswered_parts),
-                })
         return raw_results, per_source, host_observations, trace
 
     def _normalize(self, batch: Sequence[RawSourceResult], warnings: list[str]) -> tuple[list[dict], int]:

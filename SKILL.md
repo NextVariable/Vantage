@@ -36,7 +36,7 @@ Run from the Skill folder in an interactive terminal:
 ```sh
 .venv/bin/vantage 'USER QUERY' \
   --model sourceglint.host_stdio:build_model \
-  --host-sources-stdio --registry config/sources-hybrid.yaml \
+  --public-sources-only --host-sources-stdio --registry config/sources-hybrid.yaml \
   --ledger runs/research-unique-name/evidence.jsonl --json
 ```
 

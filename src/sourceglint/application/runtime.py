@@ -53,7 +53,7 @@ def _env(*names: str) -> str:
 
 
 def default_adapter_factory(
-    name: str, plan: Mapping[str, Any]
+    name: str, plan: Mapping[str, Any], *, allow_credentials: bool = True
 ) -> Any | None:
     """Map registry source name → connector adapter instance.
 
@@ -77,6 +77,8 @@ def default_adapter_factory(
     )
     from ..connectors.authorized_sources import ProductHuntAdapter, XAdapter
 
+    if not allow_credentials and name in {"bluesky", "x", "product_hunt", "semantic_scholar"}:
+        return None
     if name == "bluesky":
         return BlueskyAdapter(
             handle=_env("BSKY_HANDLE") or None,
@@ -87,8 +89,8 @@ def default_adapter_factory(
     if name == "hacker_news":
         return HackerNewsAdapter(require_topic_match=True)
     if name == "github":
-        token = _env("GITHUB_TOKEN")
-        if not token:
+        token = _env("GITHUB_TOKEN") if allow_credentials else ""
+        if not token and allow_credentials:
             # Reuse the user's existing public-GitHub CLI authentication only.
             # Never log, serialize or place the credential in an argv string.
             import shutil
@@ -104,8 +106,8 @@ def default_adapter_factory(
         return GitHubAdapter(token=token or None, include_discussions=True)
     if name == "reddit":
         return RedditAdapter(
-            client_id=_env("REDDIT_CLIENT_ID", "REDDIT_CLIENT_ID") or None,
-            client_secret=_env("REDDIT_CLIENT_SECRET") or None,
+            client_id=(_env("REDDIT_CLIENT_ID") or None) if allow_credentials else None,
+            client_secret=(_env("REDDIT_CLIENT_SECRET") or None) if allow_credentials else None,
             allow_keyless_rss=True,
             include_archive=True,
         )

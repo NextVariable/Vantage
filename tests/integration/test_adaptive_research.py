@@ -318,3 +318,12 @@ def test_invalid_planning_or_assessment_discloses_fallback_without_retrying():
     assert report["stop_reason"] == "assessment_unavailable"
     assert report["subquestions"][0]["status"] == "unassessed"
     assert result.diagnostics["coverage"]["research_quality"] == "LIMITED"
+
+
+def test_planner_keeps_a_subquestion_when_its_preferred_source_is_ineligible():
+    model = ScriptedModel(planned_source="unconfigured_route")
+    _, report, calls, _ = execute(model, lambda *_: [observation("reddit")],
+                                  sources=[source("reddit")])
+    assert [call[0] for call in calls] == ["reddit"]
+    assert report["planning_status"] == "planned"
+    assert report["subquestions"][0]["status"] == "covered"

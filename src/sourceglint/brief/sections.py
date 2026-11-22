@@ -48,6 +48,10 @@ def _rec_field(rec: object, name: str, default: str = "") -> str:
     return str(getattr(rec, name, None) or default)
 
 
+def _citation_destination(url: str) -> str:
+    return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29").replace("<", "%3C").replace(">", "%3E")
+
+
 def _ref(lookup: Mapping[str, object], eid: str) -> str:
     """One deterministic citation: [source](url) plus backticked ev id."""
     rec = lookup.get(eid)
@@ -58,7 +62,7 @@ def _ref(lookup: Mapping[str, object], eid: str) -> str:
     date = _rec_field(rec, "published_at")[:10]
     suffix = f" · {date}" if date else ""
     if url:
-        return f"[{label}]({url}){suffix} `{eid}`"
+        return f"[{label}]({_citation_destination(url)}){suffix} `{eid}`"
     return f"`{eid}`"
 
 
@@ -231,7 +235,7 @@ def recent_items(sel: SelectedBrief, ledger: object) -> str:
     ]
     for rec in records[:10]:
         label = _untrusted_inline(rec.title or rec.snippet or rec.url)
-        link = f"[{label}]({rec.url.replace(')', '%29')})" if rec.url else label
+        link = f"[{label}]({_citation_destination(rec.url)})" if rec.url else label
         meta = " · ".join(part for part in (rec.source, rec.published_at) if part)
         lines.append(f"- {link}" + (f" — {meta}" if meta else ""))
         if rec.snippet:
