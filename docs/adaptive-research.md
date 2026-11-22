@@ -151,7 +151,7 @@ An unproductive call returns no relevant fixture evidence.
 | Adapter requests | 24 | 11 |
 | Unproductive adapter requests | 16 | 3 |
 | Model requests | 20 | 40 |
-| Model input characters | 27,860 | 63,260 |
+| Model input characters | 27,860 | 75,164 |
 | Median local time (one run) | 17.24 ms | 14.83 ms |
 
 One case finished after the initial round and three performed targeted
