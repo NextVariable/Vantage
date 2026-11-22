@@ -107,11 +107,16 @@ class YouTubeAdapter:
             command[3] = f"ytsearch{limit * 3}:{query}"
             if bounds:
                 command.extend(["--dateafter", bounds[0].strftime("%Y%m%d"), "--datebefore", bounds[1].strftime("%Y%m%d")])
+        from ..deadline import remaining_time
+        budget = remaining_time()
+        timeout = self.timeout_seconds if budget is None else min(self.timeout_seconds, budget)
+        if timeout <= 1.0:
+            raise AdapterTimeout(self.source_name, "no time left in the research budget")
         try:
-            result = self.runner(command, self.timeout_seconds)
+            result = self.runner(command, timeout)
         except subprocess.TimeoutExpired as exc:
             raise AdapterTimeout(
-                self.source_name, f"yt-dlp exceeded {self.timeout_seconds:g}s"
+                self.source_name, f"yt-dlp exceeded {timeout:g}s"
             ) from exc
         except FileNotFoundError as exc:
             raise AdapterUnavailable(

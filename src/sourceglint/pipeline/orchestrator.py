@@ -187,10 +187,12 @@ class ResearchPipeline:
         rounds = adaptive.budget.rounds if adaptive else 1
         for round_number in range(1, rounds + 1):
             round_started = monotonic()
+            retrieval_started = monotonic()
             with deadline_scope(adaptive.deadline if adaptive else None):
                 batch, reports, observations, trace = self._retrieve_batch(
                     plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
                 )
+            retrieval_seconds = monotonic() - retrieval_started
             raw_results.extend(batch)
             host_observations.extend(observations)
             for name, report in reports.items():
@@ -231,7 +233,9 @@ class ResearchPipeline:
                 "new_evidence": len(set(retained_ids) - previous_ids),
                 "routes": [{"source": source, "query": query, "status": status, "raw_items": len(rows)}
                            for source, query, status, rows in trace],
+                "retrieval_seconds": round(retrieval_seconds, 2),
             })
+            assessment_started = monotonic()
             with deadline_scope(adaptive.deadline):
                 expired = not _time_available(MIN_ASSESS_SECONDS)
                 if not expired:
@@ -243,6 +247,7 @@ class ResearchPipeline:
                     )
                 else:
                     retrievals = []
+            adaptive.rounds[-1]["assessment_seconds"] = round(monotonic() - assessment_started, 2)
             adaptive.rounds[-1]["subquestions"] = adaptive.assessments
             adaptive.rounds[-1]["elapsed_seconds"] = round(monotonic() - round_started, 2)
             if expired or monotonic() >= adaptive.deadline:

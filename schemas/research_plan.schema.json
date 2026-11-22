@@ -162,6 +162,30 @@
             "items": { "enum": ["T1_official", "T2_community", "T3_marketplace", "T4_secondary"] },
             "description": "Useful tiers that add confidence but do not block coverage."
           },
+          "evidence_requirements": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Engine-derived sufficiency conditions: evidence kind, directness and independent origins rather than a mandatory website.",
+            "properties": {
+              "focus": { "enum": ["industry", "demand", "competition", "opportunity", "general"] },
+              "roles_any_of": {
+                "type": "array", "uniqueItems": true,
+                "items": { "enum": ["vendor_claim_verified", "vendor_claim_unverified", "firsthand_experience",
+                                     "independent_test", "media_report", "third_party_commentary", "unknown"] }
+              },
+              "min_independent_origins": { "type": "integer", "minimum": 1 },
+              "min_direct_observations": { "type": "integer", "minimum": 0, "maximum": 3 },
+              "blocking_tiers": {
+                "type": "array", "uniqueItems": true,
+                "items": { "enum": ["T1_official", "T2_community", "T3_marketplace", "T4_secondary"] }
+              },
+              "preferred_tiers": {
+                "type": "array", "uniqueItems": true,
+                "items": { "enum": ["T1_official", "T2_community", "T3_marketplace", "T4_secondary"] }
+              },
+              "derived_from_focus": { "type": "boolean" }
+            }
+          },
           "preferred_sources": {
             "type": "array", "uniqueItems": true, "maxItems": 4,
             "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9_]+$" }

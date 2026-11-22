@@ -55,30 +55,55 @@ class ResearchBudget:
 
 TIERS = {"T1_official": 1, "T2_community": 2, "T3_marketplace": 3, "T4_secondary": 4}
 
-# Coverage conditions by research intent. Required evidence is what a
-# "covered" answer must cite; supporting evidence raises confidence but never
-# blocks coverage. These are defaults, not a ceiling: a planner may state its
-# own required_evidence, and the engine never relaxes it to lift coverage.
+# Coverage conditions by research intent. Required evidence is the *kind* of
+# evidence a conclusion needs (vendor claim, firsthand experience, independent
+# test, media report), not a mandatory website. Tier defaults are advisory;
+# only tiers the planner explicitly required can block a covered verdict.
 _FOCUS_REQUIRED = {
     "industry": ("T1_official", "T2_community"),
     "demand": ("T2_community", "T4_secondary"),
     "competition": ("T1_official", "T3_marketplace"),
     "opportunity": ("T2_community", "T4_secondary"),
 }
+_ROLE_ANY_OF = {
+    "industry": ("vendor_claim_verified", "media_report"),
+    "demand": ("firsthand_experience", "independent_test"),
+    "competition": ("vendor_claim_verified", "independent_test", "media_report"),
+    "opportunity": ("firsthand_experience", "third_party_commentary"),
+}
+_DIRECT_ROLES = {"vendor_claim_verified", "firsthand_experience", "independent_test"}
+_DIRECT_FOCUS = {"industry", "demand", "competition"}
 _USER_EXPERIENCE_TYPES = {"post", "review", "comment"}
-_MEDIA_TIERS = {3, 4}
+_MEDIA_TIERS = {4}
+_OFFICIAL_SOURCES = {"official_web"}
+# A first-party announcement written on a community platform ("our team
+# shipped ...") stays a vendor claim. Detection uses the post text, never the
+# author name: a username is not identity evidence.
+_VENDOR_VOICE = re.compile(
+    r"\b(?:our (?:team|company|product|users|community|release)|"
+    r"we (?:shipped|launched|released|announce|built|are (?:excited|proud))|"
+    r"I (?:work|worked) (?:at|for)|founder of|co-?founder)\b",
+    re.IGNORECASE,
+)
+
+
+def _vendor_voice(item: Mapping[str, Any]) -> bool:
+    return bool(_VENDOR_VOICE.search(str(item.get("content") or item.get("snippet") or "")))
 
 
 def split_evidence_requirements(question: Mapping[str, Any]) -> tuple[list[str], list[str]]:
     """Return (required, supporting) tiers for one subquestion.
 
-    Required tiers block a covered verdict. Supporting tiers are recorded and
-    reported but do not. A plan that lists four useful tiers therefore keeps
-    all four instead of silently promoting two of them into hard requirements.
+    Explicit planner tiers block a covered verdict. Derived defaults are
+    recorded as preferred tiers only: the blocking condition for an implicit
+    plan is the evidence *kind*/directness requirement below, so a broad
+    question is not made unreachable merely because one source class is absent.
     """
     planned = [tier for tier in question.get("evidence_types") or () if tier in TIERS]
-    required = [tier for tier in question.get("required_evidence") or () if tier in TIERS]
-    if not required:
+    declared = [tier for tier in question.get("required_evidence") or () if tier in TIERS]
+    if declared:
+        required = declared
+    else:
         focus = str(question.get("focus") or "general")
         if focus == "general":
             required = planned[:2]
@@ -93,41 +118,67 @@ def split_evidence_requirements(question: Mapping[str, Any]) -> tuple[list[str],
     return required[:2], list(dict.fromkeys(supporting))[:4]
 
 
-def classify_evidence_role(item: Mapping[str, Any], research_objects: Sequence[str] = ()) -> str:
-    """Deterministic provenance role for one evidence item.
+def evidence_requirements(question: Mapping[str, Any]) -> dict:
+    """Describe what evidence a covered answer actually needs.
 
-    Tier is a source *role*, not a credibility score. A maker post on a
-    community platform stays a vendor claim; only non-vendor community posts
-    count as firsthand user experience.
+    ``roles_any_of`` is a disjunction of evidence kinds; ``min_direct`` counts
+    first-order observations (announcement, firsthand report, independent
+    test). ``blocking_tiers`` holds only tiers the planner explicitly required.
     """
+    required, supporting = split_evidence_requirements(question)
+    focus = str(question.get("focus") or "general")
+    explicit = [tier for tier in question.get("required_evidence") or () if tier in TIERS]
+    return {
+        "focus": focus,
+        "roles_any_of": list(_ROLE_ANY_OF.get(focus, ())),
+        "min_independent_origins": max(1, int(question.get("minimum_origins") or 1)),
+        "min_direct_observations": 1 if focus in _DIRECT_FOCUS else 0,
+        "blocking_tiers": explicit[:2],
+        "preferred_tiers": list(dict.fromkeys([*required, *supporting]))[:6],
+    }
+
+
+def classify_evidence_role(item: Mapping[str, Any], *, feedback: bool = False) -> tuple[str, str]:
+    """Return ``(role, identity_confidence)`` for one evidence item.
+
+    Identity is never inferred from a username. A community account can only
+    become ``firsthand_experience`` when the assessment explicitly cites it as
+    user feedback; otherwise it stays third-party commentary. Vendor identity
+    is verified through registry/official designation, not string matching.
+    """
+    metadata = item.get("raw_metadata")
+    official = (
+        (isinstance(metadata, Mapping) and bool(metadata.get("official")))
+        or str(item.get("source") or "") in _OFFICIAL_SOURCES
+        or item.get("source_tier") == 1
+    )
+    if official:
+        return "vendor_claim_verified", "declared_official"
     tier = item.get("source_tier")
-    source_type = str(item.get("source_type") or "").casefold()
-    author = str(item.get("author") or "").casefold()
-    if tier == 1:
-        return "vendor_claim"
-    if tier == 2 and source_type in _USER_EXPERIENCE_TYPES:
-        if author and any(len(obj) >= 3 and obj.casefold() in author for obj in research_objects):
-            return "vendor_claim"
-        return "user_experience"
-    if tier in _MEDIA_TIERS:
-        return "media_report"
-    return "unverified"
+    if feedback and tier in (2, 3):
+        return "firsthand_experience", "self_reported"
+    if tier == 4:
+        return "media_report", "publisher"
+    if tier in (2, 3):
+        return "third_party_commentary", "unverified_author"
+    return "unknown", "unknown"
 
 
 def answer_state(status: str, *, missing_required: Sequence[str], origin_shortfall: bool,
-                 gap: str, unavailable: bool) -> str:
+                 gap: str, unavailable: bool, role_gap: bool = False,
+                 direct_shortfall: bool = False) -> str:
     """Map internal coverage status onto the reported answer state.
 
     ``explicitly_disclosed`` is used only when the run names a concrete reason
-    (missing required evidence, too few independent origins, or blocked
-    sources). A bare unanswered question stays ``unanswered`` so disclosed
-    gaps are never counted as answers.
+    (missing required evidence, too few independent origins, no direct
+    observation, or blocked sources). A bare unanswered question stays
+    ``unanswered`` so disclosed gaps are never counted as answers.
     """
     if status == "covered":
         return "fully_answered"
     if status == "partial":
         return "partially_answered"
-    if gap and (missing_required or origin_shortfall or unavailable):
+    if gap and (missing_required or origin_shortfall or unavailable or role_gap or direct_shortfall):
         return "explicitly_disclosed"
     return "unanswered"
 
@@ -218,6 +269,7 @@ class AdaptiveResearch:
         own_deadline = monotonic() + self.budget.timeout_seconds
         self.deadline = own_deadline if deadline is None else min(own_deadline, deadline)
         self.started = monotonic()
+        self.planning_seconds = 0.0
         self.plan = {**plan, "budget": self.budget.to_dict(), "stop_conditions": list(STOP_CONDITIONS),
                      "opportunity_requested": opportunities}
         self.sources = list(sources)
@@ -312,6 +364,7 @@ class AdaptiveResearch:
         return True
 
     def prepare(self, fallback: Sequence[RetrievalPlan], *, target: str = "") -> list[RetrievalPlan]:
+        planning_started = monotonic()
         self.model_calls += int(remaining_time() != 0)
         response = _complete(self.model, "research_planning", {
             "instruction": (
@@ -338,6 +391,7 @@ class AdaptiveResearch:
             "request": self.plan, "target": target, "eligible_sources": self.eligible,
             "initial_route_budget": INITIAL_LIMIT,
         }, _planning_schema())
+        self.planning_seconds = round(monotonic() - planning_started, 2)
         if response:
             self.plan.update(response)
             self.planning_status = "planned"
@@ -369,9 +423,13 @@ class AdaptiveResearch:
         for question in self.plan["subquestions"]:
             question["query"] = (normalize_planned_query(question["query"], self.protect_entities)
                                  or question["query"])
+            declared = [tier for tier in question.get("required_evidence") or () if tier in TIERS]
             required, supporting = split_evidence_requirements(question)
             question["required_evidence"] = required
             question["supporting_evidence"] = supporting
+            requirements = evidence_requirements({**question, "required_evidence": declared})
+            requirements["derived_from_focus"] = not declared
+            question["evidence_requirements"] = requirements
         # The planner may have introduced new entities; keep them verbatim in
         # every later query and provenance check.
         self.protect_entities = tuple(dict.fromkeys(
@@ -503,48 +561,65 @@ class AdaptiveResearch:
                      if eid in by_id and eid not in contrary_ids]
             cited_ids = {item["evidence_id"] for item in cited}
             cited_tiers = {item.get("source_tier") for item in cited}
-            required, supporting = split_evidence_requirements(question)
-            missing_required = [tier for tier in required if TIERS[tier] not in cited_tiers]
-            missing_supporting = [tier for tier in supporting if TIERS[tier] not in cited_tiers]
+            requirements = question.get("evidence_requirements") or evidence_requirements(question)
+            required = list(question.get("required_evidence") or ())
+            supporting = list(question.get("supporting_evidence") or ())
+            missing_required = [tier for tier in requirements["blocking_tiers"]
+                                if TIERS[tier] not in cited_tiers]
+            missing_supporting = [tier for tier in requirements["preferred_tiers"]
+                                  if TIERS[tier] not in cited_tiers]
             # Reuse synthesis's origin estimator, including syndicated-copy suppression.
             origin_count = count_reporting_origins(prepare_evidence(cited))
             status = row["status"] if row else "unassessed"
             origin_shortfall = origin_count < question["minimum_origins"]
-            if row and not cited:
-                status = "unanswered"
-            elif status == "covered" and (missing_required or origin_shortfall):
-                status = "partial"
             gap = (row or {}).get("gap", "").strip()
-            if missing_required:
-                gap = " ".join(filter(None, (gap, "Missing required evidence: " + ", ".join(missing_required))))
-            if status != "covered" and not gap:
-                gap = "Completion criterion not established in the retained sample."
-            # Provenance is exclusive and must point at cited evidence. A maker
-            # post on a community platform is a vendor claim, never firsthand
-            # user feedback, even if the model listed it under both.
+            # Provenance is exclusive and must point at cited evidence. Identity
+            # comes from registry/official designation or an explicit model
+            # label, never from a username substring.
             vendor_claim_ids = [eid for eid in (row or {}).get("vendor_claim_ids", [])
                                 if eid in cited_ids]
-            roles = {eid: classify_evidence_role(by_id[eid], self.research_objects) for eid in cited_ids}
-            feedback = [eid for eid in (row or {}).get("feedback_ids", [])
-                        if eid in cited_ids and eid not in vendor_claim_ids
-                        and by_id[eid].get("source_tier") != 1
-                        and by_id[eid].get("source_type") in _USER_EXPERIENCE_TYPES
-                        and roles.get(eid) != "vendor_claim"]
-            # A maker post on a community platform is a vendor claim even when
-            # the model only listed it as feedback. Tier-1 official sources keep
-            # their existing treatment; they are not all marketing claims.
-            vendors = [eid for eid in cited_ids if eid in vendor_claim_ids]
+            candidate_feedback = [eid for eid in (row or {}).get("feedback_ids", [])
+                                  if eid in cited_ids and eid not in vendor_claim_ids
+                                  and by_id[eid].get("source_tier") != 1
+                                  and by_id[eid].get("source_type") in _USER_EXPERIENCE_TYPES]
+            roles: dict[str, str] = {}
+            identities: dict[str, str] = {}
             for eid in cited_ids:
-                if (roles.get(eid) == "vendor_claim" and eid not in vendors
-                        and by_id[eid].get("source_tier") != 1):
-                    vendors.append(eid)
-            vendors = [eid for eid in vendors if eid not in feedback]
+                role, identity = classify_evidence_role(by_id[eid], feedback=eid in candidate_feedback)
+                if role == "firsthand_experience" and _vendor_voice(by_id[eid]):
+                    role, identity = "vendor_claim_unverified", "unverified_author"
+                if eid in vendor_claim_ids and role != "vendor_claim_verified":
+                    role, identity = "vendor_claim_unverified", "unverified_author"
+                roles[eid] = role
+                identities[eid] = identity
+            feedback = [eid for eid in candidate_feedback if roles[eid] == "firsthand_experience"]
+            vendors = [eid for eid in cited_ids if roles[eid].startswith("vendor_claim")]
             counterevidence = [eid for eid in (row or {}).get("counterevidence_ids", []) if eid in by_id]
+            role_gap = bool(requirements["roles_any_of"]) and not (
+                set(roles.values()) & set(requirements["roles_any_of"]))
+            direct_count = sum(roles[eid] in _DIRECT_ROLES for eid in cited_ids)
+            direct_shortfall = direct_count < requirements["min_direct_observations"]
+            if row and not cited:
+                status = "unanswered"
+            elif status == "covered" and (missing_required or origin_shortfall
+                                          or role_gap or direct_shortfall):
+                status = "partial"
+            if missing_required:
+                gap = " ".join(filter(None, (gap, "Missing required evidence: " + ", ".join(missing_required))))
+            if role_gap:
+                gap = " ".join(filter(None, (gap, "No evidence of the required kind: "
+                                             + ", ".join(requirements["roles_any_of"]) + ".")))
+            if direct_shortfall:
+                gap = " ".join(filter(None, (gap, f"Needs {requirements['min_direct_observations']} "
+                                             f"direct observation(s); found {direct_count}.")))
+            if status != "covered" and not gap:
+                gap = "Completion criterion not established in the retained sample."
             preferred = [str(name) for name in question.get("preferred_sources") or ()]
             unavailable = bool(preferred) and all(name in blocked for name in preferred)
             state = answer_state(
                 status, missing_required=missing_required, origin_shortfall=origin_shortfall,
-                gap=gap, unavailable=unavailable,
+                gap=gap, unavailable=unavailable, role_gap=role_gap,
+                direct_shortfall=direct_shortfall,
             )
             self.assessments.append({
                 "question_id": question["id"], "question": question["question"], "status": status,
@@ -557,6 +632,11 @@ class AdaptiveResearch:
                 "missing_supporting": missing_supporting,
                 "required_evidence": required,
                 "supporting_evidence": supporting,
+                "evidence_requirements": requirements,
+                "direct_observation_count": direct_count,
+                "identity_confidence": ("verified" if "declared_official" in identities.values()
+                                        else "self_reported" if "self_reported" in identities.values()
+                                        else "unverified"),
                 "claim_roles": dict(Counter(roles.values())),
             })
             follow = (row or {}).get("followup")
@@ -619,6 +699,13 @@ class AdaptiveResearch:
 
     def report(self) -> dict:
         states = Counter(row.get("answer_state", "unanswered") for row in self.assessments)
+        total = len(self.assessments)
+
+        def rate(value: int) -> float:
+            return round(value / total, 4) if total else 0.0
+
+        answered = states.get("fully_answered", 0)
+        disclosed = states.get("explicitly_disclosed", 0)
         return {
             "intent": {"goal": self.plan.get("goal", ""), "intents": self.plan.get("intents", []),
                        "open_conditions": self.plan.get("open_conditions", [])},
@@ -627,9 +714,20 @@ class AdaptiveResearch:
             "subquestions": self.assessments,
             "planning_model_calls": self.model_calls, "model_calls": self.model_calls,
             "elapsed_seconds": round(monotonic() - self.started, 2),
-            "subquestion_count": len(self.assessments),
+            "planning_seconds": self.planning_seconds,
+            "retrieval_seconds": round(sum(row.get("retrieval_seconds", 0.0) for row in self.rounds), 2),
+            "assessment_seconds": round(sum(row.get("assessment_seconds", 0.0) for row in self.rounds), 2),
+            "subquestion_count": total,
             "subquestions_covered": sum(row["status"] == "covered" for row in self.assessments),
             "answer_states": dict(states),
+            # Answered and disclosed gaps stay separate: a disclosed gap is
+            # useful reporting, never a success.
+            "answer_rates": {
+                "answered": rate(answered),
+                "partially_answered": rate(states.get("partially_answered", 0)),
+                "disclosed_gap": rate(disclosed),
+                "unanswered": rate(states.get("unanswered", 0)),
+            },
             "rejected_routes": self.rejected_routes,
             "route_rejections": dict(self.route_rejections),
             "retrieval_strategy": self.plan.get("retrieval_strategy", {}),

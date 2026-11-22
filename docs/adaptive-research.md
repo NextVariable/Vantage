@@ -21,16 +21,17 @@ fallbacks are transport behavior, not research iterations.
 
 The adaptive path extends the existing research plan. The normalized request
 owns the market, languages and time window; the host proposes a research goal,
-objects and bounded subquestions. Each subquestion specifies required evidence
-(one or two tiers a covered answer must cite), supporting evidence (useful but
-non-blocking), preferred registry routes, priority, completion criteria and an
-initial query. The plan replaces the earlier practice of truncating a question
-to its first two evidence tiers, which made covered unreachable for broad
-questions. At most one follow-up round can address material gaps with an
-eligible new query or route. Assessment sees only retained, dated evidence with
-stable IDs. Both rounds use the same connector, filtering and deduplication
-pipeline and share one ledger. The existing synthesis stages run once on the
-combined evidence.
+objects and bounded subquestions. Each subquestion specifies the evidence
+*kind* a conclusion needs (`evidence_requirements.roles_any_of`), how many
+direct observations and independent origins are sufficient, and which tiers
+are merely preferred. Explicit planner `required_evidence` still blocks a
+covered verdict; tiers derived from the focus are recorded as preferred, so a
+broad question is not made unreachable just because one source class is absent.
+At most one follow-up round can address material gaps with an eligible new
+query or route. Assessment sees only retained, dated evidence with stable IDs.
+Both rounds use the same connector, filtering and deduplication pipeline and
+share one ledger. The existing synthesis stages run once on the combined
+evidence.
 
 ```text
 Parsed request → structured plan → initial retrieval → evaluate dated evidence
@@ -55,28 +56,40 @@ opt-in and cite validated insights. Neither mode schedules future work.
 | Opportunity task | At most one call and three hypotheses, only with explicit opt-in and valid insights |
 
 Wall-clock budget is separate from request counts. Research stops at
-`research_deadline`; a synthesis reserve of 60–130 seconds, scaled by entity,
-language and mode complexity and capped at 45% of the total run budget, is held
-back so a slow final round cannot starve the brief. The chosen reserve and its
-basis are recorded in `diagnostics.performance`. Rejected routes are counted by
-reason (`duplicate_query`, `source_query_limit`, `route_budget`,
+`research_deadline`; a synthesis reserve is held back so a slow final round
+cannot starve the brief. The reserve is `min(130s, 45% of the run)` capped by a
+complexity target, so it never exceeds the share cap even for very short
+budgets; research receives exactly the remainder and the window is never
+negative. A remainder below 30 seconds sets `short_budget` so the run is
+reported as research-starved instead of silently degraded. The chosen reserve
+and its basis are recorded in
+`diagnostics.performance`, together with per-phase `planning`, `retrieval`,
+`assessment` and `synthesis` seconds. Rejected routes are counted by reason
+(`duplicate_query`, `source_query_limit`, `route_budget`,
 `language_not_requested`, `source_language_unsupported`) instead of being
 silently dropped.
 
-An assessed subquestion needs usable IDs, its required tiers and independent
-publishing surfaces. Supporting tiers are reported but never block coverage.
-Each subquestion reports one of four answer states: `fully_answered`,
-`partially_answered`, `explicitly_disclosed` (a named gap such as missing
-required evidence or blocked sources) or `unanswered`. Disclosed gaps are not
-counted as answers, and `research_quality: ADEQUATE` requires every
-subquestion to be fully answered. The model judges semantic relevance and the
-stated criterion. Engine checks establish that the referenced items exist, are
-dated, and satisfy those structural conditions. They cannot independently prove
-the semantic judgment or establish market representativeness. The existing
-domain-based origin estimator also discounts substantial copied text. Feedback
-labels are model judgments about reported experiences; a maker post on a
-community platform is reclassified as a vendor claim even when the model did
-not flag it.
+An assessed subquestion needs usable IDs, the evidence kinds named in
+`roles_any_of`, its independent publishing surfaces and, where the focus
+requires it, at least one direct observation (verified announcement, firsthand
+report or independent test). Preferred tiers are reported but never block
+coverage. Each subquestion reports one of four answer states:
+`fully_answered`, `partially_answered`, `explicitly_disclosed` (a named gap
+such as missing required evidence, too few direct observations or blocked
+sources) or `unanswered`. Disclosed gaps are not counted as answers, and
+`research_quality: ADEQUATE` requires every subquestion to be fully answered.
+The report exposes `answer_rates.answered` and `answer_rates.disclosed_gap`
+separately; they are never combined into one success rate.
+
+Evidence identity is never inferred from a username. An item is a verified
+vendor claim only through registry/official designation; a community post is
+third-party commentary unless the assessment cites it as feedback, and a
+first-party announcement ("our team shipped ...") is reclassified as an
+unverified vendor claim from its text. The model judges semantic relevance and
+the stated criterion. Engine checks establish that the referenced items exist,
+are dated, and satisfy the structural conditions above. They cannot
+independently prove the semantic judgment or establish market
+representativeness.
 
 A fully covered plan, absent/invalid assessment, or no eligible, materially
 useful follow-up ends the run after the first round. The second assessment
@@ -92,6 +105,35 @@ The API switches are `adaptive=True` and `opportunities=True`. The legacy
 opportunity discovery only on explicit request. The opportunity output includes
 a hypothesis, a validation test, a disconfirming observation and citations
 resolved through the existing insight and evidence IDs.
+
+## Host runtime
+
+The engine keeps one model contract (`complete_structured`) and two transports:
+
+* `sourceglint.host_stdio:build_model` — the Codex-compatible JSONL host. It is
+  unchanged and remains the default for interactive Skill runs.
+* `sourceglint.host_command:build_model` — a provider-neutral bridge to any
+  locally installed command-line runner. Configuration is environment-only:
+  `SOURCEGLINT_HOST_CMD` (argv), `SOURCEGLINT_HOST_OUTPUT` (`text` or
+  `json_envelope`), `SOURCEGLINT_HOST_PROMPT` (`stdin` or `argv`),
+  `SOURCEGLINT_HOST_TIMEOUT`, and `SOURCEGLINT_HOST_USAGE` for a JSONL record of
+  latency, status, token usage and billed cost. No endpoint, model name or
+  credential is stored in the package.
+
+```text
+SOURCEGLINT_HOST_CMD='my-runner --print' \
+SOURCEGLINT_HOST_OUTPUT=json_envelope \
+SOURCEGLINT_HOST_PROMPT=argv \
+SOURCEGLINT_HOST_USAGE=runs/host.usage.jsonl \
+python scripts/run_real_benchmark.py --native-sources \
+  --host-adapter sourceglint.host_command:build_model --seconds 150 \
+  --as-of <ISO> --output runs/<id>
+```
+
+Timeouts, non-zero exits, oversized replies, non-JSON output and schema
+failures map to `TIMEOUT`, `UNAVAILABLE` or `INVALID_OUTPUT`; a late reply never
+leaves the runner waiting for a frame it already abandoned. Model text and
+usage are recorded separately.
 
 ## Validation
 
@@ -125,3 +167,17 @@ These tests exercise source connectors only. A paired, live evaluation with inde
 evidence and actual host latency and usage remains open. Use the same cutoffs
 and access permissions, record the URLs and review relevance and support
 without showing reviewers which path produced the evidence.
+
+## Real-host status (2026-11-22)
+
+The command bridge completed one real structured planning call against a locally
+installed runner (`ModelStatus.SUCCESS`, 19,371 input / 2,606 output tokens,
+$0.162 billed), which verifies the adapter end to end. The same account then
+returned HTTP 402 (insufficient balance) on the next call, so the 20-case
+Benchmark could not be completed. A single `industry-agents` probe did run the
+full engine against native GitHub/Reddit connectors; it returned `NO_EVIDENCE`
+in 66.4 s because planning fell back to query expansion and the retrieval window
+was exhausted. Those artifacts are in `runs/rc/beta-native-probe/industry-agents`
+and are not a quality result. No synthetic or fake host output is used to fill
+the gap, and no Beta/RC claim is made from these numbers.
+

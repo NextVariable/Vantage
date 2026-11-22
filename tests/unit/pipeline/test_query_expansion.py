@@ -19,6 +19,8 @@ Contract:
 """
 from __future__ import annotations
 
+import pytest
+
 from sourceglint.pipeline.query_expansion import (
     QUERY_EXPANSION_MAX,
     QueryExpander,
@@ -271,3 +273,20 @@ def test_competitor_japanese_plan_emits_ja_query_when_localized_in_explicit():
     ja_queries = [q for q in queries if q.query_language == "ja"]
     # At least the 2 explicit JP queries are emitted as ja-language.
     assert len(ja_queries) >= 2
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    ("Claude Code の リリースノート", "Claude Code の リリースノート"),
+    ("Node.js 22 LTS の 性能", "Node.js 22 LTS の 性能"),
+    (".NET 9 vs Node.js 22 性能对比", ".NET 9 vs Node.js 22 性能对比"),
+    ("VS Code 1.95 release notes", "VS Code 1.95 release notes"),
+    ("claude-code 插件", "claude-code 插件"),
+    ("OpenAI GPT-5.1 定价", "OpenAI GPT-5.1 定价"),
+    ("Kubernetes v1.31 upgrade notes", "Kubernetes v1.31 upgrade notes"),
+    ("C# 13 新機能", "C# 13 新機能"),
+    ("GPT-5 release notes November 2026", "GPT-5 release notes"),
+])
+def test_mixed_language_entities_versions_and_aliases_survive_cleanup(raw, expected):
+    from sourceglint.pipeline.query_expansion import normalize_planned_query
+
+    assert normalize_planned_query(raw) == expected

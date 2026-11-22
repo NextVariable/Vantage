@@ -21,6 +21,15 @@ CATALOG = ROOT / "evals" / "rc-benchmark.json"
 ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,60}")
 PUBLIC_ENV = {"PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TMPDIR", "TEMP",
               "SYSTEMROOT", "WINDIR", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE"}
+# Host-runner configuration is forwarded by prefix only: the runner never
+# inspects, logs or stores a credential value.
+HOST_ENV_PREFIXES = ("SOURCEGLINT_HOST_", "ANTHROPIC_", "DEEPSEEK_", "CLAUDE_", "OPENAI_")
+
+
+def host_env(source=None):
+    env = {k: v for k, v in (source or os.environ).items() if k in PUBLIC_ENV}
+    env.update({k: v for k, v in (source or os.environ).items() if k.startswith(HOST_ENV_PREFIXES)})
+    return env
 
 
 def write_json(path, value):
@@ -63,26 +72,49 @@ status. The deliverable is the exchanges, not a separately written report.
 """
 
 
-def usage(events):
-    if not events.exists():
-        return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None}
-    counts = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
-    kinds = {}
-    completed = 0
-    for line in events.read_text(encoding="utf-8").splitlines():
-        try:
-            item = json.loads(line)
-        except ValueError:
-            continue
-        if item.get("type") == "turn.completed":
-            completed += 1
-            for key in counts:
-                counts[key] += item.get("usage", {}).get(key, 0)
-        if item.get("type") == "item.completed":
-            kind = item.get("item", {}).get("type")
-            if kind:
-                kinds[kind] = kinds.get(kind, 0) + 1
-    return {"reported_tokens": counts if completed else None, "host_event_types": kinds, "billed_cost": None}
+def usage(events, usage_log=None):
+    if events.exists():
+        counts = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
+        kinds = {}
+        completed = 0
+        for line in events.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            if item.get("type") == "turn.completed":
+                completed += 1
+                for key in counts:
+                    counts[key] += item.get("usage", {}).get(key, 0)
+            if item.get("type") == "item.completed":
+                kind = item.get("item", {}).get("type")
+                if kind:
+                    kinds[kind] = kinds.get(kind, 0) + 1
+        return {"reported_tokens": counts if completed else None, "host_event_types": kinds, "billed_cost": None}
+    if usage_log is not None and usage_log.exists():
+        totals = {"input_tokens": 0, "output_tokens": 0}
+        cost = 0.0
+        calls = 0
+        failures = 0
+        for line in usage_log.read_text(encoding="utf-8").splitlines():
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            calls += 1
+            failures += record.get("status") != "success"
+            usage = record.get("usage") or {}
+            usage = usage.get("usage") if isinstance(usage, dict) else {}
+            for key in totals:
+                value = usage.get(key) if isinstance(usage, dict) else None
+                if isinstance(value, int):
+                    totals[key] += value
+            if isinstance(record.get("cost_usd"), (int, float)):
+                cost += float(record["cost_usd"])
+        return {"reported_tokens": totals if calls else None, "host_model_calls": calls,
+                "host_model_failures": failures,
+                "billed_cost": round(cost, 6) if cost else None}
+    return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None}
 
 
 def run_case(case, args, state):
@@ -96,9 +128,11 @@ def run_case(case, args, state):
     cmd += [case["question"], "--market", case["market"], "--window", str(case["days"]),
             "--mode", case["mode"], "--language", case["language"], "--as-of", args.as_of,
             "--max-rounds", str(args.max_rounds), "--research-timeout", str(args.seconds - 55),
-            "--host-sources-stdio", "--model", "sourceglint.host_stdio:build_model",
+            "--model", args.host_adapter,
             "--registry", str(args.registry), "--ledger", str(target / "evidence.jsonl"), "--json",
             "--opportunities" if case["focus"] == "opportunity" else "--no-opportunities"]
+    if not args.native_sources:
+        cmd.append("--host-sources-stdio")
     if not args.baseline_compat:
         cmd.append("--public-sources-only")
     write_json(target / "run.json", {**state, "case": case, "as_of": args.as_of, "host": args.model,
@@ -106,13 +140,15 @@ def run_case(case, args, state):
                                     else args.registry.read_text(encoding="utf-8"), "seconds": args.seconds,
                                     "legacy": args.legacy})
     events_path = target / "host.events.jsonl"
-    env = {k: v for k, v in os.environ.items() if k in PUBLIC_ENV}
+    usage_log = target / "host.usage.jsonl"
+    env = host_env()
     # Isolate the native GitHub credential helper on baseline versions without
     # --public-sources-only. Codex retains its existing, separate host login.
     gh_config = target / "empty-gh-config"
     gh_config.mkdir()
     engine_env = {**env, "GH_CONFIG_DIR": str(gh_config),
-                  "PYTHONPATH": str(args.engine_checkout / "src")}
+                  "PYTHONPATH": str(args.engine_checkout / "src"),
+                  "SOURCEGLINT_HOST_USAGE": str(usage_log)}
     # Bypass neither permissions nor sandbox. The parent launch environment
     # supplies permitted transport; the child host is restricted to the run folder.
     with (target / "engine.stderr").open("wb") as err:
@@ -139,6 +175,10 @@ def run_case(case, args, state):
                     result = request
                     break
                 write_json(target / f"request-{number}.json", request)
+                if args.native_sources:
+                    # The engine calls the configured host adapter itself; the
+                    # runner only records frames and the final result.
+                    continue
                 if host is None:
                     host = subprocess.Popen(
                         [args.codex, "exec", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check",
@@ -182,7 +222,7 @@ def run_case(case, args, state):
     elapsed = round(monotonic() - start, 2)
     summary = {"case": case["id"], "elapsed_seconds": elapsed, "engine_exit": engine.returncode,
                "status": (result or {}).get("status"), "exchanges": exchanges, "failure": failure or None,
-               **usage(events_path)}
+               **usage(events_path, usage_log)}
     write_json(target / "status.json", summary)
     return summary
 
@@ -197,7 +237,11 @@ def main():
     p.add_argument("--codex", default="codex")
     p.add_argument("--python", default=sys.executable)
     p.add_argument("--model", default="gpt-6.1-sol")
-    p.add_argument("--seconds", type=int, default=330, choices=range(120, 356))
+    p.add_argument("--host-adapter", default="sourceglint.host_stdio:build_model",
+                   help="Engine model spec. Use sourceglint.host_command:build_model with a local runner.")
+    p.add_argument("--native-sources", action="store_true",
+                   help="Use the engine's own connectors; only model calls go to the host.")
+    p.add_argument("--seconds", type=int, default=330, choices=range(30, 356))
     p.add_argument("--workers", type=int, choices=(1, 2, 3, 4), default=2)
     p.add_argument("--max-rounds", type=int, choices=(1, 2, 3), default=3)
     p.add_argument("--web-budget", type=int, choices=range(1, 9), default=6)
@@ -206,6 +250,8 @@ def main():
                    help="Use the isolated environment instead of the public-only flag on pre-RC checkouts.")
     p.add_argument("--engine-checkout", type=Path, default=ROOT)
     args = p.parse_args()
+    if args.native_sources and args.registry == ROOT / "config" / "sources-hybrid.yaml":
+        args.registry = ROOT / "config" / "sources-native.yaml"
     args.registry = args.registry.resolve()
     args.engine_checkout = args.engine_checkout.resolve()
     args.output = args.output.resolve()

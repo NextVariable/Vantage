@@ -15,7 +15,7 @@ class CommandResult:
     stderr: str
 
 
-def run_command(command: Sequence[str], timeout: float) -> CommandResult:
+def run_command(command: Sequence[str], timeout: float, stdin: str | None = None) -> CommandResult:
     """Run an argv sequence without a shell and capture bounded text output."""
     try:
         timeout = limit_timeout(timeout)
@@ -23,6 +23,8 @@ def run_command(command: Sequence[str], timeout: float) -> CommandResult:
         raise subprocess.TimeoutExpired(command, timeout) from exc
     completed = subprocess.run(
         list(command),
+        input=stdin,
+        encoding="utf-8",
         capture_output=True,
         text=True,
         timeout=timeout,

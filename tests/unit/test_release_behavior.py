@@ -1,6 +1,8 @@
 import io
 import json
 
+import pytest
+
 from sourceglint.host_stdio import StdioHostSource
 from sourceglint.pipeline.coverage import build_coverage_report
 from sourceglint.brief.sections import _ref
@@ -53,7 +55,51 @@ def test_synthesis_reserve_scales_with_complexity_and_stays_bounded():
     assert low_complexity < high_complexity
     assert 60 <= low < high <= 130
     tiny, _ = _synthesis_reserve(60, entities=4, languages=3, mode="competitor")
-    assert tiny == 60
+    assert 0 < tiny <= 60 * 0.45
+
+
+@pytest.mark.parametrize("total", [0, 1, 5, 20, 45, 60, 90, 120, 180, 345, 3600])
+@pytest.mark.parametrize(("entities", "languages", "mode"),
+                         [(0, 1, "market"), (4, 3, "competitor"), (2, 2, "opportunity")])
+def test_synthesis_reserve_never_exceeds_the_share_cap_or_goes_negative(total, entities, languages, mode):
+    from sourceglint.application.api import (
+        _SYNTHESIS_RESERVE_MAX,
+        _SYNTHESIS_RESERVE_SHARE_CAP,
+        _synthesis_reserve,
+    )
+
+    reserve, _ = _synthesis_reserve(total, entities=entities, languages=languages, mode=mode)
+    assert reserve >= 0
+    assert reserve <= total * _SYNTHESIS_RESERVE_SHARE_CAP + 1e-9
+    assert reserve <= _SYNTHESIS_RESERVE_MAX
+    assert total - reserve >= 0
+
+
+def test_evidence_role_never_infers_vendor_identity_from_a_username():
+    from sourceglint.pipeline.adaptive import classify_evidence_role
+
+    maker_post = {"source_tier": 2, "source_type": "post", "author": "acme_team",
+                  "source": "reddit", "content": "Our team shipped Acme 2.0."}
+    assert classify_evidence_role(maker_post) == ("third_party_commentary", "unverified_author")
+    assert classify_evidence_role(maker_post, feedback=True) == ("firsthand_experience", "self_reported")
+    official = {"source_tier": 1, "source_type": "release", "source": "github"}
+    assert classify_evidence_role(official) == ("vendor_claim_verified", "declared_official")
+    media = {"source_tier": 4, "source_type": "page", "source": "host_web_search"}
+    assert classify_evidence_role(media) == ("media_report", "publisher")
+
+
+def test_evidence_requirements_are_kind_based_and_do_not_mandate_a_site():
+    from sourceglint.pipeline.adaptive import evidence_requirements
+
+    demand = evidence_requirements({"focus": "demand", "evidence_types": ["T2_community", "T4_secondary"],
+                                    "minimum_origins": 2})
+    assert demand["roles_any_of"] == ["firsthand_experience", "independent_test"]
+    assert demand["min_direct_observations"] == 1
+    assert demand["min_independent_origins"] == 2
+    assert demand["blocking_tiers"] == []  # derived tiers are advisory, not a site requirement
+    explicit = evidence_requirements({"focus": "demand", "required_evidence": ["T2_community"],
+                                      "evidence_types": ["T2_community"]})
+    assert explicit["blocking_tiers"] == ["T2_community"]
 
 
 def test_answer_states_never_count_disclosure_as_an_answer():

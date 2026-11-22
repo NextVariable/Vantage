@@ -81,3 +81,32 @@ def test_rate_limit_and_timeout_are_classified():
 
     with pytest.raises(AdapterTimeout):
         YouTubeAdapter(executable="yt-dlp", runner=timeout).retrieve({}, _request())
+
+
+def test_yt_dlp_timeout_is_capped_by_the_research_deadline(monkeypatch):
+    from sourceglint import deadline
+
+    seen = []
+
+    def runner(command, timeout):
+        seen.append(timeout)
+        raise subprocess.TimeoutExpired(command, timeout)
+
+    adapter = YouTubeAdapter(executable="/opt/yt-dlp", runner=runner, timeout_seconds=120)
+    with deadline.deadline_scope(deadline.monotonic() + 4):
+        with pytest.raises(AdapterTimeout):
+            adapter.retrieve({}, _request())
+    assert 0 < seen[0] <= 4
+
+
+def test_yt_dlp_is_skipped_when_no_research_time_remains():
+    adapter = YouTubeAdapter(executable="/opt/yt-dlp", runner=lambda *_: pytest.fail("must not run"))
+    with deadline_scoped_now():
+        with pytest.raises(AdapterTimeout):
+            adapter.retrieve({}, _request())
+
+
+def deadline_scoped_now():
+    from sourceglint import deadline
+
+    return deadline.deadline_scope(deadline.monotonic() - 1)

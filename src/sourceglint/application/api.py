@@ -43,12 +43,21 @@ _RESEARCH_FLOOR_SECONDS = 30.0
 
 
 def _synthesis_reserve(total: float, *, entities: int, languages: int, mode: str) -> tuple[float, int]:
-    """Return (seconds, complexity score) reserved for synthesis."""
+    """Return (seconds, complexity score) reserved for synthesis.
+
+    The reserve is always non-negative and never exceeds the share cap, so a
+    short budget cannot reserve more time than the run actually has. The
+    preferred minimum shrinks with the budget instead of overriding it.
+    """
     complexity = 1 + min(4, max(0, entities)) + min(3, max(0, languages))
     if mode in {"competitor", "opportunity"}:
         complexity += 1
+    if total <= 0:
+        return 0.0, complexity
+    upper = min(_SYNTHESIS_RESERVE_MAX, total * _SYNTHESIS_RESERVE_SHARE_CAP)
     target = 45.0 + 9.0 * complexity
-    return max(_SYNTHESIS_RESERVE_MIN, min(_SYNTHESIS_RESERVE_MAX, total * _SYNTHESIS_RESERVE_SHARE_CAP, target)), complexity
+    reserve = max(min(_SYNTHESIS_RESERVE_MIN, upper), min(upper, target))
+    return max(0.0, min(upper, reserve)), complexity
 
 
 def _to_iso(value: datetime | str) -> datetime:
@@ -174,20 +183,27 @@ def run_sourceglint(
     research_reserve = 0.0
     research_deadline = None
     reserve_complexity = 0
+    short_budget = False
     if run_deadline is not None:
+        total_seconds = run_deadline - started
         research_reserve, reserve_complexity = _synthesis_reserve(
-            run_deadline - started,
+            total_seconds,
             entities=len(parsed.entities),
             languages=len(parsed.languages),
             mode=parsed.mode,
         )
-        research_deadline = max(started + _RESEARCH_FLOOR_SECONDS, run_deadline - research_reserve)
+        # Research gets exactly what synthesis does not reserve. The two phases
+        # can never claim overlapping time, and the window is never negative.
+        research_seconds = max(0.0, total_seconds - research_reserve)
+        short_budget = research_seconds < _RESEARCH_FLOOR_SECONDS
+        research_deadline = started + research_seconds
     adaptive_run = AdaptiveResearch(
         model, plan, source_list, budget=budget, opportunities=opportunities,
         deadline=research_deadline,
     ) if budget else None
 
     # 3) Run the full engine.
+    orchestrate_started = monotonic()
     with deadline_scope(run_deadline):
         outcome = orchestrate(
             parsed,
@@ -198,8 +214,10 @@ def run_sourceglint(
             include_recommendations=decision_support,
             adaptive=adaptive_run,
         )
+    orchestrate_seconds = monotonic() - orchestrate_started
 
     # 4) Package.
+    package_started = monotonic()
     diagnostics: dict[str, Any] = {
         "evidence_count": outcome.evidence_count,
         "signal_count": outcome.signal_count,
@@ -217,6 +235,11 @@ def run_sourceglint(
         diagnostics["coverage"] = coverage
         research = coverage.get("adaptive_research") or {}
         rounds = research.get("rounds") or []
+        retrieval_seconds = float(research.get("retrieval_seconds") or 0.0)
+        assessment_seconds = float(research.get("assessment_seconds") or 0.0)
+        planning_seconds = float(research.get("planning_seconds") or 0.0)
+        synthesis_seconds = max(0.0, orchestrate_seconds - retrieval_seconds
+                                - assessment_seconds - planning_seconds)
         diagnostics["performance"] = {
             "elapsed_seconds": round(monotonic() - started, 2),
             "budget_seconds": round(run_deadline - started, 1) if run_deadline else None,
@@ -228,6 +251,14 @@ def run_sourceglint(
                 "max_seconds": _SYNTHESIS_RESERVE_MAX,
                 "share_cap": _SYNTHESIS_RESERVE_SHARE_CAP,
                 "research_floor_seconds": _RESEARCH_FLOOR_SECONDS,
+                "short_budget": short_budget,
+            },
+            "phases": {
+                "planning": round(planning_seconds, 2),
+                "retrieval": round(retrieval_seconds, 2),
+                "assessment": round(assessment_seconds, 2),
+                "synthesis": round(synthesis_seconds, 2),
+                "orchestrate_total": round(orchestrate_seconds, 2),
             },
             "research_rounds": len(rounds),
             "routes_executed": sum(row.get("executed_routes", 0) for row in rounds),
@@ -235,11 +266,19 @@ def run_sourceglint(
             "routes_failed": sum(row.get("failed_routes", 0) for row in rounds),
             "research_model_calls": research.get("planning_model_calls"),
             "retained_evidence": outcome.evidence_count,
+            # Each phase reports its own outcome, so a late or failed stage is
+            # visible without inferring it from the final status.
+            "phase_status": {
+                "planning": research.get("planning_status", "not_used"),
+                "research": research.get("stop_reason"),
+                "synthesis": outcome.status,
+            },
         }
     brief = outcome.markdown
     status = Status(outcome.status)
     if opportunities:
         from ..recommendations.opportunities import discover_opportunities, render_opportunities
+        opportunity_started = monotonic()
         with deadline_scope(run_deadline):
             hypotheses, state = discover_opportunities(
                 model, parsed.query, outcome.insights, ctx.ledger,
@@ -250,6 +289,14 @@ def run_sourceglint(
             status = Status.PARTIAL
         if brief:
             brief += render_opportunities(hypotheses, ctx.ledger, state)
+        if "performance" in diagnostics:
+            phases = diagnostics["performance"]["phases"]
+            phases["opportunity"] = round(monotonic() - opportunity_started, 2)
+            diagnostics["performance"]["phase_status"]["opportunity"] = state
+    if "performance" in diagnostics:
+        phases = diagnostics["performance"]["phases"]
+        phases["report"] = round(max(0.0, monotonic() - package_started
+                                    - phases.get("opportunity", 0.0)), 2)
     return SkillResult(
         status=status,
         brief_markdown=brief,
