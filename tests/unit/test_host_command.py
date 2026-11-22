@@ -345,8 +345,7 @@ def _fake_host(tmp_path, cost):
     return path
 
 
-def _cross_process_spend(tmp_path, *, ledger, budget, run_id, cost, results):
-    fake = _fake_host(tmp_path, cost)
+def _cross_process_spend(fake, *, ledger, budget, run_id, results):
     src = Path(__file__).resolve().parents[2] / "src"
     code = (
         "import sys\n"
@@ -366,14 +365,24 @@ def _cross_process_spend(tmp_path, *, ledger, budget, run_id, cost, results):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
+def _finish(child):
+    _, stderr = child.communicate(timeout=120)
+    assert child.returncode == 0, f"{child.args}: {stderr}"
+
+
 def test_concurrent_processes_share_one_batch_budget(tmp_path):
     ledger = tmp_path / "batch.jsonl"
     results = tmp_path / "results.txt"
-    children = [_cross_process_spend(tmp_path, ledger=ledger, budget=0.05,
-                                     run_id=f"case-{index}", cost=0.02, results=results)
-                for index in range(4)]
+    fake = _fake_host(tmp_path, 0.02)
+    # One sequential spend, then a burst: even fully serialised execution
+    # must reach the cap because every process re-reads the shared file.
+    _finish(_cross_process_spend(fake, ledger=ledger, budget=0.05,
+                                 run_id="case-0", results=results))
+    children = [_cross_process_spend(fake, ledger=ledger, budget=0.05,
+                                     run_id=f"case-{index}", results=results)
+                for index in range(1, 4)]
     for child in children:
-        child.wait(timeout=90)
+        _finish(child)
     statuses = results.read_text(encoding="utf-8").split()
     totals = CostLedger(ledger).totals()
     assert totals["spent_usd"] >= 0.05
@@ -382,7 +391,7 @@ def test_concurrent_processes_share_one_batch_budget(tmp_path):
     assert totals["spent_usd"] == round(0.02 * statuses.count("success"), 6)
     # A fresh process starts with zero local counters; the shared ledger must
     # still refuse it rather than resetting the cap per process.
-    fresh = CommandHostModel(command=[sys.executable, str(_fake_host(tmp_path, 0.02))],
+    fresh = CommandHostModel(command=[sys.executable, str(fake)],
                              output_mode="json_envelope", budget_usd=0.05,
                              run_id="case-new", ledger=CostLedger(ledger))
     assert call(fresh).status is ModelStatus.UNAVAILABLE
@@ -392,11 +401,11 @@ def test_concurrent_processes_share_one_batch_budget(tmp_path):
 def test_unknown_cost_in_one_process_blocks_another_process(tmp_path):
     ledger = tmp_path / "batch.jsonl"
     results = tmp_path / "results.txt"
-    child = _cross_process_spend(tmp_path, ledger=ledger, budget=1.0,
-                                 run_id="case-a", cost=None, results=results)
-    child.wait(timeout=90)
+    fake = _fake_host(tmp_path, None)
+    _finish(_cross_process_spend(fake, ledger=ledger, budget=1.0,
+                                 run_id="case-a", results=results))
     assert results.read_text(encoding="utf-8").strip() == "success"
-    fresh = CommandHostModel(command=[sys.executable, str(_fake_host(tmp_path, 0.02))],
+    fresh = CommandHostModel(command=[sys.executable, str(fake)],
                              output_mode="json_envelope", budget_usd=1.0,
                              run_id="case-b", ledger=CostLedger(ledger))
     assert call(fresh).status is ModelStatus.UNAVAILABLE
