@@ -375,12 +375,53 @@ _TEMPORAL_TOKENS = frozenset({
     "september", "october", "november", "december",
     "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
 })
+# Whole phrases whose words are subject matter even though a single word is
+# also used as retrieval scaffolding ("release" vs "release notes").
+_PROTECTED_PHRASES = frozenset({
+    "release note", "release notes", "release date", "launch date", "changelog",
+    "use case", "use cases", "news feed", "update policy", "release policy",
+})
 _BOOLEAN = re.compile(r"(?<!\w)(?:AND|OR|NOT)(?!\w)", re.IGNORECASE)
 _LATIN = re.compile(r"[A-Za-z]")
 _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")
+_YEAR = re.compile(r"(?:19|20)\d{2}")
+_VERSION = re.compile(r"v?\d+(?:\.\d+)+", re.IGNORECASE)
 
 
-def normalize_planned_query(value: str) -> str:
+def _trim_token(token: str) -> str:
+    """Drop surrounding punctuation without destroying leading-dot entities.
+
+    ``.NET`` and ``.js`` must keep their leading dot; a trailing comma or
+    bracket is still syntax and is removed.
+    """
+    if re.match(r"\.[A-Za-z]", token):
+        return token.rstrip(",;:!?()[]{}<>…").strip()
+    return token.strip(".,;:!?()[]{}<>…")
+
+
+def _looks_like_entity(token: str, protect: frozenset[str]) -> bool:
+    """True for product names, technical terms and version numbers.
+
+    Keyword cleanup must never turn ``.NET`` into ``NET``, ``C++`` into ``C``,
+    or drop ``GPT-5`` / ``Node.js`` / ``v2.1``.
+    """
+    folded = token.casefold()
+    if folded in protect:
+        return True
+    if any(char in token for char in "+#") and _LATIN.search(token):
+        return True  # C++, C#, F#
+    if token.startswith(".") and re.fullmatch(r"\.[A-Za-z][\w.+-]*", token):
+        return True  # .NET, .js
+    if _VERSION.fullmatch(token):
+        return True  # 2.1, v3.0
+    if "." in token and _LATIN.search(token):
+        return True  # Node.js, Next.js
+    if re.search(r"\d", token) and _LATIN.search(token):
+        return True  # GPT-5, GPT-4o, Llama-3
+    return False
+
+
+def normalize_planned_query(value: str, protect: Sequence[str] = ()) -> str:
     """Repair model-authored search text without translating or rewriting it.
 
     Keyword APIs treat quotes, boolean operators and date words literally, so
@@ -388,6 +429,10 @@ def normalize_planned_query(value: str) -> str:
     and calendar scaffolding, and bounds Latin queries. Pure CJK queries are
     returned unchanged: they are not whitespace-delimited, so token removal
     would corrupt the subject.
+
+    ``protect`` names plan entities (products, brands, technical terms) that
+    must survive cleanup verbatim. Tokens that look like identifiers
+    (``.NET``, ``C++``, ``GPT-5``, ``Node.js``, ``v2.1``) are always kept.
     """
     raw = " ".join(str(value or "").split())
     if not raw:
@@ -396,23 +441,38 @@ def normalize_planned_query(value: str) -> str:
     # user's original subject; CJK-only queries are already whitespace-bounded.
     if _CJK.search(raw) and not _LATIN.search(raw):
         return raw
+    protected = frozenset(
+        " ".join(str(item).split()).casefold() for item in protect if str(item).strip()
+    )
     text = unicodedata.normalize("NFKC", raw)
     text = text.replace('"', " ").replace("“", " ").replace("”", " ")
     text = _BOOLEAN.sub(" ", text)
     text = re.sub(r"(?:(?<=\s)|^)[-+](?=\S)", " ", text)
-    kept = []
-    for token in text.split():
-        bare = token.strip(".,;:!?()[]{}<>…")
-        if not bare:
-            continue
+    tokens = [_trim_token(token) for token in text.split()]
+    tokens = [token for token in tokens if token]
+    # Mark words that belong to a protected phrase before dropping anything.
+    phrase_words: set[int] = set()
+    folded_tokens = [token.casefold() for token in tokens]
+    for index in range(len(tokens) - 1):
+        if f"{folded_tokens[index]} {folded_tokens[index + 1]}" in _PROTECTED_PHRASES:
+            phrase_words.update((index, index + 1))
+    kept: list[str] = []
+    for index, bare in enumerate(tokens):
         # Search-engine qualifiers are source syntax, not subject matter.
         if re.match(r"(?:after|before|since|until|created|pushed|updated):", bare, re.IGNORECASE):
             continue
         folded = bare.casefold()
-        if folded in _LANGUAGE_TOKENS or folded in _TEMPORAL_TOKENS:
+        anchored = index in phrase_words or _looks_like_entity(bare, protected)
+        if not anchored and (folded in _LANGUAGE_TOKENS or folded in _TEMPORAL_TOKENS):
             continue
-        if re.fullmatch(r"(?:19|20)\d{2}", bare):
+        # Bare years are calendar scaffolding; a version such as 2.1 is not.
+        if not anchored and _YEAR.fullmatch(bare):
             continue
+        # Keep short version numbers directly after a protected product name
+        # (".NET 9", "GPT 5").
+        if (not anchored and re.fullmatch(r"\d{1,2}", bare) and kept
+                and _looks_like_entity(kept[-1], protected)):
+            anchored = True
         kept.append(bare)
     return " ".join(kept) or raw
 

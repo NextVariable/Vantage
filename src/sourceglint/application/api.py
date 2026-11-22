@@ -31,13 +31,24 @@ from ..pipeline.orchestrator import PipelineConfig, ResearchPipeline
 
 __all__ = ["run_sourceglint"]
 
-# The adaptive phase gets ``timeout_seconds + 45`` of wall clock. Of that,
-# a bounded share is held back for synthesis so a slow final retrieval round
-# cannot leave the brief with no model budget.
-_SYNTHESIS_RESERVE_SHARE = 0.35
+# The adaptive phase gets ``timeout_seconds + 45`` of wall clock. A bounded
+# share is held back for synthesis so a slow final retrieval round cannot leave
+# the brief with no model budget. The reserve scales with request complexity
+# (entities, languages, mode) instead of assuming one fixed percentage fits
+# every run; it is still capped by a share of the total budget.
 _SYNTHESIS_RESERVE_MIN = 60.0
-_SYNTHESIS_RESERVE_MAX = 100.0
+_SYNTHESIS_RESERVE_MAX = 130.0
+_SYNTHESIS_RESERVE_SHARE_CAP = 0.45
 _RESEARCH_FLOOR_SECONDS = 30.0
+
+
+def _synthesis_reserve(total: float, *, entities: int, languages: int, mode: str) -> tuple[float, int]:
+    """Return (seconds, complexity score) reserved for synthesis."""
+    complexity = 1 + min(4, max(0, entities)) + min(3, max(0, languages))
+    if mode in {"competitor", "opportunity"}:
+        complexity += 1
+    target = 45.0 + 9.0 * complexity
+    return max(_SYNTHESIS_RESERVE_MIN, min(_SYNTHESIS_RESERVE_MAX, total * _SYNTHESIS_RESERVE_SHARE_CAP, target)), complexity
 
 
 def _to_iso(value: datetime | str) -> datetime:
@@ -162,9 +173,14 @@ def run_sourceglint(
     # instead of letting the last retrieval round run into the final seconds.
     research_reserve = 0.0
     research_deadline = None
+    reserve_complexity = 0
     if run_deadline is not None:
-        research_reserve = min(_SYNTHESIS_RESERVE_MAX, max(_SYNTHESIS_RESERVE_MIN,
-                                                          (run_deadline - started) * _SYNTHESIS_RESERVE_SHARE))
+        research_reserve, reserve_complexity = _synthesis_reserve(
+            run_deadline - started,
+            entities=len(parsed.entities),
+            languages=len(parsed.languages),
+            mode=parsed.mode,
+        )
         research_deadline = max(started + _RESEARCH_FLOOR_SECONDS, run_deadline - research_reserve)
     adaptive_run = AdaptiveResearch(
         model, plan, source_list, budget=budget, opportunities=opportunities,
@@ -206,6 +222,13 @@ def run_sourceglint(
             "budget_seconds": round(run_deadline - started, 1) if run_deadline else None,
             "research_budget_seconds": round(research_deadline - started, 1) if research_deadline else None,
             "synthesis_reserve_seconds": round(research_reserve, 1) if research_reserve else None,
+            "synthesis_reserve_basis": {
+                "complexity": reserve_complexity,
+                "min_seconds": _SYNTHESIS_RESERVE_MIN,
+                "max_seconds": _SYNTHESIS_RESERVE_MAX,
+                "share_cap": _SYNTHESIS_RESERVE_SHARE_CAP,
+                "research_floor_seconds": _RESEARCH_FLOOR_SECONDS,
+            },
             "research_rounds": len(rounds),
             "routes_executed": sum(row.get("executed_routes", 0) for row in rounds),
             "routes_empty": sum(row.get("empty_routes", 0) for row in rounds),

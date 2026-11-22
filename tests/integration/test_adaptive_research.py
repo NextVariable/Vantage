@@ -452,7 +452,14 @@ def test_a_plan_cannot_require_the_whole_evidence_tier_menu():
             return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
 
     result, _, _, _ = execute(FourTiers(), lambda *_: [observation()])
-    assert result.research_plan["subquestions"][0]["evidence_types"] == ["T1_official", "T2_community"]
+    question = result.research_plan["subquestions"][0]
+    # All four useful tiers are retained; only the derived required set blocks
+    # coverage, so a broad plan does not make "covered" unreachable.
+    assert question["evidence_types"] == [
+        "T1_official", "T2_community", "T3_marketplace", "T4_secondary",
+    ]
+    assert question["required_evidence"] == ["T1_official", "T2_community"]
+    assert question["supporting_evidence"] == ["T3_marketplace", "T4_secondary"]
 
 
 def test_maker_post_listed_as_both_vendor_and_feedback_counts_only_as_vendor():
@@ -466,3 +473,114 @@ def test_maker_post_listed_as_both_vendor_and_feedback_counts_only_as_vendor():
     row = report["subquestions"][0]
     assert row["feedback_ids"] == []
     assert row["vendor_claim_ids"] == [next(iter(ledger)).evidence_id]
+
+
+def test_product_and_version_entities_survive_query_cleanup():
+    from sourceglint.pipeline.query_expansion import normalize_planned_query
+
+    cases = {
+        ".NET 9 performance": ".NET 9 performance",
+        "C++ vs C# benchmark": "C++ vs C# benchmark",
+        "C# 13 features": "C# 13 features",
+        "Claude Code release notes": "Claude Code release notes",
+        "GPT-5 pricing": "GPT-5 pricing",
+        "Node.js 22 LTS": "Node.js 22 LTS",
+        "open source coding agent released November 2026": "open source coding agent",
+    }
+    for raw, expected in cases.items():
+        assert normalize_planned_query(raw) == expected, raw
+    assert normalize_planned_query("May launch notes", protect=["May", "launch"]) == "May launch notes"
+
+
+def test_required_evidence_follows_focus_and_supporting_does_not_block_coverage():
+    class CompetitionPlan(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Compare AI products", research_objects=["AI products"],
+                              subquestions=[{
+                                  "question": "How do competitors position?", "priority": 1,
+                                  "focus": "competition",
+                                  "evidence_types": ["T1_official", "T2_community",
+                                                     "T3_marketplace", "T4_secondary"],
+                                  "preferred_sources": ["hacker_news"],
+                                  "completion_criterion": "A recent comparison.",
+                                  "minimum_origins": 1, "query": "AI product comparison",
+                                  "language": "en",
+                              }])
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    result, report, _, _ = execute(CompetitionPlan(), lambda *_: [observation()])
+    question = result.research_plan["subquestions"][0]
+    assert question["required_evidence"] == ["T1_official", "T3_marketplace"]
+    assert "T4_secondary" in question["supporting_evidence"]
+    row = report["subquestions"][0]
+    # The model said "covered" but only community evidence was cited: required
+    # tiers are missing, so the answer is partial — supporting tiers are not
+    # promoted into hard requirements, and required tiers are not relaxed.
+    assert row["missing_required"] == ["T1_official", "T3_marketplace"]
+    assert row["status"] == "partial"
+    assert row["answer_state"] == "partially_answered"
+
+
+def test_unanswered_with_a_named_gap_is_disclosed_not_counted_as_answered():
+    model = ScriptedModel(planned_source="hacker_news", assess=lambda payload: {
+        "status": "unanswered", "evidence_ids": [],
+        "gap": "No firsthand report was published in the window.",
+    })
+    _, report, _, _ = execute(model, lambda *_: [observation()])
+    row = report["subquestions"][0]
+    assert row["answer_state"] == "explicitly_disclosed"
+    assert report["answer_states"]["explicitly_disclosed"] == 1
+    assert report["subquestions_covered"] == 0
+
+
+def test_source_language_mismatch_is_classified_instead_of_silently_dropped():
+    _, report, calls, _ = execute(
+        ScriptedModel(), lambda *_: [], sources=[source("hacker_news", languages=("ja",))],
+    )
+    assert calls == []
+    assert report["route_rejections"].get("source_language_unsupported") >= 1
+
+
+def test_plan_records_evidence_priority_routing_and_stop_rule():
+    result, _, _, _ = execute(ScriptedModel(), lambda *_: [observation()])
+    plan = result.research_plan
+    strategy = plan["retrieval_strategy"]
+    assert strategy["initial_route_limit"] >= 1
+    assert "follow up only" in strategy["followup_rule"].lower()
+    assert strategy["source_order"]
+    assert plan["subquestions"][0]["required_evidence"]
+
+
+def test_maker_account_post_is_vendor_even_without_a_model_flag():
+    class MakerPlan(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Understand Acme", research_objects=["Acme"],
+                              subquestions=[{
+                                  "question": "What did users report?", "priority": 1,
+                                  "evidence_types": ["T2_community"],
+                                  "preferred_sources": ["reddit"],
+                                  "completion_criterion": "A recent report.",
+                                  "minimum_origins": 1, "query": "Acme discussion",
+                                  "language": "en",
+                              }])
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    from sourceglint.pipeline.adapters import RawSourceResult
+
+    def maker_post(*_):
+        return [RawSourceResult(
+            source="reddit", source_type="post", source_native_id="m1",
+            url="https://reddit.com/r/a/comments/m1", title="Acme update",
+            text="Our team shipped a new Acme release.", author="acme_team",
+            published_at="2026-09-08T12:00:00Z",
+        )]
+
+    model = MakerPlan(planned_source="reddit", assess=lambda payload: {
+        "feedback_ids": [payload["evidence"][0]["id"]],
+    })
+    _, report, _, _ = execute(model, maker_post, sources=[source("reddit")])
+    row = report["subquestions"][0]
+    assert row["feedback_ids"] == []
+    assert len(row["vendor_claim_ids"]) == 1

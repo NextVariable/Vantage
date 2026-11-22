@@ -22,6 +22,7 @@ Semantic clarity (Closeout §5):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import Counter
 from typing import Iterable, Mapping
 
 from .degradation import SourceStatus, SourceStatusReport
@@ -96,12 +97,25 @@ class CoverageReport:
             "searched_targets": list(self.searched_targets),
             "unavailable_targets": list(self.unavailable_targets),
             "unanswered_parts": list(self.unanswered_parts),
-            "research_quality": "LIMITED" if self.gaps or any(
-                question["status"] != "covered"
-                for question in (self.adaptive_research or {}).get("subquestions", ())
-            ) else "NOT_ASSESSED",
+            "research_quality": self._research_quality(),
             **({"adaptive_research": self.adaptive_research} if self.adaptive_research is not None else {}),
         }
+
+    def _research_quality(self) -> str:
+        """Summarise assessed answers without inflating coverage.
+
+        ``ADEQUATE`` requires every subquestion to be fully answered and no
+        coverage gap. Anything else that was actually assessed is ``LIMITED``;
+        ``NOT_ASSESSED`` only means no assessment ran at all.
+        """
+        rows = list((self.adaptive_research or {}).get("subquestions") or ())
+        if not rows:
+            return "LIMITED" if self.gaps else "NOT_ASSESSED"
+        states = Counter(row.get("answer_state") for row in rows)
+        answered = states.get("fully_answered", 0) + states.get("covered", 0)
+        if answered == len(rows) and not self.gaps:
+            return "ADEQUATE"
+        return "LIMITED"
 
 
 def _distinct_preserve_first(items: Iterable[str]) -> tuple[str, ...]:

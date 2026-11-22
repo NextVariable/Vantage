@@ -55,6 +55,83 @@ class ResearchBudget:
 
 TIERS = {"T1_official": 1, "T2_community": 2, "T3_marketplace": 3, "T4_secondary": 4}
 
+# Coverage conditions by research intent. Required evidence is what a
+# "covered" answer must cite; supporting evidence raises confidence but never
+# blocks coverage. These are defaults, not a ceiling: a planner may state its
+# own required_evidence, and the engine never relaxes it to lift coverage.
+_FOCUS_REQUIRED = {
+    "industry": ("T1_official", "T2_community"),
+    "demand": ("T2_community", "T4_secondary"),
+    "competition": ("T1_official", "T3_marketplace"),
+    "opportunity": ("T2_community", "T4_secondary"),
+}
+_USER_EXPERIENCE_TYPES = {"post", "review", "comment"}
+_MEDIA_TIERS = {3, 4}
+
+
+def split_evidence_requirements(question: Mapping[str, Any]) -> tuple[list[str], list[str]]:
+    """Return (required, supporting) tiers for one subquestion.
+
+    Required tiers block a covered verdict. Supporting tiers are recorded and
+    reported but do not. A plan that lists four useful tiers therefore keeps
+    all four instead of silently promoting two of them into hard requirements.
+    """
+    planned = [tier for tier in question.get("evidence_types") or () if tier in TIERS]
+    required = [tier for tier in question.get("required_evidence") or () if tier in TIERS]
+    if not required:
+        focus = str(question.get("focus") or "general")
+        if focus == "general":
+            required = planned[:2]
+        else:
+            required = [tier for tier in _FOCUS_REQUIRED.get(focus, ()) if tier in planned][:2]
+        if not required:
+            required = planned[:1]
+    supporting = [tier for tier in question.get("supporting_evidence") or ()
+                  if tier in TIERS and tier not in required]
+    if not supporting:
+        supporting = [tier for tier in planned if tier not in required]
+    return required[:2], list(dict.fromkeys(supporting))[:4]
+
+
+def classify_evidence_role(item: Mapping[str, Any], research_objects: Sequence[str] = ()) -> str:
+    """Deterministic provenance role for one evidence item.
+
+    Tier is a source *role*, not a credibility score. A maker post on a
+    community platform stays a vendor claim; only non-vendor community posts
+    count as firsthand user experience.
+    """
+    tier = item.get("source_tier")
+    source_type = str(item.get("source_type") or "").casefold()
+    author = str(item.get("author") or "").casefold()
+    if tier == 1:
+        return "vendor_claim"
+    if tier == 2 and source_type in _USER_EXPERIENCE_TYPES:
+        if author and any(len(obj) >= 3 and obj.casefold() in author for obj in research_objects):
+            return "vendor_claim"
+        return "user_experience"
+    if tier in _MEDIA_TIERS:
+        return "media_report"
+    return "unverified"
+
+
+def answer_state(status: str, *, missing_required: Sequence[str], origin_shortfall: bool,
+                 gap: str, unavailable: bool) -> str:
+    """Map internal coverage status onto the reported answer state.
+
+    ``explicitly_disclosed`` is used only when the run names a concrete reason
+    (missing required evidence, too few independent origins, or blocked
+    sources). A bare unanswered question stays ``unanswered`` so disclosed
+    gaps are never counted as answers.
+    """
+    if status == "covered":
+        return "fully_answered"
+    if status == "partial":
+        return "partially_answered"
+    if gap and (missing_required or origin_shortfall or unavailable):
+        return "explicitly_disclosed"
+    return "unanswered"
+
+
 
 def _string(limit: int = 240) -> dict:
     return {"type": "string", "minLength": 1, "maxLength": limit, "pattern": r"\S"}
@@ -153,6 +230,17 @@ class AdaptiveResearch:
         self.assessments: list[dict] = []
         self._prior_grounding: dict[str, set[str]] = {}
         self.rejected_routes = 0
+        self.route_rejections: Counter[str] = Counter()
+        # Product names, brands and technical terms that query cleanup must
+        # keep verbatim (".NET", "C++", "Claude Code", ...).
+        self.protect_entities = tuple(
+            str(item) for item in (*self.plan.get("entities", ()),
+                                   *self.plan.get("research_objects", ()))
+            if str(item).strip()
+        )
+        self.research_objects = tuple(
+            str(item) for item in self.plan.get("research_objects", ()) if str(item).strip()
+        )
         self.planning_status = "fallback"
         self.eligible: list[dict] = []
         for source in self.sources:
@@ -171,26 +259,52 @@ class AdaptiveResearch:
                 })
 
     def _route(self, query: str, language: str, source: str) -> RetrievalPlan | None:
-        query = normalize_planned_query(query)
-        if language not in self.plan.get("languages", ["en"]) or not query.strip() or any(
-            char in query for char in "\r\n\x00"
-        ):
+        query = normalize_planned_query(query, self.protect_entities)
+        if language not in self.plan.get("languages", ["en"]):
+            self.route_rejections["language_not_requested"] += 1
+            return None
+        if not query.strip():
+            self.route_rejections["empty_query"] += 1
+            return None
+        if any(char in query for char in "\r\n\x00"):
+            self.route_rejections["invalid_query"] += 1
+            return None
+        entry = next((item for item in self.sources if item["name"] == source), None)
+        declared = (entry or {}).get("languages") or ()
+        if declared and language not in declared:
+            # The source cannot index this language. Record it instead of
+            # silently dropping the route.
+            self.route_rejections["source_language_unsupported"] += 1
             return None
         candidates = build_retrieval_plans(
             self.plan, [item for item in self.sources if item["name"] == source],
             [ExpandedQuery(query, "explicit", language, self.plan.get("market", "global"))],
         )
-        return candidates[0] if candidates else None
+        if not candidates:
+            self.route_rejections["route_ineligible"] += 1
+            return None
+        return candidates[0]
 
     def _limit(self, source: str) -> int:
         return next((max(1, min(self.budget.to_dict()["max_per_source"], item.get("max_queries_per_run", 24)))
                      for item in self.sources if item["name"] == source), 0)
 
     def _claim(self, route: RetrievalPlan | None) -> bool:
-        if (route is None or query_key(route) in self.seen or _compact_key(route) in self.seen_compact
-                or self.source_counts[route.source] >= self._limit(route.source)
-                or len(self.seen) >= self.budget.queries):
+        if route is None:
+            # ``_route`` already recorded the specific reason.
             self.rejected_routes += 1
+            return False
+        if query_key(route) in self.seen or _compact_key(route) in self.seen_compact:
+            self.rejected_routes += 1
+            self.route_rejections["duplicate_query"] += 1
+            return False
+        if self.source_counts[route.source] >= self._limit(route.source):
+            self.rejected_routes += 1
+            self.route_rejections["source_query_limit"] += 1
+            return False
+        if len(self.seen) >= self.budget.queries:
+            self.rejected_routes += 1
+            self.route_rejections["route_budget"] += 1
             return False
         self.seen.add(query_key(route))
         self.seen_compact.add(_compact_key(route))
@@ -210,12 +324,16 @@ class AdaptiveResearch:
                 "Write each query as 2-6 plain content words naming the user's actual subject. "
                 "Do not use quotation marks, boolean operators, language names, calendar dates or "
                 "source syntax: the engine applies the time window and source filters itself. "
-                "Name at most two evidence types per subquestion, only the kinds a covered answer "
-                "must contain, not the whole tier menu. "
+                "Name the evidence this answer needs. Put one or two tiers in required_evidence "
+                "(what a covered answer must cite) and any extra useful tiers in supporting_evidence. "
+                "Never list the whole tier menu as required, and never weaken required evidence to "
+                "make a question look answered. "
                 "Use focused topic-preserving initial search queries and enabled registry route names. "
                 "Assign priority 1 to the most important. Use a completion criterion and minimum "
                 "distinct reporting origins appropriate to each question. Evidence tiers are roles, "
-                "not proof of firsthand experience. For each question order key evidence tiers first."
+                "not proof of firsthand experience. For each question order key evidence tiers first. "
+                "A vendor announcement, a user's firsthand report, an independent test and a "
+                "repost are different evidence; do not treat them as interchangeable."
             ),
             "request": self.plan, "target": target, "eligible_sources": self.eligible,
             "initial_route_budget": INITIAL_LIMIT,
@@ -249,10 +367,28 @@ class AdaptiveResearch:
         if self.plan["opportunity_requested"] and "opportunity" not in self.plan["intents"]:
             self.plan["intents"].append("opportunity")
         for question in self.plan["subquestions"]:
-            question["query"] = normalize_planned_query(question["query"]) or question["query"]
-            # Requiring the whole tier menu makes "covered" unreachable: a
-            # plan listing four tiers cannot be satisfied by two citations.
-            question["evidence_types"] = list(question.get("evidence_types") or ())[:2]
+            question["query"] = (normalize_planned_query(question["query"], self.protect_entities)
+                                 or question["query"])
+            required, supporting = split_evidence_requirements(question)
+            question["required_evidence"] = required
+            question["supporting_evidence"] = supporting
+        # The planner may have introduced new entities; keep them verbatim in
+        # every later query and provenance check.
+        self.protect_entities = tuple(dict.fromkeys(
+            str(item) for item in (*self.plan.get("entities", ()),
+                                   *self.plan.get("research_objects", ()))
+            if str(item).strip()
+        ))
+        self.research_objects = tuple(
+            str(item) for item in self.plan.get("research_objects", ()) if str(item).strip()
+        )
+        self.plan["retrieval_strategy"] = {
+            "initial_route_limit": INITIAL_LIMIT,
+            "followup_route_limit": FOLLOWUP_LIMIT,
+            "query_languages": list(dict.fromkeys(self.plan.get("languages") or ["en"])),
+            "source_order": [item["name"] for item in self.eligible],
+            "followup_rule": "Follow up only when the assessment names a gap or a high-gain lead appears.",
+        }
         initial = []
         for question in self.plan["subquestions"] if response else ():
             preferences = self.plan.get("source_priorities") or []
@@ -366,18 +502,21 @@ class AdaptiveResearch:
             cited = [by_id[eid] for eid in (row or {}).get("evidence_ids", [])
                      if eid in by_id and eid not in contrary_ids]
             cited_ids = {item["evidence_id"] for item in cited}
-            missing_tiers = [tier for tier in question["evidence_types"]
-                             if TIERS[tier] not in {item.get("source_tier") for item in cited}]
+            cited_tiers = {item.get("source_tier") for item in cited}
+            required, supporting = split_evidence_requirements(question)
+            missing_required = [tier for tier in required if TIERS[tier] not in cited_tiers]
+            missing_supporting = [tier for tier in supporting if TIERS[tier] not in cited_tiers]
             # Reuse synthesis's origin estimator, including syndicated-copy suppression.
             origin_count = count_reporting_origins(prepare_evidence(cited))
             status = row["status"] if row else "unassessed"
+            origin_shortfall = origin_count < question["minimum_origins"]
             if row and not cited:
                 status = "unanswered"
-            elif status == "covered" and (missing_tiers or origin_count < question["minimum_origins"]):
+            elif status == "covered" and (missing_required or origin_shortfall):
                 status = "partial"
             gap = (row or {}).get("gap", "").strip()
-            if missing_tiers:
-                gap = " ".join(filter(None, (gap, "Missing cited evidence tiers: " + ", ".join(missing_tiers))))
+            if missing_required:
+                gap = " ".join(filter(None, (gap, "Missing required evidence: " + ", ".join(missing_required))))
             if status != "covered" and not gap:
                 gap = "Completion criterion not established in the retained sample."
             # Provenance is exclusive and must point at cited evidence. A maker
@@ -385,18 +524,40 @@ class AdaptiveResearch:
             # user feedback, even if the model listed it under both.
             vendor_claim_ids = [eid for eid in (row or {}).get("vendor_claim_ids", [])
                                 if eid in cited_ids]
+            roles = {eid: classify_evidence_role(by_id[eid], self.research_objects) for eid in cited_ids}
             feedback = [eid for eid in (row or {}).get("feedback_ids", [])
                         if eid in cited_ids and eid not in vendor_claim_ids
                         and by_id[eid].get("source_tier") != 1
-                        and by_id[eid].get("source_type") in {"post", "review", "comment"}]
-            vendors = [eid for eid in vendor_claim_ids if eid not in feedback]
+                        and by_id[eid].get("source_type") in _USER_EXPERIENCE_TYPES
+                        and roles.get(eid) != "vendor_claim"]
+            # A maker post on a community platform is a vendor claim even when
+            # the model only listed it as feedback. Tier-1 official sources keep
+            # their existing treatment; they are not all marketing claims.
+            vendors = [eid for eid in cited_ids if eid in vendor_claim_ids]
+            for eid in cited_ids:
+                if (roles.get(eid) == "vendor_claim" and eid not in vendors
+                        and by_id[eid].get("source_tier") != 1):
+                    vendors.append(eid)
+            vendors = [eid for eid in vendors if eid not in feedback]
             counterevidence = [eid for eid in (row or {}).get("counterevidence_ids", []) if eid in by_id]
+            preferred = [str(name) for name in question.get("preferred_sources") or ()]
+            unavailable = bool(preferred) and all(name in blocked for name in preferred)
+            state = answer_state(
+                status, missing_required=missing_required, origin_shortfall=origin_shortfall,
+                gap=gap, unavailable=unavailable,
+            )
             self.assessments.append({
                 "question_id": question["id"], "question": question["question"], "status": status,
+                "answer_state": state,
                 "evidence_ids": [item["evidence_id"] for item in cited], "gap": gap,
                 "feedback_ids": feedback, "vendor_claim_ids": vendors, "counterevidence_ids": counterevidence,
                 "focus": question.get("focus", "general"),
                 "supporting_origin_count": origin_count,
+                "missing_required": missing_required,
+                "missing_supporting": missing_supporting,
+                "required_evidence": required,
+                "supporting_evidence": supporting,
+                "claim_roles": dict(Counter(roles.values())),
             })
             follow = (row or {}).get("followup")
             if not allow_search or not follow or follow.get("gain") == "low":
@@ -457,6 +618,7 @@ class AdaptiveResearch:
         return routes
 
     def report(self) -> dict:
+        states = Counter(row.get("answer_state", "unanswered") for row in self.assessments)
         return {
             "intent": {"goal": self.plan.get("goal", ""), "intents": self.plan.get("intents", []),
                        "open_conditions": self.plan.get("open_conditions", [])},
@@ -467,6 +629,9 @@ class AdaptiveResearch:
             "elapsed_seconds": round(monotonic() - self.started, 2),
             "subquestion_count": len(self.assessments),
             "subquestions_covered": sum(row["status"] == "covered" for row in self.assessments),
+            "answer_states": dict(states),
             "rejected_routes": self.rejected_routes,
+            "route_rejections": dict(self.route_rejections),
+            "retrieval_strategy": self.plan.get("retrieval_strategy", {}),
             "budget": self.budget.to_dict(),
         }

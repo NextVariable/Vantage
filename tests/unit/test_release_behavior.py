@@ -43,3 +43,46 @@ def test_public_citation_preserves_original_platform_and_publication_date():
     assert "[Reddit]" in citation
     assert "2026-10-01" in citation
     assert "host_web_search" not in citation
+
+
+def test_synthesis_reserve_scales_with_complexity_and_stays_bounded():
+    from sourceglint.application.api import _synthesis_reserve
+
+    low, low_complexity = _synthesis_reserve(345, entities=0, languages=1, mode="market")
+    high, high_complexity = _synthesis_reserve(345, entities=4, languages=3, mode="competitor")
+    assert low_complexity < high_complexity
+    assert 60 <= low < high <= 130
+    tiny, _ = _synthesis_reserve(60, entities=4, languages=3, mode="competitor")
+    assert tiny == 60
+
+
+def test_answer_states_never_count_disclosure_as_an_answer():
+    from sourceglint.pipeline.adaptive import answer_state
+
+    assert answer_state("covered", missing_required=(), origin_shortfall=False,
+                        gap="", unavailable=False) == "fully_answered"
+    assert answer_state("partial", missing_required=("T1_official",), origin_shortfall=False,
+                        gap="", unavailable=False) == "partially_answered"
+    assert answer_state("unanswered", missing_required=("T1_official",), origin_shortfall=False,
+                        gap="Named gap.", unavailable=False) == "explicitly_disclosed"
+    assert answer_state("unanswered", missing_required=(), origin_shortfall=False,
+                        gap="", unavailable=False) == "unanswered"
+
+
+def test_required_and_supporting_evidence_are_split_by_focus():
+    from sourceglint.pipeline.adaptive import split_evidence_requirements
+
+    required, supporting = split_evidence_requirements({
+        "focus": "competition",
+        "evidence_types": ["T1_official", "T2_community", "T3_marketplace", "T4_secondary"],
+    })
+    assert required == ["T1_official", "T3_marketplace"]
+    assert supporting == ["T2_community", "T4_secondary"]
+
+    # An explicit plan requirement is never widened or relaxed.
+    required, supporting = split_evidence_requirements({
+        "focus": "competition", "required_evidence": ["T4_secondary"],
+        "evidence_types": ["T1_official", "T4_secondary"],
+    })
+    assert required == ["T4_secondary"]
+    assert supporting == ["T1_official"]
