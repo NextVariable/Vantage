@@ -57,6 +57,18 @@ class HttpPermanentError(HttpError):
         self.url = url
 
 
+def _looks_rate_limited(exc: Exception, body_preview: str) -> bool:
+    """Distinguish an abuse/rate-limit 403 from a real permission denial."""
+    headers = getattr(exc, "headers", None)
+    if headers is not None:
+        if (headers.get("X-RateLimit-Remaining") or "").strip() == "0":
+            return True
+        if (headers.get("Retry-After") or "").strip():
+            return True
+    lowered = body_preview.casefold()
+    return "rate limit" in lowered or "too many requests" in lowered
+
+
 class HttpTimeoutError(HttpError):
     """The request exceeded its budget."""
 
@@ -226,7 +238,7 @@ class StdlibHttpClient:
                 body_preview = (exc.read() or b"").decode("utf-8", "replace")
             except Exception:  # pragma: no cover - body-read is best-effort
                 body_preview = ""
-            if status == 429 or 500 <= status < 600:
+            if status == 429 or 500 <= status < 600 or (status == 403 and _looks_rate_limited(exc, body_preview)):
                 raise HttpTransientError(
                     status=status,
                     url=url,

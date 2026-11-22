@@ -217,6 +217,38 @@ def test_403_is_not_retried(monkeypatch):
     assert calls["n"] == 1
 
 
+def test_rate_limited_403_is_classified_as_transient(monkeypatch):
+    calls = {"n": 0}
+
+    def factory(url, req):
+        calls["n"] += 1
+        raise urllib_error.HTTPError(
+            url, 403, "Forbidden", {"X-RateLimit-Remaining": "0"}, None,
+        )
+
+    _patched_urlopen(monkeypatch, factory)
+    client = StdlibHttpClient(max_attempts=1, backoff_seconds=0, sleep=lambda s: None)
+    with pytest.raises(HttpTransientError) as exc:
+        client.request("https://api.github.com/search/repositories")
+    # Downstream adapters turn this into AdapterRateLimited, not Unavailable.
+    assert exc.value.status == 403
+    assert calls["n"] == 1
+
+
+def test_403_with_rate_limit_body_is_classified_as_transient(monkeypatch):
+    class _Limited(urllib_error.HTTPError):
+        def read(self):
+            return b'{"message":"API rate limit exceeded"}'
+
+    def factory(url, req):
+        raise _Limited(url, 403, "Forbidden", {}, None)
+
+    _patched_urlopen(monkeypatch, factory)
+    client = StdlibHttpClient(max_attempts=1, backoff_seconds=0, sleep=lambda s: None)
+    with pytest.raises(HttpTransientError):
+        client.request("https://api.github.com/search/repositories")
+
+
 # ---- PRD §11 timeout --------------------------------------------------
 
 
