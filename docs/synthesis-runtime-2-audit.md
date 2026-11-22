@@ -42,7 +42,7 @@
 | 引擎自判研究子问题 | 3 partial | 2 partial、1 unanswered |
 | `research_quality` | LIMITED | LIMITED |
 
-旧记录的 10 次包含 4 次 0ms 截止超时。新版取消了五条 semantic 记录，并增加第二次 coverage 尝试和一次推论尝试。记录数下降，成功回复数持平，不能据此断言实际付费调用减少。新版的三条 FACT 分别是 OpenCode Plus 项目方发布材料、gitoodo 项目的一手自述、AgentMCTS 第三方视频描述。现存简报做了来源归因，实测性能和独立使用结果仍待补证。复核时三个选定原页均无法重新打开，未把本地 ledger 匹配算作原页验证。
+旧记录的 10 次包含 4 次 0ms 截止超时。新版取消了五条 semantic 记录，并增加第二次 coverage 尝试和一次推论尝试。记录数下降，成功回复数持平，不能据此断言实际付费调用减少。新版的三条 FACT 分别是 OpenCode Plus 项目方发布材料、gitoodo 项目的一手自述、AgentMCTS 第三方视频描述。现存简报做了来源归因，实测性能和独立使用结果仍待补证。网页入口读取失败后，使用公开原始接口复核。GitHub 确认 OpenCode Plus 的项目描述、四个版本及其发布时间，并核对发布说明中的主要能力范围。gitoodo 的项目描述确认为发布前的作者自述。YouTube oEmbed 仅确认标题与主题，视频里的性能限制仍缺独立转录验证。 [OpenCode Plus releases](https://github.com/Azx8788/opencode-plus/releases) · [gitoodo repository](https://github.com/silvio-l/gitoodo) · [AgentMCTS video](https://www.youtube.com/watch?v=pDYtBFdgwvA)
 
 ## P2 · 诊断口径
 
@@ -51,7 +51,9 @@
 
 ## 验证与最小剩余工作
 
-送审 HEAD 的本地基线为 2,338 项通过、14 项联网用例跳过。[送审 GitHub Actions](https://github.com/NextVariable/Vantage/actions/runs/45048277539) 已成功。审计修复本地 2,347 项通过、14 项跳过，另运行 lint 和仓库检查。本轮未消耗模型额度重跑真实研究。
+送审 HEAD 的本地基线为 2,338 项通过、14 项联网用例跳过。[送审 GitHub Actions](https://github.com/NextVariable/Vantage/actions/runs/45048277539) 已成功。审计修复本地 2,347 项通过、14 项跳过，另运行 lint 和仓库检查。代码修复提交 `a737b6f` 的六组 CI 均通过，覆盖 Windows、macOS、Ubuntu 和 Python 3.10/3.13。 [审计代码 GitHub Actions](https://github.com/NextVariable/Vantage/actions/runs/45053415400)
+
+本轮未消耗模型额度重跑真实研究。
 
 1. 修默认 STDIO 超时恢复或提供兼容的可隔离 Host，证明超时后 FACT 状态和派发一致。
 2. 增加逐主张的支持验证和独立使用证据约束，拿合法但无关的引用做负例。
