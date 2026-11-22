@@ -19,6 +19,8 @@ byte-identical output. No random IDs, no clocks, no env state read.
 """
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
@@ -357,3 +359,60 @@ def expand_queries(research_plan: Mapping[str, object]) -> list[ExpandedQuery]:
         emitted_langs.add(lang)
 
     return out
+
+
+_LANGUAGE_TOKENS = frozenset({
+    "english", "japanese", "chinese", "korean", "german", "french",
+    "英语", "英語", "日语", "日語", "中文", "汉语", "漢語", "韩语", "韓語",
+    "日本語", "中国語", "한국어", "영어", "독일어", "프랑스어",
+})
+_TEMPORAL_TOKENS = frozenset({
+    "today", "yesterday", "week", "weeks", "month", "months", "year", "years",
+    "latest", "recent", "recently", "new", "news", "update", "updates",
+    "released", "release", "launched", "launch", "announced", "announcement",
+    "introduced", "tried", "try", "trying", "using", "uses", "use", "used",
+    "january", "february", "march", "april", "may", "june", "july", "august",
+    "september", "october", "november", "december",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+})
+_BOOLEAN = re.compile(r"(?<!\w)(?:AND|OR|NOT)(?!\w)", re.IGNORECASE)
+_LATIN = re.compile(r"[A-Za-z]")
+_CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")
+
+
+def normalize_planned_query(value: str) -> str:
+    """Repair model-authored search text without translating or rewriting it.
+
+    Keyword APIs treat quotes, boolean operators and date words literally, so
+    a prompt-shaped string silently returns nothing. This strips that syntax
+    and calendar scaffolding, and bounds Latin queries. Pure CJK queries are
+    returned unchanged: they are not whitespace-delimited, so token removal
+    would corrupt the subject.
+    """
+    raw = " ".join(str(value or "").split())
+    if not raw:
+        return ""
+    # Normalisation would rewrite full-width CJK punctuation and change the
+    # user's original subject; CJK-only queries are already whitespace-bounded.
+    if _CJK.search(raw) and not _LATIN.search(raw):
+        return raw
+    text = unicodedata.normalize("NFKC", raw)
+    text = text.replace('"', " ").replace("“", " ").replace("”", " ")
+    text = _BOOLEAN.sub(" ", text)
+    text = re.sub(r"(?:(?<=\s)|^)[-+](?=\S)", " ", text)
+    kept = []
+    for token in text.split():
+        bare = token.strip(".,;:!?()[]{}<>…")
+        if not bare:
+            continue
+        folded = bare.casefold()
+        if folded in _LANGUAGE_TOKENS or folded in _TEMPORAL_TOKENS:
+            continue
+        if re.fullmatch(r"(?:19|20)\d{2}", bare):
+            continue
+        kept.append(bare)
+    return " ".join(kept) or raw
+
+
+__all__ = ["ALL_INTENTS", "ExpandedQuery", "QueryExpander", "expand_queries",
+           "normalize_planned_query"]

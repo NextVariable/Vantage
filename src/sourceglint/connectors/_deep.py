@@ -33,10 +33,38 @@ def subject_query(query):
         "best",
         "recent",
         "hooks",
+        # Temporal/action scaffolding: recency is enforced by the date filter,
+        # and requiring these words to co-occur locally empties recall APIs.
+        "released",
+        "release",
+        "launched",
+        "launch",
+        "announced",
+        "announcement",
+        "introduced",
+        "tried",
+        "try",
+        "trying",
+        "using",
+        "uses",
+        "use",
+        "used",
+        "overview",
+        "introduction",
+        "latest",
+        "new",
+        "today",
+        "week",
+        "month",
+        "year",
     }
     terms = re.findall(r"[\w+#.]+", query.replace("-", " "))
     selected = [x for x in terms if x.casefold() not in intent]
-    return " ".join(selected) or query
+    if not selected:
+        return query
+    # Keyword-soup prompts ("... released November 2026") otherwise require
+    # every trailing word to co-occur. Keep the leading, topic-bearing terms.
+    return " ".join(selected[:4])
 
 
 def subject_present(item, query):

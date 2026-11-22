@@ -56,6 +56,16 @@ from .retrieval_plan import build_retrieval_plans
 from .source_registry import SourceRegistry, load_registry
 from .time_filter import apply_time_filter
 
+# Starting a request with less time than this left cannot finish, and the
+# late reply desynchronises the host protocol. Stop and degrade instead.
+MIN_REQUEST_SECONDS = 12.0
+MIN_ASSESS_SECONDS = 15.0
+
+
+def _time_available(minimum: float = MIN_REQUEST_SECONDS) -> bool:
+    left = remaining_time()
+    return left is None or left > minimum
+
 
 @dataclass(frozen=True)
 class PipelineConfig:
@@ -176,6 +186,7 @@ class ResearchPipeline:
         blocked: set[str] = set()
         rounds = adaptive.budget.rounds if adaptive else 1
         for round_number in range(1, rounds + 1):
+            round_started = monotonic()
             with deadline_scope(adaptive.deadline if adaptive else None):
                 batch, reports, observations, trace = self._retrieve_batch(
                     plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
@@ -222,14 +233,18 @@ class ResearchPipeline:
                            for source, query, status, rows in trace],
             })
             with deadline_scope(adaptive.deadline):
-                expired = remaining_time() == 0
-                retrievals = adaptive.assess(
-                    snapshot, blocked=blocked,
-                    allow_search=not expired and round_number < rounds,
-                    min_new_relevance=round_number > 1,
-                    host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
-                )
+                expired = not _time_available(MIN_ASSESS_SECONDS)
+                if not expired:
+                    retrievals = adaptive.assess(
+                        snapshot, blocked=blocked,
+                        allow_search=round_number < rounds,
+                        min_new_relevance=round_number > 1,
+                        host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
+                    )
+                else:
+                    retrievals = []
             adaptive.rounds[-1]["subquestions"] = adaptive.assessments
+            adaptive.rounds[-1]["elapsed_seconds"] = round(monotonic() - round_started, 2)
             if expired or monotonic() >= adaptive.deadline:
                 adaptive.stop_reason = "deadline_exceeded"
                 retrievals = []
@@ -342,7 +357,7 @@ class ResearchPipeline:
             by_source.setdefault(r.source, []).append(r)
 
         for source_name in (by_source if adaptive else sorted(by_source)):
-            if adaptive and remaining_time() == 0:
+            if adaptive and not _time_available():
                 break
             rep = SourceStatusReport(source=source_name)
             try:
@@ -363,9 +378,9 @@ class ResearchPipeline:
                 continue
             adapter_results: list[RawSourceResult] = []
             for r in by_source[source_name]:
-                if adaptive and remaining_time() == 0:
+                if adaptive and not _time_available():
                     rep.status = SourceStatus.PARTIAL if adapter_results else SourceStatus.TIMEOUT
-                    rep.append_warning("research deadline exceeded before next query")
+                    rep.append_warning("research deadline too close to start another query")
                     break
                 # Cache check first.
                 cached = self._cache_get(source_name, r, plan)

@@ -344,3 +344,85 @@ def test_planner_keeps_a_subquestion_when_its_preferred_source_is_ineligible():
     assert [call[0] for call in calls] == ["reddit"]
     assert report["planning_status"] == "planned"
     assert report["subquestions"][0]["status"] == "covered"
+
+
+# --- research-quality sprint regressions ---------------------------------
+
+
+def test_planned_query_syntax_is_stripped_but_cjk_is_preserved():
+    from sourceglint.pipeline.query_expansion import normalize_planned_query
+
+    assert normalize_planned_query(
+        '"open source" "coding agent" released November 2026'
+    ) == "open source coding agent"
+    assert normalize_planned_query("VS Code AND Copilot 日本語 2026") == "VS Code Copilot"
+    original = "日本で過去7日間に出たツールは？"
+    assert normalize_planned_query(original) == original
+
+
+def test_research_deadline_never_exceeds_the_reserved_budget():
+    from time import monotonic
+
+    from sourceglint.pipeline.adaptive import AdaptiveResearch, ResearchBudget
+
+    run = AdaptiveResearch(None, {"topic": "AI", "languages": ["en"]}, [],
+                           budget=ResearchBudget(3, 100), deadline=monotonic() + 10)
+    assert run.deadline <= monotonic() + 10.01
+
+
+def test_no_request_starts_without_enough_time_left():
+    from time import monotonic
+
+    from sourceglint.deadline import deadline_scope
+    from sourceglint.pipeline.orchestrator import _time_available
+
+    with deadline_scope(monotonic() + 5):
+        assert _time_available() is False
+    assert _time_available() is True
+
+
+def test_spacing_variant_of_a_planned_route_is_rejected_as_duplicate():
+    model = ScriptedModel(
+        initial="VS Code review",
+        assess=lambda _: {"status": "partial", "gap": "Open",
+                          "followup": followup("hacker_news", "VSCode  review")},
+    )
+    _, report, calls, _ = execute(model, lambda *_: [], sources=[source("hacker_news")])
+    assert len(calls) == 1
+    assert report["rejected_routes"] == 1
+    assert report["stop_reason"] == "no_eligible_followup"
+
+
+def test_three_round_multi_question_run_uses_local_source_breadth():
+    class TwoQuestions(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Understand AI products", research_objects=["AI products"],
+                              subquestions=[
+                                  {"question": "What did users experience?", "priority": 1,
+                                   "evidence_types": ["T2_community"], "preferred_sources": ["hacker_news"],
+                                   "completion_criterion": "A recent report.", "minimum_origins": 1,
+                                   "query": "AI product discussion", "language": "en"},
+                                  {"question": "What alternatives exist?", "priority": 2,
+                                   "evidence_types": ["T2_community"], "preferred_sources": ["reddit"],
+                                   "completion_criterion": "A recent report.", "minimum_origins": 1,
+                                   "query": "AI product alternatives", "language": "en"},
+                              ])
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    _, report, calls, _ = execute(
+        TwoQuestions(assess=lambda _: {"status": "unanswered", "gap": "Open"}),
+        lambda *_: [], sources=[source("hacker_news"), source("reddit")], research_rounds=3,
+    )
+    assert report["rounds"][0]["planned_routes"] == 4
+    assert {call[0] for call in calls} == {"hacker_news", "reddit"}
+
+
+def test_diagnostics_record_runtime_and_route_coverage():
+    result, _, _, _ = execute(ScriptedModel(), lambda *_: [observation()])
+    performance = result.diagnostics["performance"]
+    assert performance["research_rounds"] == 1
+    assert performance["routes_executed"] == 1
+    assert performance["elapsed_seconds"] >= 0
+    assert performance["synthesis_reserve_seconds"] > 0
+    assert performance["retained_evidence"] == 1

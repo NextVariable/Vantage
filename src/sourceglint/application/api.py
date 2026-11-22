@@ -31,6 +31,14 @@ from ..pipeline.orchestrator import PipelineConfig, ResearchPipeline
 
 __all__ = ["run_sourceglint"]
 
+# The adaptive phase gets ``timeout_seconds + 45`` of wall clock. Of that,
+# a bounded share is held back for synthesis so a slow final retrieval round
+# cannot leave the brief with no model budget.
+_SYNTHESIS_RESERVE_SHARE = 0.35
+_SYNTHESIS_RESERVE_MIN = 60.0
+_SYNTHESIS_RESERVE_MAX = 100.0
+_RESEARCH_FLOOR_SECONDS = 30.0
+
 
 def _to_iso(value: datetime | str) -> datetime:
     if isinstance(value, datetime):
@@ -147,8 +155,21 @@ def run_sourceglint(
     if adaptive and len(ctx.ledger):
         raise ValueError("adaptive research requires a fresh evidence ledger")
     budget = ResearchBudget(research_rounds, research_timeout_seconds) if adaptive else None
-    adaptive_run = AdaptiveResearch(model, plan, source_list, budget=budget, opportunities=opportunities) if budget else None
-    run_deadline = monotonic() + budget.timeout_seconds + 45 if budget else None
+    started = monotonic()
+    run_deadline = started + budget.timeout_seconds + 45 if budget else None
+    # Research must not consume the whole wall clock: synthesis (signals,
+    # insights, brief) needs model calls of its own. Reserve a bounded share
+    # instead of letting the last retrieval round run into the final seconds.
+    research_reserve = 0.0
+    research_deadline = None
+    if run_deadline is not None:
+        research_reserve = min(_SYNTHESIS_RESERVE_MAX, max(_SYNTHESIS_RESERVE_MIN,
+                                                          (run_deadline - started) * _SYNTHESIS_RESERVE_SHARE))
+        research_deadline = max(started + _RESEARCH_FLOOR_SECONDS, run_deadline - research_reserve)
+    adaptive_run = AdaptiveResearch(
+        model, plan, source_list, budget=budget, opportunities=opportunities,
+        deadline=research_deadline,
+    ) if budget else None
 
     # 3) Run the full engine.
     with deadline_scope(run_deadline):
@@ -176,7 +197,22 @@ def run_sourceglint(
         if Path(raw_output).exists():
             diagnostics["raw_source_archive"] = str(raw_output)
     if outcome.coverage is not None:
-        diagnostics["coverage"] = outcome.coverage.to_dict()
+        coverage = outcome.coverage.to_dict()
+        diagnostics["coverage"] = coverage
+        research = coverage.get("adaptive_research") or {}
+        rounds = research.get("rounds") or []
+        diagnostics["performance"] = {
+            "elapsed_seconds": round(monotonic() - started, 2),
+            "budget_seconds": round(run_deadline - started, 1) if run_deadline else None,
+            "research_budget_seconds": round(research_deadline - started, 1) if research_deadline else None,
+            "synthesis_reserve_seconds": round(research_reserve, 1) if research_reserve else None,
+            "research_rounds": len(rounds),
+            "routes_executed": sum(row.get("executed_routes", 0) for row in rounds),
+            "routes_empty": sum(row.get("empty_routes", 0) for row in rounds),
+            "routes_failed": sum(row.get("failed_routes", 0) for row in rounds),
+            "research_model_calls": research.get("planning_model_calls"),
+            "retained_evidence": outcome.evidence_count,
+        }
     brief = outcome.markdown
     status = Status(outcome.status)
     if opportunities:

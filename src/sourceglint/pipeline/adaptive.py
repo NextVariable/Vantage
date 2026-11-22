@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ from ..intelligence.features import count_reporting_origins
 from ..intelligence.preparation import prepare_evidence
 from ..provenance import original_platform
 from ..resources import data_path
-from .query_expansion import ExpandedQuery
+from .query_expansion import ExpandedQuery, normalize_planned_query
 from .retrieval_plan import RetrievalPlan, build_retrieval_plans
 
 INITIAL_LIMIT = 6
@@ -122,18 +123,29 @@ def query_key(route: RetrievalPlan) -> tuple[str, str, str]:
     return route.source, route.query_language, normalized.rstrip("!?。？！,，;；") or normalized
 
 
+def _compact_key(route: RetrievalPlan) -> tuple[str, str, str]:
+    """Collapse spacing/punctuation so "VS Code" and "VSCode" count as one route."""
+    text = unicodedata.normalize("NFKC", route.query).casefold()
+    return route.source, route.query_language, re.sub(r"[\W_]+", "", text)
+
+
 class AdaptiveResearch:
     """Run state. All actual I/O still passes through ResearchPipeline."""
 
     def __init__(self, model: Any, plan: Mapping[str, Any], sources: Sequence[dict],
-                 *, budget: ResearchBudget | None = None, opportunities: bool = False):
+                 *, budget: ResearchBudget | None = None, opportunities: bool = False,
+                 deadline: float | None = None):
         self.model = model
         self.budget = budget or ResearchBudget()
-        self.deadline = monotonic() + self.budget.timeout_seconds
+        # Never let research run past the caller's reserved synthesis window.
+        own_deadline = monotonic() + self.budget.timeout_seconds
+        self.deadline = own_deadline if deadline is None else min(own_deadline, deadline)
+        self.started = monotonic()
         self.plan = {**plan, "budget": self.budget.to_dict(), "stop_conditions": list(STOP_CONDITIONS),
                      "opportunity_requested": opportunities}
         self.sources = list(sources)
         self.seen: set[tuple[str, str, str]] = set()
+        self.seen_compact: set[tuple[str, str, str]] = set()
         self.source_counts: Counter[str] = Counter()
         self.rounds: list[dict] = []
         self.model_calls = 0
@@ -159,6 +171,7 @@ class AdaptiveResearch:
                 })
 
     def _route(self, query: str, language: str, source: str) -> RetrievalPlan | None:
+        query = normalize_planned_query(query)
         if language not in self.plan.get("languages", ["en"]) or not query.strip() or any(
             char in query for char in "\r\n\x00"
         ):
@@ -174,12 +187,13 @@ class AdaptiveResearch:
                      for item in self.sources if item["name"] == source), 0)
 
     def _claim(self, route: RetrievalPlan | None) -> bool:
-        if (route is None or query_key(route) in self.seen
+        if (route is None or query_key(route) in self.seen or _compact_key(route) in self.seen_compact
                 or self.source_counts[route.source] >= self._limit(route.source)
                 or len(self.seen) >= self.budget.queries):
             self.rejected_routes += 1
             return False
         self.seen.add(query_key(route))
+        self.seen_compact.add(_compact_key(route))
         self.source_counts[route.source] += 1
         return True
 
@@ -193,6 +207,9 @@ class AdaptiveResearch:
                 "as testable propositions with disconfirming evidence, not conclusions. Record ambiguity that "
                 "does not block research as open_conditions. Do not add opportunity analysis unless requested. "
                 "Keep the initial query focused and never assume market demand. "
+                "Write each query as 2-6 plain content words naming the user's actual subject. "
+                "Do not use quotation marks, boolean operators, language names, calendar dates or "
+                "source syntax: the engine applies the time window and source filters itself. "
                 "Use focused topic-preserving initial search queries and enabled registry route names. "
                 "Assign priority 1 to the most important. Use a completion criterion and minimum "
                 "distinct reporting origins appropriate to each question. Evidence tiers are roles, "
@@ -229,6 +246,8 @@ class AdaptiveResearch:
             self.plan["intents"] = [by_mode.get(self.plan.get("mode"), "general")]
         if self.plan["opportunity_requested"] and "opportunity" not in self.plan["intents"]:
             self.plan["intents"].append("opportunity")
+        for question in self.plan["subquestions"]:
+            question["query"] = normalize_planned_query(question["query"]) or question["query"]
         initial = []
         for question in self.plan["subquestions"] if response else ():
             preferences = self.plan.get("source_priorities") or []
@@ -240,6 +259,27 @@ class AdaptiveResearch:
                 if self._claim(route):
                     initial.append(route)
                     break
+        # A three-round, multi-question run can afford complementary routes in
+        # the first pass. Breadth here is cheaper than an extra follow-up round
+        # and stops the plan from spending its initial budget on two narrow
+        # sources. Host-mediated "web" routes are excluded: they dominate wall
+        # clock, so their count stays whatever the planner chose.
+        if response and self.budget.rounds >= 3 and len(self.plan["subquestions"]) >= 2:
+            for question in self.plan["subquestions"]:
+                if len(initial) >= INITIAL_LIMIT:
+                    break
+                for entry in self.eligible:
+                    if len(initial) >= INITIAL_LIMIT:
+                        break
+                    if entry.get("type") == "web":
+                        continue
+                    route = self._route(question["query"], question["language"], entry["name"])
+                    # Complement existing coverage without counting internal
+                    # repeats as planner rejections.
+                    if route is None or query_key(route) in self.seen:
+                        continue
+                    if self._claim(route):
+                        initial.append(route)
         if not initial:
             if response:
                 self.planning_status = "fallback_routes"
@@ -280,6 +320,9 @@ class AdaptiveResearch:
                 "incidental mentions, undated claims and vendor claims of adoption as insufficient. "
                 "Check required evidence tiers and completion criteria. Suggest one follow-up only "
                 "for a material, currently addressable gap with specific expected gain. Prioritize high gain. "
+                "A follow-up query must be plain content words that differ from every already_planned route, "
+                "and its source must index the chosen language. Prefer the user's language and a source that "
+                "can actually return that language; do not repeat the same wording on another source. "
                 "A verification or emerging lead must cite lead_ids from this sample. Mark first-party "
                 "assertions vendor_claim_ids, including a maker announcement on a community platform. Preserve "
                 "the original subject, geography, language and time window. Never repeat a route "
@@ -409,6 +452,10 @@ class AdaptiveResearch:
             "planning_status": self.planning_status, "stop_reason": self.stop_reason,
             "rounds": [{k: v for k, v in row.items() if k != "retained_ids"} for row in self.rounds],
             "subquestions": self.assessments,
-            "planning_model_calls": self.model_calls, "rejected_routes": self.rejected_routes,
+            "planning_model_calls": self.model_calls, "model_calls": self.model_calls,
+            "elapsed_seconds": round(monotonic() - self.started, 2),
+            "subquestion_count": len(self.assessments),
+            "subquestions_covered": sum(row["status"] == "covered" for row in self.assessments),
+            "rejected_routes": self.rejected_routes,
             "budget": self.budget.to_dict(),
         }

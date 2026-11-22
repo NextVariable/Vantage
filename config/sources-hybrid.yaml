@@ -105,13 +105,12 @@
   - fr
   - kr
   - cn
+  # GitHub repository search matches name/description tokens; it does not
+  # index CJK prose, so declaring ja/zh/ko here only produced empty routes.
   languages:
   - en
-  - ja
-  - zh
   - de
   - fr
-  - ko
   cache_ttl: 3600
   max_queries_per_run: 2
 - name: youtube
