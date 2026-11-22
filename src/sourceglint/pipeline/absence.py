@@ -11,9 +11,8 @@ actually covered the object. This module separates five states:
   SOURCE_UNAVAILABLE the source needed for the check failed
   UNVERIFIED        no check was performed
 
-Only ``VERIFIED_ABSENT`` may be rendered as a definite absence. Every
-other state is qualified in place (prefix/suffix) instead of deleting
-the model's sentence, so information is preserved but not overstated.
+Definite endpoint observations carry their own structured scope. Free-form
+model claims are qualified in place instead of inheriting that scope.
 """
 from __future__ import annotations
 
@@ -77,7 +76,7 @@ _NEGATION_PATTERN = re.compile(
 )
 
 #: Sentence boundary that keeps the terminator on the preceding sentence.
-_SENTENCE_RE = re.compile(r"[^.!?。！？;；]+[.!?。！？;；]?")
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[!?。！？;；])|(?<=\.)(?=\s|$)")
 
 _TERMINATORS = ".!?;:。！？；："
 
@@ -95,14 +94,11 @@ class AbsenceClaim:
 class AbsenceContext:
     """What the engine deterministically knows about each object."""
 
-    verified_objects: frozenset[str] = frozenset()
     source_unavailable: bool = False
     window_checked: bool = False
     searched: bool = True
     basis: tuple[str, ...] = ()
     coverage_incomplete: bool = False
-    verified_scopes: frozenset[str] = frozenset()
-    present_scopes: frozenset[str] = frozenset()
 
     @classmethod
     def from_observations(
@@ -111,106 +107,36 @@ class AbsenceContext:
         *,
         searched: bool = True,
     ) -> "AbsenceContext":
-        """Build context from GitHub release/license observations.
+        """Retain endpoint observations as context for free-form prose.
 
-        ``verified_absent`` is object-scoped: one repository returning
-        zero releases cannot prove a market-wide absence, so callers
-        should only pass observations whose scope matches the claim.
+        Even a complete endpoint scan establishes a bounded observation.
+        Model prose does not name its verification scope structurally, so
+        repository names alone cannot certify its negative claims.
         """
-        verified: set[str] = set()
-        present: set[str] = set()
-        checked: dict[str, int] = {}
         unavailable = False
-        window_checked = False
-        coverage_incomplete = False
-        verified_scopes: set[str] = set()
-        present_scopes: set[str] = set()
+        incomplete = False
         basis: list[str] = []
         for obs in observations:
             kind = str(obs.get("kind") or "")
             status = str(obs.get("status") or "")
-            obj = "release" if kind == "releases" else "license" if kind == "license" else ""
-            if not obj:
+            if kind not in {"releases", "license", "tags"} or status == "present":
                 continue
-            checked[obj] = checked.get(obj, 0) + 1
-            repository = str(obs.get("repository") or "").strip().lower()
-            if status == "present":
-                present.add(obj)
-                if repository:
-                    present_scopes.add(repository)
-                continue
-            if status == VERIFIED_ABSENT:
-                verified.add(obj)
-                if repository:
-                    verified_scopes.add(repository)
-                basis.append(str(obs.get("detail") or f"{kind}: verified absent"))
-            elif status == "only_outside_window":
-                window_checked = True
-                if repository:
-                    present_scopes.add(repository)
-                basis.append(str(obs.get("detail") or f"{kind}: only outside window"))
-            elif status == "pagination_incomplete":
-                coverage_incomplete = True
-                basis.append(str(obs.get("detail") or f"{kind}: pagination incomplete"))
+            if status == "pagination_incomplete":
+                incomplete = True
             elif status in {
                 "rate_limited", "auth_missing", "timeout", "unavailable",
                 "invalid_response", "forbidden", "not_found",
             }:
                 unavailable = True
-                basis.append(str(obs.get("detail") or f"{kind}: {status}"))
-        # A per-repository zero count is not market-wide absence. Only call
-        # the object verified when every checked candidate was absent and
-        # the sample covers more than a single repository.
-        verified = {
-            obj for obj in verified
-            if obj not in present and checked.get(obj, 0) >= 2
-        }
+            basis.append(str(obs.get("detail") or f"{kind}: {status}"))
         return cls(
-            verified_objects=frozenset(verified),
-            source_unavailable=unavailable,
-            window_checked=window_checked,
-            searched=searched,
-            basis=tuple(basis),
-            coverage_incomplete=coverage_incomplete,
-            verified_scopes=frozenset(verified_scopes) if verified else frozenset(),
-            present_scopes=frozenset(present_scopes),
+            source_unavailable=unavailable, searched=searched,
+            basis=tuple(basis), coverage_incomplete=incomplete,
         )
-
-    def for_object(self, obj: str) -> "AbsenceContext":
-        """Scope a run-level context to one object.
-
-        A verified absence only applies to the object it covers. Failure
-        and window flags stay global because they block every check.
-        """
-        verified = obj in self.verified_objects
-        return AbsenceContext(
-            verified_objects=frozenset({obj}) if verified else frozenset(),
-            source_unavailable=self.source_unavailable,
-            window_checked=self.window_checked,
-            searched=self.searched,
-            basis=self.basis,
-            coverage_incomplete=self.coverage_incomplete,
-            verified_scopes=self.verified_scopes if verified else frozenset(),
-            present_scopes=self.present_scopes,
-        )
-
-
-def _scope_mentioned(sentence: str, scopes: frozenset[str]) -> bool:
-    """True when the sentence names one of the deterministically checked repos."""
-    lowered = sentence.lower()
-    for scope in scopes:
-        if scope and scope in lowered:
-            return True
-        short = scope.rsplit("/", 1)[-1] if scope else ""
-        if len(short) >= 3 and re.search(
-            rf"(?<![\w-]){re.escape(short)}(?![\w-])", lowered
-        ):
-            return True
-    return False
 
 
 def _sentences(text: str) -> list[str]:
-    return [m.group(0).strip() for m in _SENTENCE_RE.finditer(text) if m.group(0).strip()]
+    return [part.strip() for part in _SENTENCE_BOUNDARY.split(text) if part.strip()]
 
 
 def _excluded(sentence: str) -> bool:
@@ -231,7 +157,7 @@ def detect_absence_claims(text: str) -> tuple[AbsenceClaim, ...]:
         for term, obj in _TERM_TO_OBJECT.items():
             if obj in seen_objects:
                 continue
-            if re.search(rf"\b{re.escape(term)}\b", lowered) or term in sentence:
+            if re.search(rf"\b{re.escape(term)}\b", lowered) or (not term.isascii() and term in sentence):
                 claims.append(AbsenceClaim(text=sentence, object=obj, term=term))
                 seen_objects.add(obj)
     return tuple(claims)
@@ -262,7 +188,7 @@ def classify_absence(
 
 def _prefix_for(status: str) -> str:
     if status == OUT_OF_WINDOW:
-        return "Within the research window: "
+        return "Window absence not established: "
     if status == SOURCE_UNAVAILABLE:
         return "Absence not verified (source unavailable): "
     return "Unverified absence: "
@@ -281,8 +207,7 @@ def qualify_text(
 ) -> tuple[str, tuple[dict, ...]]:
     """Qualify unverified absence claims without deleting their content.
 
-    Returns the rewritten text and machine-readable checks. A sentence
-    containing only verified absences is left untouched.
+    Returns the rewritten text and machine-readable checks.
     """
     value = str(text or "")
     claims = detect_absence_claims(value)
@@ -292,46 +217,44 @@ def qualify_text(
     checks: list[dict] = []
     status_by_sentence: dict[str, str] = {}
     for claim in claims:
-        scoped = context.for_object(claim.object)
-        verified = claim.object in scoped.verified_objects
-        if verified and scoped.verified_scopes:
-            verified = _scope_mentioned(claim.text, scoped.verified_scopes)
         status = classify_absence(
             claim.object,
-            verified_absent=verified,
-            source_unavailable=scoped.source_unavailable,
-            window_checked=scoped.window_checked,
-            searched=scoped.searched,
-            coverage_incomplete=scoped.coverage_incomplete,
+            verified_absent=False,
+            source_unavailable=context.source_unavailable,
+            window_checked=context.window_checked,
+            searched=context.searched,
+            coverage_incomplete=context.coverage_incomplete,
         )
         checks.append(
             {
                 "object": claim.object,
                 "status": status,
                 "claim": claim.text,
-                "basis": list(scoped.basis),
+                "basis": list(context.basis),
             }
         )
-        if status != VERIFIED_ABSENT:
-            status_by_sentence.setdefault(claim.text, status)
+        status_by_sentence.setdefault(claim.text, status)
 
     if not status_by_sentence:
         return value, tuple(checks)
 
     rewritten: list[str] = []
-    for sentence in _sentences(value):
+    for part in _SENTENCE_BOUNDARY.split(value):
+        sentence = part.strip()
         status = status_by_sentence.get(sentence)
         if status is None:
-            rewritten.append(sentence)
+            rewritten.append(part)
             continue
-        body = sentence.rstrip()
+        start = len(part) - len(part.lstrip())
+        end = len(part.rstrip())
+        body = sentence
         if body and body[-1] in _TERMINATORS:
             body = body[:-1]
         body = f"{_prefix_for(status)}{body}{_suffix_for(status)}"
         if sentence and sentence[-1] in _TERMINATORS:
             body += sentence[-1]
-        rewritten.append(body)
-    return " ".join(rewritten), tuple(checks)
+        rewritten.append(part[:start] + body + part[end:])
+    return "".join(rewritten), tuple(checks)
 
 
 def summary_line(checks: Sequence[Mapping[str, object]]) -> str:

@@ -16,10 +16,10 @@ detailed calibration instructions; the code catches egregious violations.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
-from ..pipeline.absence import AbsenceContext, qualify_text
+from ..pipeline.absence import detect_absence_claims
 
 from ..intelligence.cache import SemanticCache, build_cache_key
 from ..intelligence.dtos import ResearchContext
@@ -131,6 +131,11 @@ def validate_fact(
     if not draft.statement or not draft.statement.strip():
         violations.append("statement is empty")
         return violations  # nothing else to check meaningfully
+
+    if not draft.signal_ids or not draft.evidence_ids:
+        violations.append("a FACT requires explicit signal and evidence citations")
+    if detect_absence_claims(draft.statement):
+        violations.append("an absence claim requires a scoped deterministic check; retain it as a research gap")
 
     # 2. signal_ids valid (exist in input signals)
     for sid in draft.signal_ids:
@@ -327,19 +332,6 @@ def _parse_fact_response(
             malformed += 1
             warnings.append(f"fact_synthesis: draft {i} parse error: {exc}")
             continue
-
-        # FACTS have no deterministic absence check; a model-written "no X"
-        # must never reach the brief as a definite absence.
-        statement, absence_checks = qualify_text(
-            draft.statement, context=AbsenceContext(searched=False)
-        )
-        if statement != draft.statement:
-            draft = replace(draft, statement=statement)
-        if absence_checks:
-            warnings.append(
-                "fact_synthesis: absence claims qualified: "
-                + ", ".join(f"{c['object']}={c['status']}" for c in absence_checks)
-            )
 
         violations = validate_fact(
             draft,

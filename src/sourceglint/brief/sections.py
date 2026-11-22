@@ -114,11 +114,11 @@ def research_context(ctx: BriefContext) -> str:
         lines.append(f"**Decision context:** {_inline(ctx.decision_context)}")
     delivery = {
         "evidence_backed_brief": (
-            "evidence-backed brief — facts and citations are complete; "
-            "deeper synthesis was skipped to protect the fact layer"
+            "evidence-backed brief — cited findings are available; "
+            "one or more synthesis stages were incomplete"
         ),
         "evidence_only_report": (
-            "evidence-only report — model synthesis was unavailable; confirmed "
+            "evidence-only report — model synthesis was unavailable; retrieved "
             "evidence, sources and gaps are listed below"
         ),
     }.get(ctx.delivery_level)

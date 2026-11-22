@@ -110,6 +110,7 @@ def run_insight_pipeline(
                     research_context=ctx, cache=cache,
                 )
         else:
+            budget.record_refusal(_INFERENCE_STAGE, reason)
             inference_skip = reason
             inference_result = InferenceSynthesisResult(
                 warnings=(reason,), model_status="unavailable"
@@ -149,6 +150,7 @@ def run_insight_pipeline(
                         all_insights, model, research_context=ctx, cache=cache,
                     )
             else:
+                budget.record_refusal(_GTM_STAGE, reason)
                 gtm_skip = reason
                 gtm_result = GTMImplicationResult(
                     warnings=(reason,), model_status="unavailable"

@@ -23,6 +23,7 @@ from ..interface.parser import parse_request
 from ..interface.request import MODES, SkillRequest
 from ..interface.result import SkillResult, Status
 from ..ledger import EvidenceLedger
+from ..synthesis_budget import MeteredModel, SynthesisBudget
 from .orchestrator import OrchestrationContext, orchestrate
 from .runtime import default_adapter_factory, default_sources
 
@@ -313,9 +314,10 @@ def run_sourceglint(
     if opportunities:
         from ..recommendations.opportunities import discover_opportunities, render_opportunities
         opportunity_started = monotonic()
+        opportunity_meter = MeteredModel(model, SynthesisBudget(deadline=run_deadline))
         with deadline_scope(run_deadline):
             hypotheses, state = discover_opportunities(
-                model, parsed.query, outcome.insights, ctx.ledger,
+                opportunity_meter, parsed.query, outcome.insights, ctx.ledger,
                 research_assessments=adaptive_run.assessments if adaptive_run else (),
             )
         diagnostics["opportunity_discovery"] = {"status": state, "hypotheses": hypotheses}
@@ -324,10 +326,14 @@ def run_sourceglint(
         if brief:
             brief += render_opportunities(hypotheses, ctx.ledger, state)
         if "performance" in diagnostics:
+            diagnostics["performance"]["opportunity_model_calls"] = sum(
+                opportunity_meter.budget.calls_by_task.values()
+            )
             phases = diagnostics["performance"]["phases"]
             phases["opportunity"] = round(monotonic() - opportunity_started, 2)
             diagnostics["performance"]["phase_status"]["opportunity"] = state
     if "performance" in diagnostics:
+        diagnostics["performance"]["elapsed_seconds"] = round(monotonic() - started, 2)
         phases = diagnostics["performance"]["phases"]
         phases["report"] = round(max(0.0, monotonic() - package_started
                                     - phases.get("opportunity", 0.0)), 2)

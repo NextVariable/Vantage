@@ -714,3 +714,40 @@ def test_short_budget_keeps_phases_non_negative_and_never_over_reserves():
     assert all(value >= 0 for value in performance["phases"].values())
     assert set(performance["phases"]) >= {"planning", "retrieval", "assessment", "synthesis", "report"}
     assert set(performance["phase_status"]) >= {"planning", "research", "synthesis"}
+
+
+def test_inference_timeout_keeps_facts_and_reports_partial_on_public_result():
+    class InferenceTimeoutModel(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "inference_synthesis":
+                raise TimeoutError
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    result, _, _, _ = execute(InferenceTimeoutModel(), lambda *_: [observation()])
+    payload = result.to_dict()
+    assert result.ok and result.status is Status.PARTIAL
+    assert payload["status"] == payload["execution_status"] == "PARTIAL"
+    assert payload["research_quality"] == result.research_quality
+    assert payload["delivery_level"] == "evidence_backed_brief"
+    assert payload["stage_statuses"]["insights"] == "degraded"
+    assert payload["diagnostics"]["synthesis"]["stages"]["inference_synthesis"]["calls"] == 1
+    assert result.diagnostics["insight_count"] > 0
+    assert "What We Know" in result.brief_markdown
+    assert "facts and citations are complete" not in result.brief_markdown
+
+
+def test_requested_recommendation_failure_reports_partial_without_losing_facts():
+    class RecommendationTimeoutModel(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "recommendation_generation":
+                return ModelResponse(task=task, status=ModelStatus.TIMEOUT)
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    result, _, _, _ = execute(
+        RecommendationTimeoutModel(), lambda *_: [observation()], decision_support=True,
+    )
+    assert result.status is Status.PARTIAL
+    assert result.delivery_level == "evidence_backed_brief"
+    assert result.stage_statuses["recommendations"] == "degraded"
+    assert result.diagnostics["synthesis"]["stages"]["recommendations"]["calls"] == 1
+    assert "What We Know" in result.brief_markdown

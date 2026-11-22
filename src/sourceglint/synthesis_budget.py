@@ -19,6 +19,7 @@ from statistics import median
 from time import monotonic
 from typing import Any, Callable, Mapping
 
+from .deadline import deadline_scope, remaining_time
 from .intelligence.model import ModelResponse, ModelStatus
 
 STAGE_ORDER = (
@@ -52,6 +53,10 @@ TASK_TO_STAGE = {
     "inference_synthesis": "inference_synthesis",
     "gtm_implications": "gtm_implications",
     "recommendations": "recommendations",
+    "recommendation_generation": "recommendations",
+    "recommendation_assessment": "recommendations",
+    "recommendation_dedup": "recommendations",
+    "recommendation_conflict": "recommendations",
 }
 
 BRIEF_FLOOR_SECONDS = 1.5
@@ -114,7 +119,7 @@ class SynthesisBudget:
         """Split the remaining wall clock into protected and opportunistic time."""
         remaining = max(0.0, float(remaining))
         fact = min(max(0.35 * remaining, _FACT_MIN), _FACT_MAX)
-        fact = min(fact, max(0.0, remaining - 15.0))
+        fact = min(fact, max(0.0, (remaining - BRIEF_FLOOR_SECONDS) / 2))
         inference = min(max(0.12 * remaining, 0.0), _INFERENCE_MAX)
         return cls(
             deadline=clock() + remaining,
@@ -145,7 +150,7 @@ class SynthesisBudget:
             - self.brief_floor_seconds
         )
         per_call = max(1.0, self.observed_call_seconds())
-        self.semantic_call_cap = max(0, int(available // per_call))
+        self.semantic_call_cap = self.calls_by_task.get("semantic_factors", 0) + max(0, int(available // per_call))
         return self.semantic_call_cap
 
     def stage_deadline(self, stage: str) -> float | None:
@@ -163,7 +168,7 @@ class SynthesisBudget:
                 - self.inference_reserve_seconds
                 - self.brief_floor_seconds
             )
-        if stage in ("fact_synthesis", "inference_synthesis"):
+        if stage in ("fact_synthesis", "inference_synthesis", "gtm_implications", "recommendations"):
             return self.deadline - self.brief_floor_seconds
         return self.deadline
 
@@ -174,9 +179,7 @@ class SynthesisBudget:
         if stage is None or self.deadline is None:
             return True, ""
         remaining = self.remaining()
-        if stage == "clustering":
-            need = self.brief_floor_seconds
-        elif stage == "contradiction":
+        if stage in ("clustering", "contradiction"):
             need = self.fact_reserve_seconds + self.brief_floor_seconds
         elif stage == "semantic_factors":
             if self.calls_by_task.get(task, 0) >= self.semantic_call_cap:
@@ -285,24 +288,34 @@ class MeteredModel:
         payload: Mapping[str, Any],
         response_schema: Mapping[str, Any],
     ) -> ModelResponse:
+        stage = TASK_TO_STAGE.get(task, "")
         allowed, reason = self.budget.allow(task)
-        if not allowed:
-            self.budget.record_refusal(task, reason)
-            return ModelResponse(
-                task=task,
-                status=ModelStatus.UNAVAILABLE,
-                error=f"synthesis budget: {reason}",
-            )
-        chars = _payload_chars(payload)
-        started = self.budget.clock()
-        response = self.inner.complete_structured(
-            task=task, payload=payload, response_schema=response_schema
-        )
-        elapsed = max(0.0, self.budget.clock() - started)
-        self.budget.record_call(
-            task, input_chars=chars, seconds=elapsed, ok=bool(getattr(response, "ok", False))
-        )
-        return response
+        cutoff = self.budget.stage_deadline(stage)
+        effective = None if cutoff is None else monotonic() + (cutoff - self.budget.clock())
+        with deadline_scope(effective):
+            if not allowed or remaining_time() == 0:
+                reason = reason or "stage or parent deadline reached before model dispatch"
+                self.budget.record_refusal(task, reason)
+                return ModelResponse(
+                    task=task,
+                    status=ModelStatus.UNAVAILABLE,
+                    error=f"synthesis budget: {reason}",
+                )
+            chars = _payload_chars(payload)
+            started = self.budget.clock()
+            response = None
+            try:
+                response = self.inner.complete_structured(
+                    task=task, payload=payload, response_schema=response_schema
+                )
+                return response
+            except TimeoutError:
+                return ModelResponse(task=task, status=ModelStatus.TIMEOUT, error="model call timed out")
+            finally:
+                elapsed = max(0.0, self.budget.clock() - started)
+                self.budget.record_call(
+                    task, input_chars=chars, seconds=elapsed, ok=bool(getattr(response, "ok", False))
+                )
 
     def finalize(self) -> None:
         """Copy host-reported usage (tokens/cost) when the host exposes it."""

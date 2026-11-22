@@ -97,14 +97,6 @@ class TestQualify:
         assert "dated release artifact" in text
         assert checks[0]["status"] == NOT_RETRIEVED
 
-    def test_verified_absence_is_preserved(self):
-        text, checks = qualify_text(
-            "There are no releases for example/repo.",
-            context=AbsenceContext(verified_objects=frozenset({"release"})),
-        )
-        assert "Unverified absence" not in text
-        assert checks[0]["status"] == VERIFIED_ABSENT
-
     def test_unavailable_source_prefix(self):
         text, _ = qualify_text(
             "There are no releases.",
@@ -117,7 +109,7 @@ class TestQualify:
             "There are no releases.",
             context=AbsenceContext(window_checked=True),
         )
-        assert text.startswith("Within the research window:")
+        assert text.startswith("Window absence not established:")
 
     def test_non_claim_text_unchanged(self):
         value = "Three releases shipped."
@@ -135,17 +127,16 @@ class TestQualify:
 
 
 class TestContextFromObservations:
-    def test_zero_release_observations_verify_only_that_object(self):
+    def test_zero_release_observations_do_not_verify_free_form_sentence(self):
         ctx = AbsenceContext.from_observations(
             [
                 {"kind": "releases", "status": "verified_absent", "repository": "a/b"},
                 {"kind": "releases", "status": "verified_absent", "repository": "c/d"},
             ]
         )
-        assert ctx.verified_objects == frozenset({"release"})
         text, checks = qualify_text("a/b has no releases.", context=ctx)
-        assert checks[0]["status"] == VERIFIED_ABSENT
-        assert "Unverified" not in text
+        assert checks[0]["status"] == NOT_RETRIEVED
+        assert "Unverified" in text
 
     def test_unscoped_claim_is_not_verified_outside_checked_repositories(self):
         ctx = AbsenceContext.from_observations(
@@ -162,7 +153,8 @@ class TestContextFromObservations:
         ctx = AbsenceContext.from_observations(
             [{"kind": "releases", "status": "verified_absent", "repository": "a/b"}]
         )
-        assert ctx.verified_objects == frozenset()
+        _, checks = qualify_text("There are no releases.", context=ctx)
+        assert checks[0]["status"] == NOT_RETRIEVED
 
     def test_one_present_repo_blocks_verified_absence(self):
         ctx = AbsenceContext.from_observations(
@@ -171,7 +163,8 @@ class TestContextFromObservations:
                 {"kind": "releases", "status": "present", "repository": "c/d"},
             ]
         )
-        assert "release" not in ctx.verified_objects
+        _, checks = qualify_text("There are no releases.", context=ctx)
+        assert checks[0]["status"] == NOT_RETRIEVED
 
     def test_rate_limit_marks_source_unavailable(self):
         ctx = AbsenceContext.from_observations(
@@ -179,3 +172,11 @@ class TestContextFromObservations:
         )
         assert ctx.source_unavailable is True
         assert "rate_limited" in " ".join(ctx.basis)
+
+
+def test_qualifier_preserves_versions_urls_and_newlines():
+    value = "Version 1.2.3 is at https://example.org/v1.2.3.  No license was found.\nA separate follow-up."
+    text, checks = qualify_text(value, context=AbsenceContext())
+    assert text.startswith("Version 1.2.3 is at https://example.org/v1.2.3.  ")
+    assert text.endswith("\nA separate follow-up.")
+    assert len(checks) == 1 and checks[0]["object"] == "license"

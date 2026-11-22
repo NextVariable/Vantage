@@ -7,12 +7,14 @@ The budget must protect the fact layer and record every degradation.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from time import monotonic
 
 import pytest
 
 from sourceglint.application.api import _synthesis_reserve
 from sourceglint.application.orchestrator import _delivery_level
 from sourceglint.connectors._github_release import fetch_releases
+from sourceglint.deadline import deadline_scope, remaining_time
 from sourceglint.intelligence.dtos import PreparedEvidence
 from sourceglint.intelligence.model import ModelResponse, ModelStatus
 from sourceglint.intelligence.preparation import model_payloads
@@ -157,6 +159,7 @@ def test_delivery_level_full_when_all_stages_ok():
             "inference_synthesis": "ok",
             "semantic_factors": "ok",
             "gtm_implications": "ok",
+            "recommendations": "ok",
         }
     )
     assert _delivery_level([{"type": "FACT"}], budget, include_gtm=True) == "full_brief"
@@ -245,7 +248,7 @@ def test_release_pagination_finds_an_older_in_window_release():
         [
             FakeResponse(
                 [_release("v9", "2025-01-01T00:00:00Z")],
-                headers={"Link": '<https://api.github.com/next>; rel="next"'},
+                headers={"Link": '<https://api.github.com/repos/a/b/releases?page=2>; rel="next"'},
             ),
             FakeResponse([_release("v1", "2026-11-10T00:00:00Z")]),
         ]
@@ -263,12 +266,13 @@ def test_release_pagination_finds_an_older_in_window_release():
 
 
 def test_incomplete_pagination_is_not_only_outside_window():
-    next_header = {"Link": '<https://api.github.com/next>; rel="next"'}
+    def next_header(page):
+        return {"Link": f'<https://api.github.com/repos/a/b/releases?page={page}>; rel="next"'}
     http = FakeHttp(
         [
-            FakeResponse([_release("v9", "2025-01-01T00:00:00Z")], headers=next_header),
-            FakeResponse([_release("v8", "2025-02-01T00:00:00Z")], headers=next_header),
-            FakeResponse([_release("v7", "2025-03-01T00:00:00Z")], headers=next_header),
+            FakeResponse([_release("v9", "2025-01-01T00:00:00Z")], headers=next_header(2)),
+            FakeResponse([_release("v8", "2025-02-01T00:00:00Z")], headers=next_header(3)),
+            FakeResponse([_release("v7", "2025-03-01T00:00:00Z")], headers=next_header(4)),
         ]
     )
     outcome = fetch_releases(
@@ -311,6 +315,91 @@ def test_verified_absence_stays_sentence_scoped():
     text, checks = qualify_text(
         "The project is active. a/b has no releases.", context=ctx
     )
-    assert checks[0]["status"] == "verified_absent"
-    assert "Unverified" not in text
+    assert checks[0]["status"] == NOT_RETRIEVED
+    assert "Unverified absence" in text
     assert "Within the research window" not in text
+
+
+def test_parent_deadline_refuses_without_counting_a_dispatch():
+    inner = InnerModel()
+    budget = SynthesisBudget.from_remaining(100)
+    with deadline_scope(monotonic() - 1):
+        reply = MeteredModel(inner, budget).complete_structured(
+            task="fact_synthesis", payload={}, response_schema={}
+        )
+    assert reply.status is ModelStatus.UNAVAILABLE
+    assert not inner.calls
+    assert not budget.calls_by_task
+    assert len(budget.refusals) == 1
+
+
+def test_recommendation_uses_parent_deadline_and_records_timeout_once():
+    class TimeoutModel(InnerModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            assert 0 < remaining_time() <= 3
+            raise TimeoutError
+
+    budget = SynthesisBudget.from_remaining(100)
+    with deadline_scope(monotonic() + 3):
+        reply = MeteredModel(TimeoutModel(), budget).complete_structured(
+            task="recommendation_generation", payload={}, response_schema={}
+        )
+    assert reply.status is ModelStatus.TIMEOUT
+    assert budget.calls_by_task == {"recommendation_generation": 1}
+    assert budget.stages["recommendations"].calls == 1
+
+
+def test_zero_budget_refuses_clustering_and_preserves_short_fact_reserve():
+    assert not SynthesisBudget.from_remaining(0).allow("clustering")[0]
+    short = SynthesisBudget.from_remaining(10)
+    assert 0 < short.fact_reserve_seconds < 10
+    assert short.stage_deadline("clustering") < short.stage_deadline("fact_synthesis")
+
+
+def test_empty_unfinished_release_scan_cannot_claim_absence():
+    http = FakeHttp([
+        FakeResponse([], {"Link": '<https://api.github.com/repos/a/b/releases?page=2>; rel="next"'}),
+        FakeResponse([], {"Link": '<https://api.github.com/repos/a/b/releases?page=3>; rel="next"'}),
+        FakeResponse([], {"Link": '<https://api.github.com/repos/a/b/releases?page=4>; rel="next"'}),
+    ])
+    outcome = fetch_releases(http, [{"full_name": "a/b"}], headers={}, window=WINDOW)
+    observed = outcome.observations[0]
+    assert observed["status"] == "pagination_incomplete"
+    assert observed["complete"] is False and observed["pages_fetched"] == 3
+    assert observed["endpoint"] == "https://api.github.com/repos/a/b/releases"
+    assert observed["window_start"] == WINDOW[0].isoformat()
+    assert observed["window_end"] == WINDOW[1].isoformat()
+    assert len(http.urls) == 3
+
+
+def test_untrusted_next_link_is_not_followed_and_bad_date_is_not_absence():
+    http = FakeHttp([
+        FakeResponse([_release("v1", "invalid")], {"Link": '<https://example.org/page>; rel="next"'}),
+    ])
+    outcome = fetch_releases(http, [{"full_name": "a/b"}], headers={}, window=WINDOW)
+    assert len(http.urls) == 1
+    assert not outcome.results
+    assert outcome.observations[0]["status"] == "pagination_incomplete"
+
+
+def test_release_pagination_accepts_github_repository_id_link():
+    http = FakeHttp([
+        FakeResponse([], {"Link": '<https://api.github.com/repositories/123/releases?page=2>; rel="next"'}),
+        FakeResponse([_release("v1", "2026-11-10T00:00:00Z")]),
+    ])
+    outcome = fetch_releases(http, [{"full_name": "a/b", "id": 123}], headers={}, window=WINDOW)
+    assert len(http.urls) == 2
+    assert outcome.observations[0]["status"] == "present"
+
+
+def test_malformed_release_link_and_tag_body_never_certify_absence():
+    response = FakeResponse([], {"Link": '; rel="next"'})
+    http = FakeHttp([response])
+    outcome = fetch_releases(http, [{"full_name": "a/b"}], headers={}, window=WINDOW)
+    assert outcome.observations[0]["status"] == "invalid_response"
+
+    http = FakeHttp([FakeResponse([]), FakeResponse({"message": "bad payload"})])
+    outcome = fetch_releases(http, [{"full_name": "a/b"}], headers={}, window=WINDOW)
+    release, tag = outcome.observations
+    assert release["status"] == "verified_absent" and release["complete"] is True
+    assert tag["status"] == "invalid_response"

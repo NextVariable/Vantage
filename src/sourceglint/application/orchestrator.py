@@ -44,31 +44,32 @@ def _stage(value: str) -> str:
     return value
 
 
+def _synthesis_degraded(budget: SynthesisBudget, *, include_gtm: bool) -> bool:
+    required = ("clustering", "contradiction", "fact_synthesis",
+                "inference_synthesis", "semantic_factors")
+    if include_gtm:
+        required += ("gtm_implications", "recommendations")
+    return any(budget.stages[name].status != "ok" for name in required)
+
+
 def _delivery_level(
     insights: Sequence[Mapping[str, Any]],
     budget: SynthesisBudget | None,
     *,
     include_gtm: bool,
 ) -> str:
-    """Delivery layer — never changes Status, never promotes unverified facts."""
-    facts = sum(1 for row in insights if str(row.get("type")) == "FACT")
-    if not facts:
+    if not any(row.get("type") == "FACT" for row in insights):
         return "evidence_only_report"
-    if budget is None:
-        return "full_brief"
-    stages = budget.to_dict()["stages"]
-    required = [
-        "clustering",
-        "contradiction",
-        "fact_synthesis",
-        "inference_synthesis",
-        "semantic_factors",
-    ]
-    if include_gtm:
-        required.append("gtm_implications")
-    if any(stages.get(name, {}).get("status") != "ok" for name in required):
+    if budget is not None and _synthesis_degraded(budget, include_gtm=include_gtm):
         return "evidence_backed_brief"
     return "full_brief"
+
+
+def _execution_status(
+    research_degraded: bool, budget: SynthesisBudget, *, include_gtm: bool,
+) -> str:
+    degraded = research_degraded or _synthesis_degraded(budget, include_gtm=include_gtm)
+    return "PARTIAL" if degraded else "SUCCESS"
 
 
 def _mark_brief(budget: SynthesisBudget | None) -> None:
@@ -275,11 +276,12 @@ def orchestrate(
         )
         research_result = replace(research_result, coverage=coverage)
         ctx = replace(ctx, ledger=EvidenceView(ctx.ledger, screened_ids))
-    stage["research"] = (
-        STAGE_DEGRADED
-        if research_result.coverage.failed_sources
-        else STAGE_OK
+    adaptive_state = research_result.coverage.adaptive_research or {}
+    research_degraded = bool(research_result.coverage.failed_sources) or (
+        adaptive_state.get("stop_reason") in {"deadline_exceeded", "assessment_unavailable"}
+        or adaptive_state.get("planning_status") in {"fallback", "fallback_routes", "unavailable"}
     )
+    stage["research"] = STAGE_DEGRADED if research_degraded else STAGE_OK
     warnings.extend(f"research: {w}" for w in research_result.warnings)
     warnings.extend(
         f"research:{name}: {w}"
@@ -311,13 +313,13 @@ def orchestrate(
         )
 
     # ---- Phase 5: signals -------------------------------------------------
-    synthesis_budget: SynthesisBudget | None = None
-    metered: MeteredModel | None = None
     remaining = remaining_time()
-    if remaining is not None and remaining > 0:
-        synthesis_budget = SynthesisBudget.from_remaining(remaining)
-        metered = MeteredModel(ctx.model, synthesis_budget)
-        ctx = replace(ctx, model=metered)
+    synthesis_budget = (
+        SynthesisBudget.from_remaining(remaining)
+        if remaining is not None else SynthesisBudget(deadline=None)
+    )
+    metered = MeteredModel(ctx.model, synthesis_budget)
+    ctx = replace(ctx, model=metered)
     try:
         signal_result = run_intelligence_pipeline(
             [rec.to_payload() for rec in ctx.ledger] if adaptive else ctx.ledger,
@@ -354,7 +356,11 @@ def orchestrate(
         )
     warnings.extend(f"signals: {w}" for w in signal_result.warnings)
     signals = signal_result.signals
-    stage["signals"] = STAGE_DEGRADED if not signals else STAGE_OK
+    stage["signals"] = (
+        STAGE_DEGRADED if not signals or any(
+            state != "success" for state in signal_result.model_status.values()
+        ) else STAGE_OK
+    )
 
     if not signals:
         brief = _render_without_signals(
@@ -395,7 +401,11 @@ def orchestrate(
     )
     warnings.extend(ins_warnings)
     insights = insight_result.insights
-    stage["insights"] = STAGE_DEGRADED if not insights else STAGE_OK
+    stage["insights"] = (
+        STAGE_DEGRADED if not insights or any(
+            state != "success" for state in insight_result.model_status.values()
+        ) else STAGE_OK
+    )
     delivery = _delivery_level(
         insights, synthesis_budget, include_gtm=include_recommendations
     )
@@ -445,7 +455,7 @@ def orchestrate(
             )
         _mark_brief(synthesis_budget)
         return ApplicationResult(
-            status="PARTIAL" if research_result.coverage.failed_sources else "SUCCESS",
+            status=_execution_status(research_degraded, synthesis_budget, include_gtm=False),
             brief=brief,
             evidence_count=evidence_count,
             signal_count=len(signals),
@@ -471,7 +481,12 @@ def orchestrate(
     )
     warnings.extend(rec_warnings)
     recommendations = rec_result.recommendations
-    stage["recommendations"] = STAGE_DEGRADED if not recommendations else STAGE_OK
+    rec_degraded = any(
+        state != "success" for state in rec_result.model_status.values()
+    )
+    stage["recommendations"] = STAGE_DEGRADED if rec_degraded else STAGE_OK
+    synthesis_budget.mark_stage("recommendations", stage["recommendations"])
+    delivery = _delivery_level(insights, synthesis_budget, include_gtm=True)
 
     # ---- Phase 6C: brief ----------------------------------------------------
     diag_by_id = {
@@ -498,7 +513,7 @@ def orchestrate(
         delivery_level=delivery,
     )
 
-    status = "PARTIAL" if research_result.coverage.failed_sources else "SUCCESS"
+    status = _execution_status(research_degraded, synthesis_budget, include_gtm=True)
     stage["brief"] = STAGE_OK
     _mark_brief(synthesis_budget)
     return ApplicationResult(

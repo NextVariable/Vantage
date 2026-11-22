@@ -29,7 +29,7 @@ def _signal() -> PreparedSignal:
     )
 
 
-def test_fact_negative_claim_is_qualified():
+def test_unverified_negative_claim_is_rejected_from_fact_layer():
     model = FakeInsightModel(
         fact_scripts=(
             FakeFactScript(
@@ -40,11 +40,9 @@ def test_fact_negative_claim_is_qualified():
         )
     )
     result = synthesize_facts([_signal()], model, {"ev_1": {}})
-    assert result.validated
-    statement = result.validated[0].statement
-    assert statement.startswith("Unverified absence:")
-    assert "release artifact exists" in statement
-    assert any("absence claims qualified" in w for w in result.warnings)
+    assert not result.validated
+    assert result.rejected[0].statement == "No release artifact exists for the candidate."
+    assert any("scoped deterministic check" in w for w in result.warnings)
 
 
 def test_inference_negative_claim_is_qualified():

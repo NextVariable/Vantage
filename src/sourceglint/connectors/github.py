@@ -274,7 +274,7 @@ class GitHubAdapter:
                         "source": self.source_name,
                         "kind": "license",
                         "repository": full_name,
-                        "status": "verified_absent",
+                        "status": "not_retrieved",
                         "count": 0,
                         "checked_at": checked_at,
                         "detail": (

@@ -7,8 +7,7 @@ search and record each release as evidence with its own tag, publication
 time and URL.
 
 Time semantics are explicit: repository ``created_at`` is discovery
-metadata, a release uses ``published_at`` (falling back to the release's
-``created_at``, never the repository creation date), and a tag has no date
+metadata, a release needs ``published_at``, and a tag has no date
 in this response and is therefore reported as an observation only.
 
 Failure classification is exact: 404 → not_found, 401 → auth_missing,
@@ -21,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Sequence
+from urllib.parse import urlsplit
 
 from ..pipeline.adapters import RawSourceResult
 from ._http import (
@@ -134,28 +134,12 @@ def _classify_failure(exc: BaseException) -> tuple[str, str]:
     return "unavailable", f"{type(exc).__name__}: {exc}"
 
 
-def _get_json(
-    http_client: HttpClient,
-    url: str,
-    headers: Mapping[str, str],
-) -> Any:
-    response = http_client.request(url, headers=dict(headers))
-    if response.status != 200:
-        if response.status in (401, 403, 404, 429) or response.status >= 500:
-            raise HttpPermanentError(status=response.status, url=url)
-        raise _InvalidBody(f"unexpected status {response.status}")
-    try:
-        return response.json()
-    except Exception as exc:  # noqa: BLE001 - classified below
-        raise _InvalidBody(f"body not JSON: {exc}") from exc
-
-
 def _get_json_page(
     http_client: HttpClient,
     url: str,
     headers: Mapping[str, str],
 ) -> tuple[Any, Mapping[str, str]]:
-    """Like `_get_json`, but keep response headers for Link pagination."""
+    """Read JSON and retain response headers for Link pagination."""
     response = http_client.request(url, headers=dict(headers))
     if response.status != 200:
         if response.status in (401, 403, 404, 429) or response.status >= 500:
@@ -176,11 +160,12 @@ def _next_link(headers: Mapping[str, str]) -> str:
             value = str(header_value)
             break
     for part in value.split(","):
-        if 'rel="next"' not in part.replace(" ", ""):
+        if not re.search(r';\s*rel\s*=\s*(?:"next"|next)(?=\s*(?:;|$))', part, re.I):
             continue
         match = re.search(r"<([^>]+)>", part)
-        if match:
-            return match.group(1)
+        if not match:
+            raise _InvalidBody("malformed GitHub pagination link")
+        return match.group(1)
     return ""
 
 
@@ -219,7 +204,7 @@ def _release_results(
     language: str,
     market: str,
     limitations: list[str],
-) -> tuple[list[RawSourceResult], int, int]:
+) -> tuple[list[RawSourceResult], int, int, bool]:
     if not isinstance(releases, list):
         raise _InvalidBody("releases payload is not a list")
     repo_created_at = str(repo.get("created_at") or "")
@@ -229,14 +214,16 @@ def _release_results(
     ]
     results: list[RawSourceResult] = []
     in_window = 0
+    complete = all(isinstance(row, Mapping) for row in releases)
     for rel in public:
         tag_name = str(rel.get("tag_name") or "")
         published = str(rel.get("published_at") or "")
         created = str(rel.get("created_at") or "")
-        published_at = published or created
-        if not published_at:
+        published_at = published
+        if not _parse(published_at):
+            complete = False
             limitations.append(
-                f"github releases: {full_name} {tag_name or '?'} has no publication date; skipped"
+                f"github releases: {full_name} {tag_name or '?'} has no valid publication date; skipped"
             )
             continue
         if not _in_window(published_at, window):
@@ -274,11 +261,11 @@ def _release_results(
                     "github_repo_created_at": repo_created_at,
                     "github_prerelease": bool(rel.get("prerelease")),
                     "github_draft": False,
-                    "version_source": "release_published_at" if published else "release_created_at",
+                    "version_source": "release_published_at",
                 },
             )
         )
-    return results, len(public), in_window
+    return results, len(public), in_window, complete
 
 
 def fetch_releases(
@@ -305,17 +292,25 @@ def fetch_releases(
         full_name = str(repo.get("full_name") or "").strip()
         if not full_name:
             continue
-        page_url = f"{RELEASES_URL.format(full_name=full_name)}?per_page={max(1, per_repo)}"
+        endpoint = RELEASES_URL.format(full_name=full_name)
+        endpoint_parts = urlsplit(endpoint)
+        allowed_paths = {endpoint_parts.path}
+        if str(repo.get("id", "")).isdigit():
+            allowed_paths.add(f"/repositories/{repo['id']}/releases")
+        page_url = f"{endpoint}?per_page={max(1, per_repo)}"
         repo_results: list[RawSourceResult] = []
         public_count = 0
         in_window = 0
         pages_fetched = 0
         pagination_complete = True
+        records_complete = True
+        visited: set[str] = set()
         try:
             while True:
+                visited.add(page_url)
                 payload, page_headers = _get_json_page(http_client, page_url, headers)
                 pages_fetched += 1
-                page_results, page_public, page_in_window = _release_results(
+                page_results, page_public, page_in_window, page_complete = _release_results(
                     full_name, repo, payload,
                     window=window,
                     checked_at=checked_at,
@@ -327,11 +322,18 @@ def fetch_releases(
                 repo_results.extend(page_results)
                 public_count += page_public
                 in_window += page_in_window
+                records_complete &= page_complete
                 next_url = _next_link(page_headers)
-                # Releases are newest-first; stop as soon as the window is
-                # covered, or when the page cap is reached.
+                # A positive sample is usable even when the endpoint has more pages.
                 if in_window > 0 or not next_url or pages_fetched >= MAX_RELEASE_PAGES:
                     pagination_complete = not next_url
+                    break
+                next_parts = urlsplit(next_url)
+                if (next_url in visited or next_parts.scheme != "https"
+                        or next_parts.netloc != endpoint_parts.netloc
+                        or next_parts.path not in allowed_paths):
+                    pagination_complete = False
+                    limitations.append(f"github releases: {full_name} invalid or repeated pagination link")
                     break
                 page_url = next_url
         except Exception as exc:  # classified, never raised to caller
@@ -347,19 +349,20 @@ def fetch_releases(
                 )
             )
             limitations.append(f"github releases unavailable for {full_name}: {detail}")
+            results.extend(repo_results)
             continue
 
         results.extend(repo_results)
-        if public_count == 0:
-            status = "verified_absent"
-        elif in_window == 0 and pagination_complete:
-            status = "only_outside_window"
-        elif in_window == 0:
-            status = "pagination_incomplete"
-        else:
+        complete = pagination_complete and records_complete
+        if in_window > 0:
             status = "present"
-        observations.append(
-            _observation(
+        elif not complete:
+            status = "pagination_incomplete"
+        elif public_count:
+            status = "only_outside_window"
+        else:
+            status = "verified_absent"
+        observation = _observation(
                 kind="releases",
                 repository=full_name,
                 status=status,
@@ -370,12 +373,17 @@ def fetch_releases(
                     f"{full_name}: Releases API returned {public_count} release(s) "
                     f"across {pages_fetched} page(s), {in_window} inside the research "
                     f"window"
-                    + ("" if pagination_complete else "; pagination incomplete")
+                    + ("" if complete else "; endpoint scan incomplete")
                 ),
             )
-        )
+        observation.update({
+            "endpoint": endpoint, "pages_fetched": pages_fetched, "complete": complete,
+            "window_start": window[0].isoformat() if window else None,
+            "window_end": window[1].isoformat() if window else None,
+        })
+        observations.append(observation)
 
-        if public_count == 0 and pagination_complete and tag_budget > 0:
+        if status == "verified_absent" and tag_budget > 0:
             tag_budget -= 1
             observations.append(
                 _tag_observation(
@@ -396,9 +404,12 @@ def _tag_observation(
 ) -> dict:
     url = f"{TAGS_URL.format(full_name=full_name)}?per_page=10"
     try:
-        payload = _get_json(http_client, url, headers)
-        count = len(payload) if isinstance(payload, list) else 0
-        status = "present" if count else "verified_absent"
+        payload, page_headers = _get_json_page(http_client, url, headers)
+        if not isinstance(payload, list) or not all(isinstance(row, Mapping) for row in payload):
+            raise _InvalidBody("tags payload is not a list of objects")
+        count = len(payload)
+        complete = not _next_link(page_headers)
+        status = "present" if count else "verified_absent" if complete else "pagination_incomplete"
     except Exception as exc:  # classified, observation only
         status, detail = _classify_failure(exc)
         limitations.append(f"github tags unavailable for {full_name}: {detail}")
@@ -406,7 +417,7 @@ def _tag_observation(
             kind="tags", repository=full_name, status=status, count=0,
             checked_at=checked_at, detail=f"{full_name}: tags {detail}",
         )
-    return _observation(
+    observation = _observation(
         kind="tags",
         repository=full_name,
         status=status,
@@ -414,6 +425,11 @@ def _tag_observation(
         checked_at=checked_at,
         detail=f"{full_name}: Tags API returned {count} tag(s) without dated releases",
     )
+    observation.update({
+        "endpoint": TAGS_URL.format(full_name=full_name), "pages_fetched": 1,
+        "complete": complete, "window_start": None, "window_end": None,
+    })
+    return observation
 
 
 __all__ = [

@@ -2,7 +2,7 @@
 
 Normalized external status taxonomy (never 15 internal states):
 
-    SUCCESS      usable brief rendered
+    SUCCESS      usable brief rendered with required stages completed
     PARTIAL      usable brief rendered with upstream degradation
     NO_EVIDENCE  research retrieved nothing usable (§19)
     FAILED       invalid request / pipeline could not produce a result
@@ -43,9 +43,20 @@ class SkillResult:
     def ok(self) -> bool:
         return self.status in (Status.SUCCESS, Status.PARTIAL, Status.NO_EVIDENCE)
 
+    @property
+    def execution_status(self) -> Status:
+        return self.status
+
+    @property
+    def research_quality(self) -> str:
+        coverage = self.diagnostics.get("coverage") or {}
+        return coverage.get("research_quality", "NOT_ASSESSED")
+
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
             "status": self.status.value,
+            "execution_status": self.execution_status.value,
+            "research_quality": self.research_quality,
             "brief_markdown": self.brief_markdown,
             "warnings": list(self.warnings),
             "stage_statuses": dict(self.stage_statuses),
@@ -68,6 +79,4 @@ class SkillResult:
             out["research_plan"] = dict(self.research_plan)
         if self.diagnostics:
             out["diagnostics"] = dict(self.diagnostics)
-            coverage = self.diagnostics.get("coverage") or {}
-            out["research_quality"] = coverage.get("research_quality", "NOT_ASSESSED")
         return out

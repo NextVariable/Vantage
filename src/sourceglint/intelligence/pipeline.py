@@ -164,6 +164,7 @@ def run_intelligence_pipeline(
         if budget is not None:
             allowed, reason = budget.allow(_SEMANTIC_STAGE)
             if not allowed:
+                budget.record_refusal(_SEMANTIC_STAGE, reason)
                 semantic_reason = reason
                 semantic_skips += 1
             else:
