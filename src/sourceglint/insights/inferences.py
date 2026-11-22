@@ -25,6 +25,7 @@ from typing import Any, Iterable, Mapping
 from ..intelligence.cache import SemanticCache, build_cache_key
 from ..intelligence.dtos import ResearchContext
 from ..intelligence.model import ModelResponse
+from ..pipeline.absence import AbsenceContext, qualify_text
 from .dtos import INFERENCE, FactDraft, InferenceDraft
 from .facts import _detect_phase6a_leakage
 from .ids import derive_insight_id
@@ -331,6 +332,17 @@ def _parse_inference_response(
             malformed += 1
             warnings.append(f"inference_synthesis: draft {i} parse error: {exc}")
             continue
+
+        statement, absence_checks = qualify_text(
+            draft.statement, context=AbsenceContext(searched=False)
+        )
+        if statement != draft.statement:
+            draft = replace(draft, statement=statement)
+        if absence_checks:
+            warnings.append(
+                "inference_synthesis: absence claims qualified: "
+                + ", ".join(f"{c['object']}={c['status']}" for c in absence_checks)
+            )
 
         violations = validate_inference(
             draft,

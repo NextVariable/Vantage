@@ -113,6 +113,22 @@ def analyze_contradictions(
 
     for cluster in clusters:
         member_ids = tuple(cluster.evidence_ids)
+        # A single item cannot contradict itself. Resolve this
+        # deterministically instead of paying for a model call that can
+        # only return "none" (real run: 3 avoidable calls).
+        if len(member_ids) < 2:
+            assessments.append(
+                ContradictionAssessment(
+                    cluster_id=cluster.cluster_id,
+                    supporting_evidence_ids=member_ids,
+                    counter_evidence_ids=(),
+                    kind=CONTRADICTION_NONE,
+                    confidence=0.0,
+                    rationale="single-member cluster; contradiction not assessable",
+                    degraded=False,
+                )
+            )
+            continue
         members = [
             evidence_by_id[eid] for eid in member_ids if eid in evidence_by_id
         ]

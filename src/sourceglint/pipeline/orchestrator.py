@@ -43,6 +43,8 @@ from .adaptive import AdaptiveResearch
 from .adapters import AdapterError, RawSourceResult, SourceAdapter
 from .cache import RetrievalCache, cache_key_for
 from .coverage import CoverageReport, build_coverage_report
+
+
 from .deduplication import deduplicate
 from .degradation import (
     AllSourcesFailedError,
@@ -55,6 +57,12 @@ from .query_expansion import expand_queries
 from .retrieval_plan import build_retrieval_plans
 from .source_registry import SourceRegistry, load_registry
 from .time_filter import apply_time_filter
+
+
+def _collect_absences(adapter: object, sink: list[dict]) -> None:
+    """Copy absence observations before the adapter resets them per query."""
+    for obs in getattr(adapter, "absence_observations", ()) or ():
+        sink.append(dict(obs))
 
 # Starting a request with less time than this left cannot finish, and the
 # late reply desynchronises the host protocol. Stop and degrade instead.
@@ -177,6 +185,7 @@ class ResearchPipeline:
         planned_routes = list(retrievals)
         per_source: dict[str, SourceStatusReport] = {}
         host_observations: list[dict] = []
+        absence_observations: list[dict] = []
         raw_results: list[RawSourceResult] = []
         warnings: list[str] = []
         normalized: list[dict] = []
@@ -189,12 +198,13 @@ class ResearchPipeline:
             round_started = monotonic()
             retrieval_started = monotonic()
             with deadline_scope(adaptive.deadline if adaptive else None):
-                batch, reports, observations, trace = self._retrieve_batch(
+                batch, reports, observations, trace, absences = self._retrieve_batch(
                     plan, retrievals, source_entries_by_name, blocked, adaptive=adaptive is not None,
                 )
             retrieval_seconds = monotonic() - retrieval_started
             raw_results.extend(batch)
             host_observations.extend(observations)
+            absence_observations.extend(absences)
             for name, report in reports.items():
                 previous = per_source.get(name)
                 if previous:
@@ -244,6 +254,7 @@ class ResearchPipeline:
                         allow_search=round_number < rounds,
                         min_new_relevance=round_number > 1,
                         host_gaps=[part for obs in host_observations for part in obs["unanswered_parts"]],
+                        absence_observations=absence_observations,
                     )
                 else:
                     retrievals = []
@@ -311,6 +322,7 @@ class ResearchPipeline:
                 {**item, "unanswered_parts": ()}
                 for item in host_observations
             ] if adaptive else host_observations,
+            absence_observations=absence_observations,
         )
 
         if adaptive:
@@ -352,6 +364,7 @@ class ResearchPipeline:
         raw_results: list[RawSourceResult] = []
         per_source: dict[str, SourceStatusReport] = {}
         host_observations: list[dict] = []
+        absence_observations: list[dict] = []
         trace: list[tuple[str, str, str, list[RawSourceResult]]] = []
 
         # Group retrieval plans by source so each adapter call is one request
@@ -407,6 +420,7 @@ class ResearchPipeline:
                     out = adapter.retrieve(plan=plan, request=request)
                 except AdapterError as exc:
                     self._record_host_observation(adapter, r, host_observations)
+                    _collect_absences(adapter, absence_observations)
                     status = classify_adapter_exception(exc)
                     blocked.add(source_name)
                     trace.append((source_name, r.query, status.value, []))
@@ -433,6 +447,7 @@ class ResearchPipeline:
                     rep.append_warning(f"unavailable: {exc}")
                     break
                 self._record_host_observation(adapter, r, host_observations)
+                _collect_absences(adapter, absence_observations)
                 # Adapters reset per-query diagnostics. Capture each query's
                 # limits before the next variant can clear them, including
                 # empty but incomplete retrievals.
@@ -467,7 +482,7 @@ class ResearchPipeline:
                 rep.status = SourceStatus.PARTIAL
             per_source[source_name] = rep
 
-        return raw_results, per_source, host_observations, trace
+        return raw_results, per_source, host_observations, trace, absence_observations
 
     def _normalize(self, batch: Sequence[RawSourceResult], warnings: list[str]) -> tuple[list[dict], int]:
         evidence_list: list[dict] = []

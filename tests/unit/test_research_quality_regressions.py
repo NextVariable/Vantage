@@ -101,11 +101,13 @@ def test_clustering_cache_invalidates_changed_model_input(change):
 def test_contradiction_cache_invalidates_changed_claim():
     cache = SemanticCache()
     item = evidence(content="A report about safety")
-    model = FakeIntelligenceModel(scripts=(FakeClusterScript("Security", "claim", ("ev-1",)),))
-    analyze_contradictions([group("ev-1")], model, evidence_by_id={"ev-1": item}, cache=cache)
+    second = evidence("ev-2", content="A second report about safety")
+    model = FakeIntelligenceModel(scripts=(FakeClusterScript("Security", "claim", ("ev-1", "ev-2")),))
+    analyze_contradictions([group("ev-1", "ev-2")], model,
+                           evidence_by_id={"ev-1": item, "ev-2": second}, cache=cache)
     model.calls.clear()
-    analyze_contradictions([group("ev-1", claim="The opposite claim")], model,
-                           evidence_by_id={"ev-1": item}, cache=cache)
+    analyze_contradictions([group("ev-1", "ev-2", claim="The opposite claim")], model,
+                           evidence_by_id={"ev-1": item, "ev-2": second}, cache=cache)
     assert len(model.calls) == 1
 
 
@@ -115,7 +117,10 @@ def test_failed_contradiction_does_not_infer_support(status):
         model_id = "failure-test"
         def complete_structured(self, **kwargs):
             return ModelResponse(task=kwargs["task"], status=status)
-    out = analyze_contradictions([group("ev-1")], Unusable(), evidence_by_id={"ev-1": evidence()})
+    out = analyze_contradictions(
+        [group("ev-1", "ev-2")], Unusable(),
+        evidence_by_id={"ev-1": evidence(), "ev-2": evidence("ev-2")},
+    )
     assert out.assessments[0].degraded
     assert out.assessments[0].supporting_evidence_ids == ()
     assert out.warnings

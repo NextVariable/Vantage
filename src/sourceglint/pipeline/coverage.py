@@ -53,6 +53,7 @@ class CoverageReport:
     searched_targets: tuple[str, ...] = ()
     unavailable_targets: tuple[str, ...] = ()
     unanswered_parts: tuple[str, ...] = ()
+    absence_observations: tuple[Mapping[str, object], ...] = ()
     adaptive_research: Mapping[str, object] | None = None
 
     @property
@@ -97,6 +98,7 @@ class CoverageReport:
             "searched_targets": list(self.searched_targets),
             "unavailable_targets": list(self.unavailable_targets),
             "unanswered_parts": list(self.unanswered_parts),
+            "absence_checks": [dict(obs) for obs in self.absence_observations],
             "research_quality": self._research_quality(),
             **({"adaptive_research": self.adaptive_research} if self.adaptive_research is not None else {}),
         }
@@ -159,6 +161,7 @@ def build_coverage_report(
     dropped_by_time_filter: int,
     kept_evidence: Iterable[Mapping[str, object]] | None = None,
     host_observations: Iterable[Mapping[str, object]] = (),
+    absence_observations: Iterable[Mapping[str, object]] = (),
 ) -> CoverageReport:
     """Build the final CoverageReport from pipeline inputs.
 
@@ -222,6 +225,21 @@ def build_coverage_report(
         unanswered.extend(str(x) for x in (obs.get("unanswered_parts") or []))
     gaps.extend(f"Requested aspect not answered: {part}" for part in unanswered)
 
+    # Verified absence is a finding, not a coverage gap: it must not make an
+    # otherwise adequate answer look incomplete. Only failed checks (which
+    # leave absence unverified) are surfaced as gaps.
+    absence_list = [dict(obs) for obs in absence_observations]
+    for obs in absence_list:
+        kind = str(obs.get("kind") or "")
+        status = str(obs.get("status") or "")
+        if status in {
+            "rate_limited", "auth_missing", "timeout", "unavailable",
+            "invalid_response", "forbidden", "not_found",
+        }:
+            gaps.append(
+                f"GitHub {kind or 'source'}: {obs.get('repository') or '?'} — {status}"
+            )
+
     warnings: list[str] = []
     if dropped_by_time_filter:
         warnings.append(f"time_filter_dropped={dropped_by_time_filter}")
@@ -247,4 +265,5 @@ def build_coverage_report(
         searched_targets=_distinct_preserve_first(searched),
         unavailable_targets=_distinct_preserve_first(unavailable),
         unanswered_parts=_distinct_preserve_first(unanswered),
+        absence_observations=tuple(absence_list),
     )

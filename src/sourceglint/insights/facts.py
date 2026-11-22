@@ -16,8 +16,10 @@ detailed calibration instructions; the code catches egregious violations.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Mapping
+
+from ..pipeline.absence import AbsenceContext, qualify_text
 
 from ..intelligence.cache import SemanticCache, build_cache_key
 from ..intelligence.dtos import ResearchContext
@@ -325,6 +327,19 @@ def _parse_fact_response(
             malformed += 1
             warnings.append(f"fact_synthesis: draft {i} parse error: {exc}")
             continue
+
+        # FACTS have no deterministic absence check; a model-written "no X"
+        # must never reach the brief as a definite absence.
+        statement, absence_checks = qualify_text(
+            draft.statement, context=AbsenceContext(searched=False)
+        )
+        if statement != draft.statement:
+            draft = replace(draft, statement=statement)
+        if absence_checks:
+            warnings.append(
+                "fact_synthesis: absence claims qualified: "
+                + ", ".join(f"{c['object']}={c['status']}" for c in absence_checks)
+            )
 
         violations = validate_fact(
             draft,

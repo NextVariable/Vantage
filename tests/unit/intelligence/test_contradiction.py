@@ -115,16 +115,16 @@ def test_contextual_and_experience_kinds_preserved():
 
 
 def test_assessments_sorted_by_cluster_id():
-    c1 = _cluster(("ev-1",))
-    c2 = _cluster(("ev-2",))
+    c1 = _cluster(("ev-1", "ev-1b"))
+    c2 = _cluster(("ev-2", "ev-2b"))
     # FakeIntelligenceModel returns scripts in script order; whichever order
     # we pass, assessments must come back sorted by cluster_id.
     outcome = contradiction.analyze_contradictions(
         [c2, c1], _model(
-            FakeClusterScript(label="A", claim="c", evidence_ids=("ev-1",)),
-            FakeClusterScript(label="B", claim="c", evidence_ids=("ev-2",)),
+            FakeClusterScript(label="A", claim="c", evidence_ids=("ev-1", "ev-1b")),
+            FakeClusterScript(label="B", claim="c", evidence_ids=("ev-2", "ev-2b")),
         ),
-        evidence_by_id=_index(_ev("ev-1"), _ev("ev-2")),
+        evidence_by_id=_index(_ev("ev-1"), _ev("ev-1b"), _ev("ev-2"), _ev("ev-2b")),
     )
     got = [a.cluster_id for a in outcome.assessments]
     assert got == sorted(got)
@@ -132,14 +132,14 @@ def test_assessments_sorted_by_cluster_id():
 
 
 def test_multiple_clusters_each_get_own_assessment():
-    clusters = [_cluster(("ev-1",)), _cluster(("ev-2",))]
+    clusters = [_cluster(("ev-1", "ev-1b")), _cluster(("ev-2", "ev-2b"))]
     outcome = contradiction.analyze_contradictions(
         clusters,
         _model(
-            FakeClusterScript(label="A", claim="c", evidence_ids=("ev-1",)),
-            FakeClusterScript(label="B", claim="c", evidence_ids=("ev-2",)),
+            FakeClusterScript(label="A", claim="c", evidence_ids=("ev-1", "ev-1b")),
+            FakeClusterScript(label="B", claim="c", evidence_ids=("ev-2", "ev-2b")),
         ),
-        evidence_by_id=_index(_ev("ev-1"), _ev("ev-2")),
+        evidence_by_id=_index(_ev("ev-1"), _ev("ev-1b"), _ev("ev-2"), _ev("ev-2b")),
     )
     assert {a.cluster_id for a in outcome.assessments} == {
         c.cluster_id for c in clusters
@@ -172,16 +172,16 @@ def test_counter_id_outside_cluster_is_cut():
 
 
 def test_hallucinated_counter_id_is_cut():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
     model = _model(
         FakeClusterScript(
-            label="L", claim="c", evidence_ids=("ev-1",),
+            label="L", claim="c", evidence_ids=("ev-1", "ev-2"),
             counter_evidence_ids=("ghost-id",),
             contradiction_kind=CONTRADICTION_FACTUAL,
         )
     )
     outcome = contradiction.analyze_contradictions(
-        [cluster], model, evidence_by_id=_index(_ev("ev-1"))
+        [cluster], model, evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     a = outcome.assessments[0]
     assert a.counter_evidence_ids == ()
@@ -228,15 +228,15 @@ def test_kind_without_counter_evidence_collapses_to_none():
 
 
 def test_invalid_kind_value_collapses_to_none():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
     model = _model(
         FakeClusterScript(
-            label="L", claim="c", evidence_ids=("ev-1",),
+            label="L", claim="c", evidence_ids=("ev-1", "ev-2"),
             counter_evidence_ids=(), contradiction_kind="suspicious",
         )
     )
     outcome = contradiction.analyze_contradictions(
-        [cluster], model, evidence_by_id=_index(_ev("ev-1"))
+        [cluster], model, evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     assert outcome.assessments[0].kind == CONTRADICTION_NONE
 
@@ -262,17 +262,17 @@ def test_kind_none_but_counter_present_is_flagged_degraded():
 
 
 def test_confidence_clamped_to_unit_interval():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
     model = _model(
         FakeClusterScript(
-            label="L", claim="c", evidence_ids=("ev-1",),
-            counter_evidence_ids=("ev-1",),
+            label="L", claim="c", evidence_ids=("ev-1", "ev-2"),
+            counter_evidence_ids=("ev-2",),
             contradiction_kind=CONTRADICTION_FACTUAL,
             contradiction_confidence=5.0,
         )
     )
     outcome = contradiction.analyze_contradictions(
-        [cluster], model, evidence_by_id=_index(_ev("ev-1"))
+        [cluster], model, evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     assert outcome.assessments[0].confidence == pytest.approx(1.0)
 
@@ -296,7 +296,7 @@ def test_model_failure_degrades_instead_of_raising():
 
 
 def test_model_invalid_output_degrades():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
 
     class InvalidModel:
         model_id = "invalid:v1"
@@ -308,14 +308,14 @@ def test_model_invalid_output_degrades():
             )
 
     outcome = contradiction.analyze_contradictions(
-        [cluster], InvalidModel(), evidence_by_id=_index(_ev("ev-1"))
+        [cluster], InvalidModel(), evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     assert outcome.assessments[0].degraded
     assert outcome.assessments[0].kind == CONTRADICTION_NONE
 
 
 def test_success_without_payload_degrades():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
 
     class NoPayload:
         model_id = "np:v1"
@@ -324,13 +324,13 @@ def test_success_without_payload_degrades():
             return ModelResponse(task="contradiction", status=ModelStatus.SUCCESS)
 
     outcome = contradiction.analyze_contradictions(
-        [cluster], NoPayload(), evidence_by_id=_index(_ev("ev-1"))
+        [cluster], NoPayload(), evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     assert outcome.assessments[0].degraded
 
 
 def test_malformed_payload_degrades():
-    cluster = _cluster(("ev-1",))
+    cluster = _cluster(("ev-1", "ev-2"))
 
     class JunkModel:
         model_id = "junk:v1"
@@ -342,7 +342,7 @@ def test_malformed_payload_degrades():
             )
 
     outcome = contradiction.analyze_contradictions(
-        [cluster], JunkModel(), evidence_by_id=_index(_ev("ev-1"))
+        [cluster], JunkModel(), evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     assert outcome.assessments[0].degraded
 
@@ -351,17 +351,17 @@ def test_malformed_payload_degrades():
 
 
 def test_payload_carries_cluster_context_and_member_text():
-    cluster = _cluster(("ev-1",))
-    model = _model(FakeClusterScript(label="L", claim="c", evidence_ids=("ev-1",)))
+    cluster = _cluster(("ev-1", "ev-2"))
+    model = _model(FakeClusterScript(label="L", claim="c", evidence_ids=("ev-1", "ev-2")))
     contradiction.analyze_contradictions(
-        [cluster], model, evidence_by_id=_index(_ev("ev-1"))
+        [cluster], model, evidence_by_id=_index(_ev("ev-1"), _ev("ev-2"))
     )
     call = model.calls[0]
     assert call["task"] == "contradiction"
     assert call["payload"]["cluster_id"] == cluster.cluster_id
-    assert call["payload"]["evidence_ids"] == ["ev-1"]
+    assert call["payload"]["evidence_ids"] == ["ev-1", "ev-2"]
     items = call["payload"]["evidence_items"]
-    assert [i["evidence_id"] for i in items] == ["ev-1"]
+    assert [i["evidence_id"] for i in items] == ["ev-1", "ev-2"]
     assert "snippet" in items[0]
 
 

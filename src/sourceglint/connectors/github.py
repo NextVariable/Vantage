@@ -58,6 +58,12 @@ class GitHubAdapter:
     token: str | None = None
     include_discussions: bool = False
     limitations: list[str] = field(default_factory=list, compare=False)
+    # Evidence-directed release retrieval. Only the repositories already
+    # returned by the current search are checked, and only when the
+    # research asks about release/version artifacts.
+    max_release_repos: int = 5
+    release_per_repo: int = 10
+    absence_observations: list[dict] = field(default_factory=list, compare=False)
 
     def __post_init__(self):
         if self.http_client is None:
@@ -82,6 +88,17 @@ class GitHubAdapter:
         language = str(request.get("query_language") or "")
         market = str(request.get("market") or "")
 
+        from ._github_release import (
+            fetch_releases,
+            license_intent,
+            release_intent,
+        )
+
+        wants_releases = release_intent(plan, request)
+        wants_license = license_intent(plan, request)
+        self.absence_observations.clear()
+        checked_at = str(request.get("retrieved_at") or "").strip()
+
         # Limit clamp.
         limit_req = request.get("limit")
         try:
@@ -99,7 +116,11 @@ class GitHubAdapter:
         bounds = search_bounds(plan, request)
         if bounds:
             start, end = bounds
-            query_filter = f"{query} created:{start.date().isoformat()}..{end.date().isoformat()}"
+            # A release question is about activity, not repository birth:
+            # filtering on created_at would drop an older repository that
+            # shipped a new release inside the window.
+            qualifier = "pushed" if wants_releases else "created"
+            query_filter = f"{query} {qualifier}:{start.date().isoformat()}..{end.date().isoformat()}"
         else:
             query_filter = query
         q = quote_plus(query_filter)
@@ -211,6 +232,13 @@ class GitHubAdapter:
             if "stargazers_count" in repo:
                 engagement["upvotes"] = _coerce_int(repo.get("stargazers_count"))
 
+            license_raw = repo.get("license")
+            license_spdx = ""
+            license_name = ""
+            if isinstance(license_raw, Mapping):
+                license_spdx = str(license_raw.get("spdx_id") or "").strip()
+                license_name = str(license_raw.get("name") or "").strip()
+
             out.append(
                 RawSourceResult(
                     source=self.source_name,
@@ -228,14 +256,58 @@ class GitHubAdapter:
                     engagement=engagement,
                     raw_metadata={
                         "github_full_name": full_name,
+                        "github_kind": "repository",
                         "github_repo_id": repo_id,
                         "github_language": str(repo.get("language") or ""),
+                        "github_created_at": created_at,
                         "github_pushed_at": str(repo.get("pushed_at") or ""),
                         "github_updated_at": str(repo.get("updated_at") or ""),
                         "github_forks_count": _coerce_int(repo.get("forks_count")),
+                        "github_license_spdx": license_spdx,
+                        "github_license_name": license_name,
                     },
                 )
             )
+            if wants_license and license_spdx in ("", "NOASSERTION"):
+                self.absence_observations.append(
+                    {
+                        "source": self.source_name,
+                        "kind": "license",
+                        "repository": full_name,
+                        "status": "verified_absent",
+                        "count": 0,
+                        "checked_at": checked_at,
+                        "detail": (
+                            f"{full_name}: repository metadata reports no detected license "
+                            f"(spdx={license_spdx or 'none'})"
+                        ),
+                    }
+                )
+
+        if wants_releases and items:
+            candidates = sorted(
+                (repo for repo in items if isinstance(repo, Mapping)),
+                key=lambda repo: (
+                    str(repo.get("pushed_at") or ""),
+                    _coerce_int(repo.get("stargazers_count")),
+                ),
+                reverse=True,
+            )
+            outcome = fetch_releases(
+                self.http_client,
+                candidates,
+                headers=headers,
+                per_repo=self.release_per_repo,
+                max_repos=self.max_release_repos,
+                window=bounds,
+                checked_at=checked_at,
+                query=query,
+                language=language,
+                market=market,
+            )
+            out.extend(outcome.results)
+            self.absence_observations.extend(outcome.observations)
+            self.limitations.extend(outcome.limitations)
 
         if self.include_discussions:
             from ._deep import issue_results

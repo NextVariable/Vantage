@@ -19,6 +19,7 @@ from ..intelligence.features import count_reporting_origins
 from ..intelligence.preparation import prepare_evidence
 from ..provenance import original_platform
 from ..resources import data_path
+from .absence import AbsenceContext, qualify_text
 from .query_expansion import ExpandedQuery, normalize_planned_query
 from .retrieval_plan import RetrievalPlan, build_retrieval_plans
 
@@ -220,6 +221,24 @@ def answer_state(status: str, *, missing_required: Sequence[str], origin_shortfa
     return "unanswered"
 
 
+_TERMINALS = ".!?;:。！？；："
+
+
+def _join_gap(gap: str, addition: str) -> str:
+    """Join model gap text and a deterministic addendum without run-ons.
+
+    Host repair may truncate model text at a word boundary without a
+    terminal stop. Appending another sentence with a bare space produced
+    "awaits its first No evidence ..." in the real run.
+    """
+    gap = gap.strip()
+    if not gap:
+        return addition
+    if gap[-1] not in _TERMINALS:
+        gap += " …" if len(gap) >= 238 else "."
+    return f"{gap} {addition}"
+
+
 
 def _string(limit: int = 240) -> dict:
     return {"type": "string", "minLength": 1, "maxLength": limit, "pattern": r"\S"}
@@ -410,6 +429,8 @@ class AdaptiveResearch:
                 "Identify multiple intents and assign each question a focus. Set provisional research hypotheses "
                 "as testable propositions with disconfirming evidence, not conclusions. Record ambiguity that "
                 "does not block research as open_conditions. Do not add opportunity analysis unless requested. "
+                "Do not state that a release, license, feedback or competitor does not exist unless a "
+                "deterministic check verified absence; instead name the check and what would verify it. "
                 "Keep the initial query focused and never assume market demand. "
                 "Write each query as 2-6 plain content words naming the user's actual subject. "
                 "Do not use quotation marks, boolean operators, language names, calendar dates or "
@@ -537,8 +558,10 @@ class AdaptiveResearch:
         return initial
 
     def assess(self, evidence: Sequence[dict], *, blocked: set[str], host_gaps: Sequence[str],
-               allow_search: bool, min_new_relevance: bool = False) -> list[RetrievalPlan]:
+               allow_search: bool, min_new_relevance: bool = False,
+               absence_observations: Sequence[Mapping[str, object]] = ()) -> list[RetrievalPlan]:
         questions = self.plan["subquestions"]
+        absence_context = AbsenceContext.from_observations(absence_observations)
         # Sample across source routes before taking a second item from any route.
         counts: Counter[str] = Counter()
         ranked = []
@@ -642,15 +665,16 @@ class AdaptiveResearch:
                                           or role_gap or direct_shortfall):
                 status = "partial"
             if missing_required:
-                gap = " ".join(filter(None, (gap, "Missing required evidence: " + ", ".join(missing_required))))
+                gap = _join_gap(gap, "Missing required evidence: " + ", ".join(missing_required))
             if role_gap:
-                gap = " ".join(filter(None, (gap, "No evidence of the required kind: "
-                                             + ", ".join(requirements["roles_any_of"]) + ".")))
+                gap = _join_gap(gap, "No evidence of the required kind: "
+                                + ", ".join(requirements["roles_any_of"]) + ".")
             if direct_shortfall:
-                gap = " ".join(filter(None, (gap, f"Needs {requirements['min_direct_observations']} "
-                                             f"direct observation(s); found {direct_count}.")))
+                gap = _join_gap(gap, f"Needs {requirements['min_direct_observations']} "
+                                f"direct observation(s); found {direct_count}.")
             if status != "covered" and not gap:
                 gap = "Completion criterion not established in the retained sample."
+            gap, absence_checks = qualify_text(gap, context=absence_context)
             preferred = [str(name) for name in question.get("preferred_sources") or ()]
             unavailable = bool(preferred) and all(name in blocked for name in preferred)
             state = answer_state(
@@ -668,6 +692,7 @@ class AdaptiveResearch:
                 "question_id": question["id"], "question": question["question"], "status": status,
                 "answer_state": state,
                 "evidence_ids": [item["evidence_id"] for item in cited], "gap": gap,
+                "absence_checks": list(absence_checks),
                 "feedback_ids": feedback, "vendor_claim_ids": vendors, "counterevidence_ids": counterevidence,
                 "focus": question.get("focus", "general"),
                 "supporting_origin_count": origin_count,

@@ -37,9 +37,17 @@ def _inline(text: object) -> str:
 
 
 def _untrusted_inline(text: object) -> str:
-    """Render retrieved source text as text, not Markdown or HTML."""
-    value = html.escape(_inline(text), quote=False)
-    return re.sub(r"([\\`*_{}\[\]()#+.!|])", r"\\\1", value)
+    """Render retrieved source text as text, not Markdown or HTML.
+
+    Entities are decoded first so ``&amp;`` displays as ``&``. ``<``/``>``
+    are re-entity-encoded to keep raw HTML inert; only characters that
+    actually change Markdown structure are backslash-escaped. Escaping
+    ``.``/``(``/``)`` produced visible noise (``code\\.``, ``\\(s\\)``) in
+    the real report without adding any safety.
+    """
+    value = html.unescape(_inline(text))
+    value = value.replace("<", "&lt;").replace(">", "&gt;")
+    return re.sub(r"([\\`*_\[\]#])", r"\\\1", value)
 
 
 def _rec_field(rec: object, name: str, default: str = "") -> str:
@@ -52,7 +60,7 @@ def _citation_destination(url: str) -> str:
     return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29").replace("<", "%3C").replace(">", "%3E")
 
 
-def _ref(lookup: Mapping[str, object], eid: str) -> str:
+def _ref(lookup: Mapping[str, object], eid: str, *, with_id: bool = True) -> str:
     """One deterministic citation: [source](url) plus backticked ev id."""
     rec = lookup.get(eid)
     if rec is None:
@@ -61,8 +69,9 @@ def _ref(lookup: Mapping[str, object], eid: str) -> str:
     label = original_platform(url) if _rec_field(rec, "source") == "host_web_search" else (_rec_field(rec, "source") or "source")
     date = _rec_field(rec, "published_at")[:10]
     suffix = f" · {date}" if date else ""
+    ident = f" `{eid}`" if with_id else ""
     if url:
-        return f"[{label}]({_citation_destination(url)}){suffix} `{eid}`"
+        return f"[{label}]({_citation_destination(url)}){suffix}{ident}"
     return f"`{eid}`"
 
 
@@ -268,6 +277,10 @@ def research_questions(sel: SelectedBrief, lookup: Mapping[str, object]) -> str:
             lines.append(f"- **{_untrusted_inline(row['question'])}** — {row['status']}")
             if row["gap"]:
                 lines.append(f"  Gap: {_untrusted_inline(row['gap'])}")
+            for check in row.get("absence_checks", ()):
+                lines.append(
+                    f"  - absence: {check.get('object')} → {check.get('status')}"
+                )
             for label, key in (("Supporting evidence", "evidence_ids"),
                                ("Firsthand user feedback (reported)", "feedback_ids"),
                                ("Vendor claims (reported)", "vendor_claim_ids"),
