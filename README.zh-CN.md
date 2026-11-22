@@ -1,10 +1,10 @@
-# Sourceglint
+# Vantage
 
 **近30天跨平台信息研究 Skill。**
 
 [English](README.md) · [真实样例](docs/examples/2026-10-04/README.md) · [文档导航](docs/README.md)
 
-信息散在社交平台、社区、官网和论文里，同一个热点反复出现，旧讨论混进搜索结果，有价值的新工具、需求和反馈却容易被漏掉。Sourceglint 帮助产品经理、GTM 和科技学习者围绕一个问题，了解近期发生了什么、大家在讨论什么，以及哪些信息值得继续研究。
+信息散在社交平台、社区、官网和论文里，同一个热点反复出现，旧讨论混进搜索结果，有价值的新工具、需求和反馈却容易被漏掉。Vantage 帮助产品经理、GTM 和科技学习者围绕一个问题，了解近期发生了什么、大家在讨论什么，以及哪些信息值得继续研究。
 
 输入一个主题或问题，它会回溯最近30天，通过可用渠道搜集信息、合并重复内容，整理成带日期和原始链接的报告，并提供可以继续交给 AI 分析的证据文件。需要产品判断或 GTM 行动建议时，在问题中明确提出。
 
@@ -18,21 +18,21 @@
 
 安装后，直接告诉智能体：
 
-> 用 Sourceglint 研究最近30天 AI 视频领域的新工具和用户反馈，保留日期、原始链接和反例。
+> 用 Vantage 研究最近30天 AI 视频领域的新工具和用户反馈，保留日期、原始链接和反例。
 
 ## 安装
 
 需要 Python 3.10+，以及支持网页搜索、推理和交互式终端的智能体。以 Codex 为例，在尚未占用的技能目录中安装：
 
 ```sh
-git clone https://github.com/NextVariable/sourceglint-skill.git ~/.codex/skills/sourceglint
-cd ~/.codex/skills/sourceglint
+git clone https://github.com/NextVariable/Vantage.git ~/.codex/skills/vantage
+cd ~/.codex/skills/vantage
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
 .venv/bin/python -m sourceglint doctor
 ```
 
-然后让智能体使用 Sourceglint。请保留完整仓库，单独复制 `SKILL.md` 无法运行。Windows 请使用 `.venv\Scripts\python.exe`。检查命令确认本地配置是否就绪，来源当下是否可访问则以实际研究为准。
+然后让智能体使用 Vantage。请保留完整仓库，单独复制 `SKILL.md` 无法运行。Windows 请使用 `.venv\Scripts\python.exe`。检查命令确认本地配置是否就绪，来源当下是否可访问则以实际研究为准。
 
 ## 输出与覆盖范围
 

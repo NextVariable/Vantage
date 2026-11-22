@@ -1,10 +1,10 @@
 ---
-name: sourceglint
+name: vantage
 license: MIT
 description: Research a topic across available sources in the last 30 days, finding new tools, workflows, user needs, complaints and repeated discussions with dated original evidence. Use when the user asks what appeared or what people are saying recently. Add product or GTM advice only when explicitly requested.
 ---
 
-# Sourceglint
+# Vantage
 
 Turn a topic into a readable, evidence-linked recent research brief and a reusable
 JSONL evidence ledger. Research is the default; product and GTM advice are optional.

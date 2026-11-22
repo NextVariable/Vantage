@@ -62,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
-        print("Sourceglint capability check (offline)")
+        print("Vantage capability check (offline)")
         for item in report["sources"]:
             detail = ", ".join(item["missing_credentials"])
             if item["state"] == "MISSING_TOOL":
