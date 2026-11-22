@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from sourceglint.cost_ledger import HARD, CostLedger  # noqa: E402
+from sourceglint.cost_ledger import HARD, CostLedger, budget_enforcement  # noqa: E402
 from sourceglint.host_command import _sanitize  # noqa: E402
 
 CATALOG = ROOT / "evals" / "rc-benchmark.json"
@@ -116,7 +116,7 @@ def usage(events, usage_log=None, ledger_path=None):
             calls += 1
             failures += record.get("status") != "success"
             if record.get("status") in {"insufficient_balance", "auth_failed", "model_not_found",
-                                        "budget_exceeded", "cost_unknown"}:
+                                        "budget_exceeded", "budget_overshoot", "cost_unknown"}:
                 blocked = record["status"]
             usage = record.get("usage") or {}
             usage = usage.get("usage") if isinstance(usage, dict) else {}
@@ -254,8 +254,14 @@ def run_preflight(args):
     cmd = [args.python, str(ROOT / "scripts" / "host_preflight.py"),
            "--model", args.host_adapter, "--registry", str(args.registry)]
     try:
+        # The preflight must import the same checkout as the engine, not an
+        # unrelated installed copy. host_env() intentionally drops PYTHONPATH,
+        # so point it at the checkout explicitly.
+        env = host_env()
+        source = str(args.engine_checkout / "src")
+        env["PYTHONPATH"] = source + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
         completed = subprocess.run(cmd, capture_output=True, text=True,
-                                   timeout=150, env=host_env(), check=False)
+                                   timeout=150, env=env, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"status": "fail", "category": "preflight_unavailable",
                 "detail": type(exc).__name__}
@@ -289,6 +295,9 @@ def main():
                    help="Batch spend cap forwarded to the host adapter (hard by default).")
     p.add_argument("--run-budget-usd", type=float, default=None,
                    help="Per-research-case spend cap, spanning all model stages of that run.")
+    p.add_argument("--max-call-usd", type=float, default=None,
+                   help="Declared ceiling for one host call. Required for a strict budget; "
+                        "without it the batch cap is only guarded (one in-flight call per worker).")
     p.add_argument("--budget-mode", choices=("hard", "observe"), default=HARD,
                    help="hard refuses calls it cannot prove are within the cap; observe only records.")
     p.add_argument("--seconds", type=int, default=330, choices=range(30, 356))
@@ -321,6 +330,8 @@ def main():
         os.environ["SOURCEGLINT_HOST_BUDGET_USD"] = str(args.budget_usd)
     if args.run_budget_usd is not None:
         os.environ["SOURCEGLINT_HOST_RUN_BUDGET_USD"] = str(args.run_budget_usd)
+    if args.max_call_usd is not None:
+        os.environ["SOURCEGLINT_HOST_MAX_CALL_USD"] = str(args.max_call_usd)
     if not args.skip_preflight and "host_stdio" not in args.host_adapter:
         preflight = run_preflight(args)
         write_json(args.output / "preflight.json", preflight)
@@ -337,6 +348,8 @@ def main():
         totals = CostLedger(args.cost_ledger).totals()
         if totals["spent_usd"] >= args.budget_usd:
             return "budget_exceeded"
+        if totals["overshoot_usd"]:
+            return "budget_overshoot"
         return "cost_unknown" if totals["unknown_calls"] else None
 
     def guarded(case):
@@ -348,7 +361,7 @@ def main():
             return {"case": case["id"], "status": "SKIPPED", "skipped_reason": gate}
         status = run_case(case, args, state)
         if status.get("host_blocked") in {"insufficient_balance", "auth_failed", "model_not_found",
-                                          "budget_exceeded", "cost_unknown"}:
+                                          "budget_exceeded", "budget_overshoot", "cost_unknown"}:
             stop.set()
         return status
 
@@ -356,11 +369,17 @@ def main():
         for status in pool.map(guarded, chosen):
             print(json.dumps(status, ensure_ascii=False), flush=True)
     totals = CostLedger(args.cost_ledger).totals()
-    write_json(args.output / "cost.json", {
+    enforcement = budget_enforcement(mode=args.budget_mode, batch_budget_usd=args.budget_usd,
+                                     max_call_usd=args.max_call_usd)
+    report = {
         "budget_usd": args.budget_usd, "run_budget_usd": args.run_budget_usd,
-        "budget_mode": args.budget_mode, "cost": totals,
-    })
-    print(json.dumps({"cost": totals}, ensure_ascii=False), flush=True)
+        "max_call_usd": args.max_call_usd, "budget_mode": args.budget_mode,
+        "budget_enforcement": enforcement,
+        "strict_budget": enforcement == "strict",
+        "cost": totals,
+    }
+    write_json(args.output / "cost.json", report)
+    print(json.dumps({"cost": report}, ensure_ascii=False), flush=True)
     return 0
 
 

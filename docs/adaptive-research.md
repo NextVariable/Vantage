@@ -137,7 +137,8 @@ The engine keeps one model contract (`complete_structured`) and two transports:
   `json_envelope`), `SOURCEGLINT_HOST_PROMPT` (`stdin` by default, or `argv` as
   an explicit opt-in), `SOURCEGLINT_HOST_TIMEOUT`,
   `SOURCEGLINT_HOST_BUDGET_USD` (batch cap), `SOURCEGLINT_HOST_RUN_BUDGET_USD`
-  (per-research-case cap), `SOURCEGLINT_HOST_BUDGET_MODE` (`hard` or
+  (per-research-case cap), `SOURCEGLINT_HOST_MAX_CALL_USD` (declared ceiling
+  for one call), `SOURCEGLINT_HOST_BUDGET_MODE` (`hard` or
   `observe`), `SOURCEGLINT_HOST_COST_LEDGER`, `SOURCEGLINT_RUN_ID`, and
   `SOURCEGLINT_HOST_USAGE` for a JSONL record of latency, status, token usage
   and billed cost. `task` names a model stage; `run_id` names the research
@@ -153,11 +154,20 @@ SOURCEGLINT_HOST_OUTPUT=json_envelope \
 SOURCEGLINT_HOST_USAGE=runs/host.usage.jsonl \
 SOURCEGLINT_HOST_BUDGET_USD=2.00 \
 SOURCEGLINT_HOST_RUN_BUDGET_USD=0.50 \
+SOURCEGLINT_HOST_MAX_CALL_USD=0.05 \
 python scripts/run_real_benchmark.py --native-sources \
   --host-adapter sourceglint.host_command:build_model --seconds 150 \
-  --budget-usd 2.00 --run-budget-usd 0.50 --budget-mode hard \
-  --as-of <ISO> --output runs/<id>
+  --budget-usd 2.00 --run-budget-usd 0.50 --max-call-usd 0.05 \
+  --budget-mode hard --as-of <ISO> --output runs/<id>
 ```
+
+`--max-call-usd` is what makes the budget **strict**. Without a known
+per-call ceiling there is no way to reserve capacity for a call that has not
+run yet, so a `hard` cap alone is only **guarded**: each process re-reads the
+shared ledger before calling, but calls already in flight can overshoot the
+cap by at most one call per worker. The adapter reports the level as
+`budget_enforcement` (`strict`, `guarded`, `observe` or `none`) and
+`strict_budget`; only `strict` may be described as a hard guarantee.
 
 Before any case spends budget, `scripts/run_real_benchmark.py` runs
 `scripts/host_preflight.py` unless `--skip-preflight` is set: it builds the
@@ -165,29 +175,43 @@ configured factory, checks the executable exists, requires one schema-valid
 structured reply, and verifies the source registry has at least one enabled
 connector. The report is written to `preflight.json`; a failed preflight exits
 `2` and starts no case. The preflight call is itself written to the batch cost
-ledger under `run_id=preflight` and its `cost_usd`, `cost_known`,
-`batch_spent_usd` and `batch_cost_known` are disclosed in `preflight.json`, so
-it is not invisible spend outside the cap.
+ledger under `run_id=preflight` and its `cost_usd`, `charged_usd`,
+`cost_state`, `cost_known`, `budget_enforcement`, `batch_spent_usd`,
+`batch_committed_usd` and `batch_cost_known` are disclosed in `preflight.json`,
+so it is not invisible spend outside the cap. The subprocess runs with the
+checkout's `src` on `PYTHONPATH`, so it verifies the code under test rather
+than an unrelated installed copy.
 
-All host calls in a batch append to one `cost.ledger.jsonl` (`fcntl`-locked,
-one file for every case process). Before each call the adapter re-reads the
-shared file, so no process can enforce a cap against its own private counter.
-The runner also checks the same ledger before starting each case and writes
-`cost.json` with batch totals. Concurrent calls already in flight can overshoot
-a cap by at most one call per worker; once the ledger reaches or exceeds the
-cap, every later call is refused.
+All host calls in a batch append to one `cost.ledger.jsonl`, locked with
+`fcntl.flock` (POSIX) or `msvcrt.locking` (Windows). A call is not decided and
+recorded in two steps: `reserve` re-reads every row, evaluates both caps and
+appends an `in_flight` row inside the **same** critical section. `settle` then
+appends the billed outcome for that `call_id`. A crash between the two leaves
+the reservation counted, which is conservative. In strict mode the reserved
+ceiling is committed capacity, so `settled + in_flight <= cap` holds at every
+decision and actual spend cannot exceed the cap. The runner also checks the
+same ledger before starting each case and writes `cost.json` with
+`budget_enforcement`, `committed_usd`, `in_flight_calls` and `overshoot_usd`.
+
+Every call has an explicit `cost_state`: `known` (host-reported amount),
+`unknown` (not reported; never treated as zero), `unbilled` (refused at the
+provider boundary — 401/402/403, rate limit, missing command/model) and
+`in_flight` (reserved, not settled). A timeout or an unexplained non-zero exit
+is ambiguous: in strict mode it charges the reserved ceiling as an upper bound
+and still marks the cost unknown, so the next call is refused with
+`cost_unknown`. A reported bill above the declared ceiling records
+`overshoot_usd` and latches `budget_overshoot`, because the cap can no longer
+be proven.
 
 Failure categories are kept distinct: `insufficient_balance` (HTTP 402 / quota),
 `auth_failed` (401 or a 403 that is not a rate limit), `rate_limited` (429 or a
 403 carrying rate-limit wording; transient and non-latching), `model_not_found`,
 `timeout`, `command_missing`, `schema_mismatch` and generic `invalid_output`.
 The blocking categories (`insufficient_balance`, `auth_failed`,
-`model_not_found`, `budget_exceeded`, `cost_unknown`) latch: one occurrence
-stops further model calls, and later requests return immediately without
-spawning a subprocess. A per-run cap fails only that research case; the batch
-cap latches. Budgets are **hard** by default: unreported cost is written as
-unknown, never as zero, and the next call is refused with `cost_unknown` because
-a hard cap cannot prove the spend stayed inside it. `observe` mode records the
+`model_not_found`, `budget_exceeded`, `budget_overshoot`, `cost_unknown`) latch:
+one occurrence stops further model calls, and later requests return immediately
+without spawning a subprocess. A per-run cap fails only that research case; the
+batch cap latches. Budgets are **hard** by default. `observe` mode records the
 same spend without enforcing, for hosts whose billing is external; its reports
 set `budget_enforced=false` and never claim the cap held.
 Timeouts, non-zero exits, oversized replies, non-JSON output and schema
@@ -256,4 +280,13 @@ started, no synthetic or fake host output is used to fill the gap, and no
 Beta/RC claim is made. The success criterion for this round is the safe,
 auditable preflight plus failure degradation; research quality remains
 unmeasured until the account is funded by its owner.
+
+The budget-integrity round (base `4e88623`) repeats that preflight under a
+strict cap (`--budget-usd 0.10 --run-budget-usd 0.05 --max-call-usd 0.02`).
+It again reports `model_not_found`, `budget_enforcement=strict`, an `unbilled`
+preflight call charged `$0.00`, `batch_committed_usd=0.00` and zero in-flight
+calls; the runner exits `2` and starts no case. The ledger holds exactly one
+reservation and one no-charge settlement. The minimal acceptance package,
+reproducible command, ledger excerpt, blockers and gate status are recorded in
+[beta-acceptance.md](beta-acceptance.md).
 

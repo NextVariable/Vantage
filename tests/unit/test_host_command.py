@@ -345,7 +345,7 @@ def _fake_host(tmp_path, cost):
     return path
 
 
-def _cross_process_spend(fake, *, ledger, budget, run_id, results):
+def _cross_process_spend(fake, *, ledger, budget, run_id, ceiling=None):
     src = Path(__file__).resolve().parents[2] / "src"
     code = (
         "import sys\n"
@@ -353,11 +353,12 @@ def _cross_process_spend(fake, *, ledger, budget, run_id, results):
         "from sourceglint.cost_ledger import CostLedger\n"
         "from sourceglint.host_command import CommandHostModel\n"
         f"model = CommandHostModel(command=[sys.executable, {str(fake)!r}], "
-        f"output_mode='json_envelope', budget_usd={budget}, run_id=sys.argv[1], "
+        f"output_mode='json_envelope', budget_usd={budget}, "
+        f"max_call_usd={ceiling}, run_id=sys.argv[1], "
         f"ledger=CostLedger(Path({str(ledger)!r})))\n"
         "response = model.complete_structured(task='assessment', payload={'request': 'x'}, "
         "response_schema={'type': 'object'})\n"
-        f"Path({str(results)!r}).open('a', encoding='utf-8').write(response.status.value + '\\n')\n"
+        "print(response.status.value)\n"
         "print(model.blocked or '')\n"
     )
     return subprocess.Popen([sys.executable, "-c", code, run_id],
@@ -365,29 +366,31 @@ def _cross_process_spend(fake, *, ledger, budget, run_id, results):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
-def _finish(child):
-    _, stderr = child.communicate(timeout=120)
+def _finish(child) -> str:
+    stdout, stderr = child.communicate(timeout=120)
     assert child.returncode == 0, f"{child.args}: {stderr}"
+    return stdout
+
+
+def _statuses(outputs) -> list[str]:
+    return [output.splitlines()[0] for output in outputs if output.splitlines()]
 
 
 def test_concurrent_processes_share_one_batch_budget(tmp_path):
     ledger = tmp_path / "batch.jsonl"
-    results = tmp_path / "results.txt"
     fake = _fake_host(tmp_path, 0.02)
     # One sequential spend, then a burst: even fully serialised execution
     # must reach the cap because every process re-reads the shared file.
-    _finish(_cross_process_spend(fake, ledger=ledger, budget=0.05,
-                                 run_id="case-0", results=results))
+    first = _finish(_cross_process_spend(fake, ledger=ledger, budget=0.05,
+                                         run_id="case-0"))
     children = [_cross_process_spend(fake, ledger=ledger, budget=0.05,
-                                     run_id=f"case-{index}", results=results)
+                                     run_id=f"case-{index}")
                 for index in range(1, 4)]
-    for child in children:
-        _finish(child)
-    statuses = results.read_text(encoding="utf-8").split()
+    statuses = _statuses([first] + [_finish(child) for child in children])
     totals = CostLedger(ledger).totals()
     assert totals["spent_usd"] >= 0.05
     assert totals["unknown_calls"] == 0
-    assert totals["entries"] == len(statuses)
+    assert totals["entries"] == statuses.count("success")
     assert totals["spent_usd"] == round(0.02 * statuses.count("success"), 6)
     # A fresh process starts with zero local counters; the shared ledger must
     # still refuse it rather than resetting the cap per process.
@@ -400,13 +403,132 @@ def test_concurrent_processes_share_one_batch_budget(tmp_path):
 
 def test_unknown_cost_in_one_process_blocks_another_process(tmp_path):
     ledger = tmp_path / "batch.jsonl"
-    results = tmp_path / "results.txt"
     fake = _fake_host(tmp_path, None)
-    _finish(_cross_process_spend(fake, ledger=ledger, budget=1.0,
-                                 run_id="case-a", results=results))
-    assert results.read_text(encoding="utf-8").strip() == "success"
+    first = _finish(_cross_process_spend(fake, ledger=ledger, budget=1.0, run_id="case-a"))
+    assert _statuses([first]) == ["success"]
     fresh = CommandHostModel(command=[sys.executable, str(fake)],
                              output_mode="json_envelope", budget_usd=1.0,
                              run_id="case-b", ledger=CostLedger(ledger))
     assert call(fresh).status is ModelStatus.UNAVAILABLE
     assert fresh.blocked == "cost_unknown"
+
+
+def test_strict_budget_never_overshoots_across_processes(tmp_path):
+    """A declared ceiling makes concurrent reservations a hard cap."""
+    ledger = tmp_path / "batch.jsonl"
+    fake = _fake_host(tmp_path, 0.02)
+    children = [_cross_process_spend(fake, ledger=ledger, budget=0.05,
+                                     run_id=f"case-{index}", ceiling=0.03)
+                for index in range(6)]
+    statuses = _statuses([_finish(child) for child in children])
+    totals = CostLedger(ledger).totals()
+    assert totals["spent_usd"] <= 0.05 + 1e-9
+    assert totals["unknown_calls"] == 0
+    assert totals["in_flight_calls"] == 0
+    assert totals["overshoot_usd"] == 0.0
+    assert statuses.count("success") >= 1
+    summary = CommandHostModel(command=[sys.executable, str(fake)], output_mode="json_envelope",
+                               budget_usd=0.05, max_call_usd=0.03,
+                               ledger=CostLedger(ledger)).usage_summary()
+    assert summary["budget_enforcement"] == "strict" and summary["strict_budget"] is True
+    assert summary["committed_usd"] <= 0.05 + 1e-9
+
+
+def test_budget_without_a_call_ceiling_is_reported_as_guarded(tmp_path):
+    fake = _fake_host(tmp_path, 0.02)
+    guarded = CommandHostModel(command=[sys.executable, str(fake)], output_mode="json_envelope",
+                               budget_usd=1.0, ledger=CostLedger(tmp_path / "a.jsonl"))
+    summary = guarded.usage_summary()
+    assert summary["budget_enforcement"] == "guarded"
+    assert summary["strict_budget"] is False and summary["budget_enforced"] is True
+    strict = CommandHostModel(command=[sys.executable, str(fake)], output_mode="json_envelope",
+                              budget_usd=1.0, max_call_usd=0.05,
+                              ledger=CostLedger(tmp_path / "b.jsonl"))
+    assert strict.usage_summary()["budget_enforcement"] == "strict"
+
+
+def test_timeout_in_strict_mode_charges_the_ceiling_and_blocks(tmp_path):
+    code = "import time; time.sleep(5)\n"
+    model = CommandHostModel(command=[sys.executable, "-c", code], timeout=0.2,
+                             budget_usd=1.0, max_call_usd=0.05,
+                             ledger=CostLedger(tmp_path / "cost.jsonl"))
+    assert call(model).status is ModelStatus.TIMEOUT
+    summary = model.usage_summary()
+    assert summary["spent_usd"] == 0.05 and summary["cost_known"] is False
+    assert summary["cost_states"] == {"unknown": 1}
+    assert summary["in_flight_calls"] == 0
+    second = call(model)
+    assert second.status is ModelStatus.UNAVAILABLE and model.blocked == "cost_unknown"
+    assert model.usage_summary()["calls"] == 1
+
+
+def test_failure_before_spawn_is_unbilled_and_does_not_consume_budget(tmp_path):
+    model = CommandHostModel(command=["definitely-not-an-installed-model-command"],
+                             budget_usd=0.01, max_call_usd=0.01,
+                             ledger=CostLedger(tmp_path / "cost.jsonl"))
+    assert call(model).status is ModelStatus.UNAVAILABLE
+    summary = model.usage_summary()
+    assert summary["spent_usd"] == 0.0
+    assert summary["unknown_calls"] == 0
+    assert summary["cost_states"] == {"unbilled": 1}
+    assert summary["cost_known"] is True
+    assert summary["budget_remaining_usd"] == 0.01
+    assert call(model).status is ModelStatus.UNAVAILABLE
+    assert model.blocked is None
+    assert model.usage_summary()["calls"] == 2
+
+
+def test_rate_limit_is_unbilled_and_does_not_latch(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=counting_failure(counter, "429 Too Many Requests"),
+                             budget_usd=0.01, max_call_usd=0.01,
+                             ledger=CostLedger(tmp_path / "cost.jsonl"))
+    call(model)
+    assert model.blocked is None
+    totals = model.usage_summary()
+    assert totals["spent_usd"] == 0.0 and totals["unknown_calls"] == 0
+    assert totals["cost_states"] == {"unbilled": 1}
+    call(model)
+    assert spawn_count(counter) == 2
+
+
+def test_unknown_cost_in_strict_mode_consumes_the_reserved_ceiling(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=envelope_command(counter, None), output_mode="json_envelope",
+                             budget_usd=1.0, max_call_usd=0.05,
+                             ledger=CostLedger(tmp_path / "cost.jsonl"))
+    assert call(model).status is ModelStatus.SUCCESS
+    summary = model.usage_summary()
+    assert summary["spent_usd"] == 0.05 and summary["cost_known"] is False
+    assert summary["cost_states"] == {"unknown": 1}
+    assert call(model).status is ModelStatus.UNAVAILABLE
+    assert model.blocked == "cost_unknown" and spawn_count(counter) == 1
+
+
+def test_a_bill_above_the_declared_ceiling_stops_the_batch(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=envelope_command(counter, 0.05), output_mode="json_envelope",
+                             budget_usd=1.0, max_call_usd=0.02,
+                             ledger=CostLedger(tmp_path / "cost.jsonl"))
+    assert call(model).status is ModelStatus.SUCCESS
+    summary = model.usage_summary()
+    assert summary["overshoot_usd"] == 0.03
+    assert model.blocked == "budget_overshoot"
+    assert call(model).status is ModelStatus.UNAVAILABLE
+    assert spawn_count(counter) == 1
+
+
+def test_preflight_discloses_enforcement_and_committed_spend(tmp_path):
+    ledger = CostLedger(tmp_path / "cost.jsonl")
+    command = [sys.executable, "-c",
+               "import json; print(json.dumps({'type': 'result', 'result': json.dumps({'ok': True}), "
+               "'total_cost_usd': 0.02}))"]
+    model = CommandHostModel(command=command, output_mode="json_envelope",
+                             run_id="preflight", budget_usd=1.0, max_call_usd=0.05,
+                             ledger=ledger)
+    result = model.preflight()
+    assert result["status"] == "pass"
+    assert result["budget_enforcement"] == "strict" and result["strict_budget"] is True
+    assert result["cost_state"] == "known" and result["charged_usd"] == 0.02
+    assert result["batch_committed_usd"] == 0.02
+    assert result["batch_in_flight_calls"] == 0
