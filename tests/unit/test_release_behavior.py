@@ -82,10 +82,44 @@ def test_evidence_role_never_infers_vendor_identity_from_a_username():
                   "source": "reddit", "content": "Our team shipped Acme 2.0."}
     assert classify_evidence_role(maker_post) == ("third_party_commentary", "unverified_author")
     assert classify_evidence_role(maker_post, feedback=True) == ("firsthand_experience", "self_reported")
-    official = {"source_tier": 1, "source_type": "release", "source": "github"}
+    # A platform is not a publisher: a GitHub release page is a platform-hosted
+    # account, not a verified vendor statement.
+    platform_release = {"source_tier": 1, "source_type": "release", "source": "github"}
+    assert classify_evidence_role(platform_release) == ("vendor_claim_unverified", "platform_account")
+    # Only an official-site designation or explicit item metadata verifies identity.
+    official = {"source_tier": 1, "source_type": "release", "source": "official_web"}
     assert classify_evidence_role(official) == ("vendor_claim_verified", "declared_official")
+    flagged = {"source_tier": 1, "source_type": "release", "source": "github",
+               "raw_metadata": {"official": True}}
+    assert classify_evidence_role(flagged) == ("vendor_claim_verified", "declared_official")
     media = {"source_tier": 4, "source_type": "page", "source": "host_web_search"}
     assert classify_evidence_role(media) == ("media_report", "publisher")
+
+
+def test_provenance_separates_platform_publisher_and_firsthand_level():
+    from sourceglint.pipeline.adaptive import classify_provenance
+
+    github_issue = {"source_tier": 1, "source_type": "issue", "source": "github"}
+    provenance = classify_provenance(github_issue, role="vendor_claim_unverified",
+                                     identity="platform_account")
+    assert provenance["platform"] == "github"
+    assert provenance["publisher_identity"] == "platform_account"
+    assert provenance["content_type"] == "issue"
+    assert provenance["firsthand"] == "direct"
+    assert provenance["credibility_prior"] == "high"
+    assert provenance["role"] == "vendor_claim_unverified"
+
+    repost = {"source_tier": 4, "source_type": "page", "source": "news"}
+    media = classify_provenance(repost, role="media_report", identity="publisher")
+    assert media["publisher_identity"] == "independent_publisher"
+    assert media["firsthand"] == "secondhand"
+
+    testimony = {"source_tier": 3, "source_type": "post", "source": "forum"}
+    self_reported = classify_provenance(testimony, role="firsthand_experience",
+                                        identity="self_reported")
+    assert self_reported["publisher_identity"] == "community_user"
+    assert self_reported["firsthand"] == "self_reported"
+    assert self_reported["credibility_prior"] == "medium"
 
 
 def test_evidence_requirements_are_kind_based_and_do_not_mandate_a_site():

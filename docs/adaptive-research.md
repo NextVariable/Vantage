@@ -81,15 +81,34 @@ sources) or `unanswered`. Disclosed gaps are not counted as answers, and
 The report exposes `answer_rates.answered` and `answer_rates.disclosed_gap`
 separately; they are never combined into one success rate.
 
-Evidence identity is never inferred from a username. An item is a verified
-vendor claim only through registry/official designation; a community post is
-third-party commentary unless the assessment cites it as feedback, and a
-first-party announcement ("our team shipped ...") is reclassified as an
-unverified vendor claim from its text. The model judges semantic relevance and
-the stated criterion. Engine checks establish that the referenced items exist,
-are dated, and satisfy the structural conditions above. They cannot
-independently prove the semantic judgment or establish market
-representativeness.
+Evidence identity is never inferred from a username or from the hosting
+platform. A GitHub issue, release page or Reddit thread is a platform-hosted
+account, not a publisher: it stays `vendor_claim_unverified` with
+`platform_account` identity unless the item carries an explicit official
+designation (`official_web` or `raw_metadata.official = true`). A community post
+is third-party commentary unless the assessment cites it as feedback, in which
+case it becomes `firsthand_experience` with `self_reported` identity and is never
+upgraded to independently verified fact. A first-party announcement
+("our team shipped ...") is reclassified as an unverified vendor claim from its
+text. Media pages remain `media_report`/`publisher`; reposts and second-hand
+citation stay `secondhand`. Each cited item also records five separate
+provenance dimensions in `subquestions[].provenance`:
+
+| Dimension | Values |
+| --- | --- |
+| `platform` | registry source name (`github`, `reddit`, `host_web_search`, ...) |
+| `publisher_identity` | `verified_vendor`, `independent_publisher`, `community_user`, `platform_account`, `unknown` |
+| `content_type` | declared source type (`release`, `post`, `issue`, `page`, ...) |
+| `firsthand` | `direct`, `self_reported`, `secondhand`, `unknown` |
+| `credibility_prior` | tier-derived prior (`high`, `medium`, `low`) — a prior, not a truth score |
+
+`publisher_identities` aggregates those counts per subquestion. Required
+evidence is expressed as evidence kinds and direct-observation counts tied to
+the specific subquestion, so a platform type can never substitute for evidence
+sufficiency. The model judges semantic relevance and the stated criterion; the
+engine checks that referenced items exist, are dated, and satisfy the structural
+conditions above. It cannot independently prove the semantic judgment or
+establish market representativeness.
 
 A fully covered plan, absent/invalid assessment, or no eligible, materially
 useful follow-up ends the run after the first round. The second assessment
@@ -115,25 +134,46 @@ The engine keeps one model contract (`complete_structured`) and two transports:
 * `sourceglint.host_command:build_model` — a provider-neutral bridge to any
   locally installed command-line runner. Configuration is environment-only:
   `SOURCEGLINT_HOST_CMD` (argv), `SOURCEGLINT_HOST_OUTPUT` (`text` or
-  `json_envelope`), `SOURCEGLINT_HOST_PROMPT` (`stdin` or `argv`),
-  `SOURCEGLINT_HOST_TIMEOUT`, and `SOURCEGLINT_HOST_USAGE` for a JSONL record of
-  latency, status, token usage and billed cost. No endpoint, model name or
-  credential is stored in the package.
+  `json_envelope`), `SOURCEGLINT_HOST_PROMPT` (`stdin` by default, or `argv` as
+  an explicit opt-in), `SOURCEGLINT_HOST_TIMEOUT`,
+  `SOURCEGLINT_HOST_BUDGET_USD`, `SOURCEGLINT_HOST_TASK_BUDGET_USD`, and
+  `SOURCEGLINT_HOST_USAGE` for a JSONL record of latency, status, token usage
+  and billed cost. No endpoint, model name or credential is stored in the
+  package. Stdin is the default so prompts (which can contain private research
+  data) never appear in `ps` output; use `argv` only for runners that cannot
+  read stdin, optionally placing a `{prompt}` placeholder.
 
 ```text
 SOURCEGLINT_HOST_CMD='my-runner --print' \
 SOURCEGLINT_HOST_OUTPUT=json_envelope \
-SOURCEGLINT_HOST_PROMPT=argv \
 SOURCEGLINT_HOST_USAGE=runs/host.usage.jsonl \
+SOURCEGLINT_HOST_BUDGET_USD=2.00 \
 python scripts/run_real_benchmark.py --native-sources \
   --host-adapter sourceglint.host_command:build_model --seconds 150 \
   --as-of <ISO> --output runs/<id>
 ```
 
+Before any case spends budget, `scripts/run_real_benchmark.py` runs
+`scripts/host_preflight.py` unless `--skip-preflight` is set: it builds the
+configured factory, checks the executable exists, requires one schema-valid
+structured reply, and verifies the source registry has at least one enabled
+connector. The report is written to `preflight.json`; a failed preflight exits
+`2` and starts no case.
+
+Failure categories are kept distinct: `insufficient_balance` (HTTP 402 / quota),
+`auth_failed` (401/403 or a rejected credential), `model_not_found`, `timeout`,
+`command_missing`, `schema_mismatch` and generic `invalid_output`. The first four
+blocking categories latch: one occurrence stops further model calls, and later
+requests return immediately without spawning a subprocess. A per-task budget
+cap fails only that task; the batch cap latches. Cost is enforced only when the
+host reports it: an unreported cost is recorded as unknown, never as zero, and
+the batch is not claimed to have stayed inside a cap it could not measure.
 Timeouts, non-zero exits, oversized replies, non-JSON output and schema
 failures map to `TIMEOUT`, `UNAVAILABLE` or `INVALID_OUTPUT`; a late reply never
 leaves the runner waiting for a frame it already abandoned. Model text and
-usage are recorded separately.
+usage are recorded separately, and diagnostics pass through credential
+redaction (`sk-*`, bearer tokens, `api_key`/`authorization` values, long hex
+strings).
 
 ## Validation
 
@@ -178,6 +218,20 @@ Benchmark could not be completed. A single `industry-agents` probe did run the
 full engine against native GitHub/Reddit connectors; it returned `NO_EVIDENCE`
 in 66.4 s because planning fell back to query expansion and the retrieval window
 was exhausted. Those artifacts are in `runs/rc/beta-native-probe/industry-agents`
-and are not a quality result. No synthetic or fake host output is used to fill
-the gap, and no Beta/RC claim is made from these numbers.
+and are not a quality result.
+
+The Beta Closure preflight confirms the blocker is still external. With
+`SOURCEGLINT_HOST_CMD='claude -p --output-format json'` the local runner rejects
+the environment's model alias before sending a request
+(`[claude-code:unrecognized_model] {"model":"deepseek-flash[1m]","query_source":"sdk"}`),
+which the bridge reports as `model_not_found`. A direct probe of the same
+account's DeepSeek endpoint returned HTTP 402
+`Insufficient Balance (request_id: 311968c4-...-3e28d711b461)`, so the balance,
+not the adapter, is the real constraint. `scripts/run_real_benchmark.py`
+therefore exited `2` at preflight and started no case; `preflight.json` in
+`runs/rc/beta-closure-preflight` records the result. No real research task was
+started, no synthetic or fake host output is used to fill the gap, and no
+Beta/RC claim is made. The success criterion for this round is the safe,
+auditable preflight plus failure degradation; research quality remains
+unmeasured until the account is funded by its owner.
 

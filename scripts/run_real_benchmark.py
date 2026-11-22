@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from threading import Timer
+from threading import Event, Timer
 from time import monotonic, sleep
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,6 +96,8 @@ def usage(events, usage_log=None):
         cost = 0.0
         calls = 0
         failures = 0
+        blocked = None
+        cost_reported = 0
         for line in usage_log.read_text(encoding="utf-8").splitlines():
             try:
                 record = json.loads(line)
@@ -103,6 +105,8 @@ def usage(events, usage_log=None):
                 continue
             calls += 1
             failures += record.get("status") != "success"
+            if record.get("status") in {"insufficient_balance", "auth_failed", "model_not_found", "budget_exceeded"}:
+                blocked = record["status"]
             usage = record.get("usage") or {}
             usage = usage.get("usage") if isinstance(usage, dict) else {}
             for key in totals:
@@ -111,10 +115,12 @@ def usage(events, usage_log=None):
                     totals[key] += value
             if isinstance(record.get("cost_usd"), (int, float)):
                 cost += float(record["cost_usd"])
+                cost_reported += 1
         return {"reported_tokens": totals if calls else None, "host_model_calls": calls,
-                "host_model_failures": failures,
-                "billed_cost": round(cost, 6) if cost else None}
-    return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None}
+                "host_model_failures": failures, "host_blocked": blocked,
+                "billed_cost": round(cost, 6) if cost_reported else None,
+                "cost_known": cost_reported == calls}
+    return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None, "cost_known": False}
 
 
 def run_case(case, args, state):
@@ -227,6 +233,27 @@ def run_case(case, args, state):
     return summary
 
 
+def run_preflight(args):
+    """Check the host and registry before any case spends budget."""
+    completed = None
+    cmd = [args.python, str(ROOT / "scripts" / "host_preflight.py"),
+           "--model", args.host_adapter, "--registry", str(args.registry)]
+    try:
+        completed = subprocess.run(cmd, capture_output=True, text=True,
+                                   timeout=150, env=host_env(), check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"status": "fail", "category": "preflight_unavailable",
+                "detail": type(exc).__name__}
+    try:
+        report = json.loads(completed.stdout)
+    except ValueError:
+        return {"status": "fail", "category": "preflight_unreadable",
+                "exit_code": completed.returncode,
+                "detail": (completed.stderr or "")[-300:]}
+    report["exit_code"] = completed.returncode
+    return report
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--as-of", required=True)
@@ -241,6 +268,12 @@ def main():
                    help="Engine model spec. Use sourceglint.host_command:build_model with a local runner.")
     p.add_argument("--native-sources", action="store_true",
                    help="Use the engine's own connectors; only model calls go to the host.")
+    p.add_argument("--skip-preflight", action="store_true",
+                   help="Do not run scripts/host_preflight.py before the batch.")
+    p.add_argument("--budget-usd", type=float, default=None,
+                   help="Batch spend cap forwarded to the host adapter (reported cost only).")
+    p.add_argument("--task-budget-usd", type=float, default=None,
+                   help="Per-stage spend cap forwarded to the host adapter (reported cost only).")
     p.add_argument("--seconds", type=int, default=330, choices=range(30, 356))
     p.add_argument("--workers", type=int, choices=(1, 2, 3, 4), default=2)
     p.add_argument("--max-rounds", type=int, choices=(1, 2, 3), default=3)
@@ -264,11 +297,32 @@ def main():
     if not chosen or set(args.only) - {case["id"] for case in chosen}:
         p.error("unknown or empty case selection")
     args.output.mkdir(parents=True, exist_ok=False)
+    if args.budget_usd is not None:
+        os.environ["SOURCEGLINT_HOST_BUDGET_USD"] = str(args.budget_usd)
+    if args.task_budget_usd is not None:
+        os.environ["SOURCEGLINT_HOST_TASK_BUDGET_USD"] = str(args.task_budget_usd)
+    if not args.skip_preflight and "host_stdio" not in args.host_adapter:
+        preflight = run_preflight(args)
+        write_json(args.output / "preflight.json", preflight)
+        print(json.dumps({"preflight": preflight}, ensure_ascii=False), flush=True)
+        if preflight.get("status") != "pass":
+            return 2
     state = commit_state(args.engine_checkout)
+    stop = Event()
+
+    def guarded(case):
+        if stop.is_set():
+            return {"case": case["id"], "status": "SKIPPED", "skipped_reason": "host blocked"}
+        status = run_case(case, args, state)
+        if status.get("host_blocked") in {"insufficient_balance", "auth_failed", "model_not_found"}:
+            stop.set()
+        return status
+
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        for status in pool.map(lambda case: run_case(case, args, state), chosen):
+        for status in pool.map(guarded, chosen):
             print(json.dumps(status, ensure_ascii=False), flush=True)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

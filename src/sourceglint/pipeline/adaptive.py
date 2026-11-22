@@ -141,16 +141,16 @@ def evidence_requirements(question: Mapping[str, Any]) -> dict:
 def classify_evidence_role(item: Mapping[str, Any], *, feedback: bool = False) -> tuple[str, str]:
     """Return ``(role, identity_confidence)`` for one evidence item.
 
-    Identity is never inferred from a username. A community account can only
-    become ``firsthand_experience`` when the assessment explicitly cites it as
-    user feedback; otherwise it stays third-party commentary. Vendor identity
-    is verified through registry/official designation, not string matching.
+    A platform is not a publisher: a GitHub issue, Reddit post or marketplace
+    listing is never promoted to a verified vendor claim just because the
+    registry classifies that connector as official. Verification needs an
+    official-site designation or explicit item metadata. Identity is never
+    inferred from a username.
     """
     metadata = item.get("raw_metadata")
     official = (
         (isinstance(metadata, Mapping) and bool(metadata.get("official")))
         or str(item.get("source") or "") in _OFFICIAL_SOURCES
-        or item.get("source_tier") == 1
     )
     if official:
         return "vendor_claim_verified", "declared_official"
@@ -161,7 +161,44 @@ def classify_evidence_role(item: Mapping[str, Any], *, feedback: bool = False) -
         return "media_report", "publisher"
     if tier in (2, 3):
         return "third_party_commentary", "unverified_author"
+    if tier == 1:
+        return "vendor_claim_unverified", "platform_account"
     return "unknown", "unknown"
+
+
+_PUBLISHER = {
+    "declared_official": "verified_vendor",
+    "publisher": "independent_publisher",
+    "unverified_author": "community_user",
+    "self_reported": "community_user",
+    "platform_account": "platform_account",
+    "unknown": "unknown",
+}
+_FIRSTHAND = {
+    "vendor_claim_verified": "direct",
+    "firsthand_experience": "self_reported",
+    "independent_test": "direct",
+    "media_report": "secondhand",
+    "third_party_commentary": "secondhand",
+    "vendor_claim_unverified": "direct",
+}
+
+
+def classify_provenance(item: Mapping[str, Any], *, role: str, identity: str) -> dict:
+    """Separate platform, publisher, content type, first-hand level and prior.
+
+    ``credibility_prior`` is a tier-derived prior, not a truth score; the
+    report must not present it as verification.
+    """
+    tier = item.get("source_tier")
+    return {
+        "platform": str(item.get("source") or "unknown"),
+        "publisher_identity": _PUBLISHER.get(identity, "unknown"),
+        "content_type": str(item.get("source_type") or "unknown"),
+        "firsthand": _FIRSTHAND.get(role, "unknown"),
+        "credibility_prior": {1: "high", 2: "medium", 3: "medium", 4: "medium"}.get(tier, "low"),
+        "role": role,
+    }
 
 
 def answer_state(status: str, *, missing_required: Sequence[str], origin_shortfall: bool,
@@ -621,6 +658,12 @@ class AdaptiveResearch:
                 gap=gap, unavailable=unavailable, role_gap=role_gap,
                 direct_shortfall=direct_shortfall,
             )
+            provenance = [
+                {"evidence_id": item["evidence_id"],
+                 **classify_provenance(item, role=roles[item["evidence_id"]],
+                                       identity=identities[item["evidence_id"]])}
+                for item in cited
+            ][:8]
             self.assessments.append({
                 "question_id": question["id"], "question": question["question"], "status": status,
                 "answer_state": state,
@@ -638,6 +681,9 @@ class AdaptiveResearch:
                                         else "self_reported" if "self_reported" in identities.values()
                                         else "unverified"),
                 "claim_roles": dict(Counter(roles.values())),
+                "provenance": provenance,
+                "publisher_identities": dict(Counter(
+                    entry["publisher_identity"] for entry in provenance)),
             })
             follow = (row or {}).get("followup")
             if not allow_search or not follow or follow.get("gain") == "low":

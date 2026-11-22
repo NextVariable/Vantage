@@ -630,6 +630,65 @@ def test_model_flagged_vendor_post_stays_a_vendor_claim():
     assert row["claim_roles"] == {"vendor_claim_unverified": 1}
 
 
+def test_platform_release_and_official_designation_report_different_publishers():
+    class OfficialPlan(ScriptedModel):
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Understand Acme", research_objects=["Acme"],
+                              subquestions=[{
+                                  "question": "What did Acme ship?", "priority": 1,
+                                  "evidence_types": ["T1_official"],
+                                  "preferred_sources": ["github", "official_web"],
+                                  "completion_criterion": "An official announcement.",
+                                  "minimum_origins": 2, "query": "Acme v1 release",
+                                  "language": "en",
+                              }])
+            return super().complete_structured(task=task, payload=payload, response_schema=response_schema)
+
+    def replies(name, _request):
+        if name == "github":
+            return [RawSourceResult(
+                source="github", source_type="release", source_native_id="r1",
+                url="https://github.com/acme/tool/releases/tag/v1", title="Acme v1",
+                text="Acme shipped v1 with distributed tracing.",
+                published_at="2026-09-08T12:00:00Z",
+            )]
+        return [RawSourceResult(
+            source="official_web", source_type="page", source_native_id="o1",
+            url="https://acme.example/blog/v1", title="Acme v1",
+            text="Acme announces v1 with distributed tracing.",
+            published_at="2026-09-08T13:00:00Z",
+        )]
+
+    _, report, _, _ = execute(OfficialPlan(planned_source="github", assess=lambda payload: {
+        "followup": followup("official_web"),
+    }), replies, sources=[source("github"), source("official_web")],
+        query="Acme v1 release")
+    row = report["subquestions"][0]
+    by_platform = {entry["platform"]: entry for entry in row["provenance"]}
+    # A release hosted on GitHub is a platform account, not a verified vendor.
+    assert by_platform["github"]["publisher_identity"] == "platform_account"
+    assert by_platform["github"]["role"] == "vendor_claim_unverified"
+    # The official-site designation is the only thing that verifies identity.
+    assert by_platform["official_web"]["publisher_identity"] == "verified_vendor"
+    assert by_platform["official_web"]["role"] == "vendor_claim_verified"
+    assert row["publisher_identities"] == {"platform_account": 1, "verified_vendor": 1}
+
+
+def test_self_reported_experience_is_never_upgraded_to_verified_fact():
+    model = ScriptedModel(assess=lambda payload: {
+        "feedback_ids": [payload["evidence"][0]["id"]],
+    })
+    _, report, _, _ = execute(model, lambda *_: [observation("reddit")],
+                              sources=[source("reddit")], query="AI product discussion")
+    row = report["subquestions"][0]
+    provenance = row["provenance"][0]
+    assert provenance["firsthand"] == "self_reported"
+    assert provenance["publisher_identity"] == "community_user"
+    assert provenance["role"] == "firsthand_experience"
+    assert row["publisher_identities"] == {"community_user": 1}
+
+
 def test_short_budget_keeps_phases_non_negative_and_never_over_reserves():
     result, _, _, _ = execute(ScriptedModel(), lambda *_: [], research_timeout_seconds=5)
     performance = result.diagnostics["performance"]
