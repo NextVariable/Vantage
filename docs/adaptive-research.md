@@ -136,20 +136,26 @@ The engine keeps one model contract (`complete_structured`) and two transports:
   `SOURCEGLINT_HOST_CMD` (argv), `SOURCEGLINT_HOST_OUTPUT` (`text` or
   `json_envelope`), `SOURCEGLINT_HOST_PROMPT` (`stdin` by default, or `argv` as
   an explicit opt-in), `SOURCEGLINT_HOST_TIMEOUT`,
-  `SOURCEGLINT_HOST_BUDGET_USD`, `SOURCEGLINT_HOST_TASK_BUDGET_USD`, and
+  `SOURCEGLINT_HOST_BUDGET_USD` (batch cap), `SOURCEGLINT_HOST_RUN_BUDGET_USD`
+  (per-research-case cap), `SOURCEGLINT_HOST_BUDGET_MODE` (`hard` or
+  `observe`), `SOURCEGLINT_HOST_COST_LEDGER`, `SOURCEGLINT_RUN_ID`, and
   `SOURCEGLINT_HOST_USAGE` for a JSONL record of latency, status, token usage
-  and billed cost. No endpoint, model name or credential is stored in the
-  package. Stdin is the default so prompts (which can contain private research
-  data) never appear in `ps` output; use `argv` only for runners that cannot
-  read stdin, optionally placing a `{prompt}` placeholder.
+  and billed cost. `task` names a model stage; `run_id` names the research
+  case, so one run cap spans planning, assessment and synthesis without
+  collapsing them into one "task". No endpoint, model name or credential is
+  stored in the package. Stdin is the default so prompts (which can contain
+  private research data) never appear in `ps` output; use `argv` only for
+  runners that cannot read stdin, optionally placing a `{prompt}` placeholder.
 
 ```text
 SOURCEGLINT_HOST_CMD='my-runner --print' \
 SOURCEGLINT_HOST_OUTPUT=json_envelope \
 SOURCEGLINT_HOST_USAGE=runs/host.usage.jsonl \
 SOURCEGLINT_HOST_BUDGET_USD=2.00 \
+SOURCEGLINT_HOST_RUN_BUDGET_USD=0.50 \
 python scripts/run_real_benchmark.py --native-sources \
   --host-adapter sourceglint.host_command:build_model --seconds 150 \
+  --budget-usd 2.00 --run-budget-usd 0.50 --budget-mode hard \
   --as-of <ISO> --output runs/<id>
 ```
 
@@ -158,16 +164,32 @@ Before any case spends budget, `scripts/run_real_benchmark.py` runs
 configured factory, checks the executable exists, requires one schema-valid
 structured reply, and verifies the source registry has at least one enabled
 connector. The report is written to `preflight.json`; a failed preflight exits
-`2` and starts no case.
+`2` and starts no case. The preflight call is itself written to the batch cost
+ledger under `run_id=preflight` and its `cost_usd`, `cost_known`,
+`batch_spent_usd` and `batch_cost_known` are disclosed in `preflight.json`, so
+it is not invisible spend outside the cap.
+
+All host calls in a batch append to one `cost.ledger.jsonl` (`fcntl`-locked,
+one file for every case process). Before each call the adapter re-reads the
+shared file, so no process can enforce a cap against its own private counter.
+The runner also checks the same ledger before starting each case and writes
+`cost.json` with batch totals. Concurrent calls already in flight can overshoot
+a cap by at most one call per worker; once the ledger reaches or exceeds the
+cap, every later call is refused.
 
 Failure categories are kept distinct: `insufficient_balance` (HTTP 402 / quota),
-`auth_failed` (401/403 or a rejected credential), `model_not_found`, `timeout`,
-`command_missing`, `schema_mismatch` and generic `invalid_output`. The first four
-blocking categories latch: one occurrence stops further model calls, and later
-requests return immediately without spawning a subprocess. A per-task budget
-cap fails only that task; the batch cap latches. Cost is enforced only when the
-host reports it: an unreported cost is recorded as unknown, never as zero, and
-the batch is not claimed to have stayed inside a cap it could not measure.
+`auth_failed` (401 or a 403 that is not a rate limit), `rate_limited` (429 or a
+403 carrying rate-limit wording; transient and non-latching), `model_not_found`,
+`timeout`, `command_missing`, `schema_mismatch` and generic `invalid_output`.
+The blocking categories (`insufficient_balance`, `auth_failed`,
+`model_not_found`, `budget_exceeded`, `cost_unknown`) latch: one occurrence
+stops further model calls, and later requests return immediately without
+spawning a subprocess. A per-run cap fails only that research case; the batch
+cap latches. Budgets are **hard** by default: unreported cost is written as
+unknown, never as zero, and the next call is refused with `cost_unknown` because
+a hard cap cannot prove the spend stayed inside it. `observe` mode records the
+same spend without enforcing, for hosts whose billing is external; its reports
+set `budget_enforced=false` and never claim the cap held.
 Timeouts, non-zero exits, oversized replies, non-JSON output and schema
 failures map to `TIMEOUT`, `UNAVAILABLE` or `INVALID_OUTPUT`; a late reply never
 leaves the runner waiting for a frame it already abandoned. Model text and

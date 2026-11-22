@@ -17,6 +17,12 @@ from threading import Event, Timer
 from time import monotonic, sleep
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
+
+from sourceglint.cost_ledger import HARD, CostLedger  # noqa: E402
+from sourceglint.host_command import _sanitize  # noqa: E402
+
 CATALOG = ROOT / "evals" / "rc-benchmark.json"
 ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,60}")
 PUBLIC_ENV = {"PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TMPDIR", "TEMP",
@@ -29,6 +35,8 @@ HOST_ENV_PREFIXES = ("SOURCEGLINT_HOST_", "ANTHROPIC_", "DEEPSEEK_", "CLAUDE_", 
 def host_env(source=None):
     env = {k: v for k, v in (source or os.environ).items() if k in PUBLIC_ENV}
     env.update({k: v for k, v in (source or os.environ).items() if k.startswith(HOST_ENV_PREFIXES)})
+    if os.environ.get("SOURCEGLINT_RUN_ID"):
+        env["SOURCEGLINT_RUN_ID"] = os.environ["SOURCEGLINT_RUN_ID"]
     return env
 
 
@@ -72,7 +80,8 @@ status. The deliverable is the exchanges, not a separately written report.
 """
 
 
-def usage(events, usage_log=None):
+def usage(events, usage_log=None, ledger_path=None):
+    ledger = CostLedger(ledger_path).totals() if ledger_path is not None else None
     if events.exists():
         counts = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
         kinds = {}
@@ -90,7 +99,8 @@ def usage(events, usage_log=None):
                 kind = item.get("item", {}).get("type")
                 if kind:
                     kinds[kind] = kinds.get(kind, 0) + 1
-        return {"reported_tokens": counts if completed else None, "host_event_types": kinds, "billed_cost": None}
+        return {"reported_tokens": counts if completed else None, "host_event_types": kinds,
+                "billed_cost": None, "cost_known": False, "ledger": ledger}
     if usage_log is not None and usage_log.exists():
         totals = {"input_tokens": 0, "output_tokens": 0}
         cost = 0.0
@@ -105,7 +115,8 @@ def usage(events, usage_log=None):
                 continue
             calls += 1
             failures += record.get("status") != "success"
-            if record.get("status") in {"insufficient_balance", "auth_failed", "model_not_found", "budget_exceeded"}:
+            if record.get("status") in {"insufficient_balance", "auth_failed", "model_not_found",
+                                        "budget_exceeded", "cost_unknown"}:
                 blocked = record["status"]
             usage = record.get("usage") or {}
             usage = usage.get("usage") if isinstance(usage, dict) else {}
@@ -119,8 +130,9 @@ def usage(events, usage_log=None):
         return {"reported_tokens": totals if calls else None, "host_model_calls": calls,
                 "host_model_failures": failures, "host_blocked": blocked,
                 "billed_cost": round(cost, 6) if cost_reported else None,
-                "cost_known": cost_reported == calls}
-    return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None, "cost_known": False}
+                "cost_known": cost_reported == calls, "ledger": ledger}
+    return {"reported_tokens": None, "host_event_types": {}, "billed_cost": None,
+            "cost_known": False, "ledger": ledger}
 
 
 def run_case(case, args, state):
@@ -154,7 +166,9 @@ def run_case(case, args, state):
     gh_config.mkdir()
     engine_env = {**env, "GH_CONFIG_DIR": str(gh_config),
                   "PYTHONPATH": str(args.engine_checkout / "src"),
-                  "SOURCEGLINT_HOST_USAGE": str(usage_log)}
+                  "SOURCEGLINT_HOST_USAGE": str(usage_log),
+                  "SOURCEGLINT_RUN_ID": case["id"],
+                  "SOURCEGLINT_HOST_COST_LEDGER": str(args.cost_ledger)}
     # Bypass neither permissions nor sandbox. The parent launch environment
     # supplies permitted transport; the child host is restricted to the run folder.
     with (target / "engine.stderr").open("wb") as err:
@@ -226,9 +240,10 @@ def run_case(case, args, state):
             host.kill()
             host.wait(timeout=10)
     elapsed = round(monotonic() - start, 2)
-    summary = {"case": case["id"], "elapsed_seconds": elapsed, "engine_exit": engine.returncode,
+    summary = {"case": case["id"], "run_id": case["id"], "elapsed_seconds": elapsed,
+               "engine_exit": engine.returncode,
                "status": (result or {}).get("status"), "exchanges": exchanges, "failure": failure or None,
-               **usage(events_path, usage_log)}
+               **usage(events_path, usage_log, args.cost_ledger)}
     write_json(target / "status.json", summary)
     return summary
 
@@ -249,7 +264,7 @@ def run_preflight(args):
     except ValueError:
         return {"status": "fail", "category": "preflight_unreadable",
                 "exit_code": completed.returncode,
-                "detail": (completed.stderr or "")[-300:]}
+                "detail": _sanitize((completed.stderr or "")[-300:])}
     report["exit_code"] = completed.returncode
     return report
 
@@ -271,9 +286,11 @@ def main():
     p.add_argument("--skip-preflight", action="store_true",
                    help="Do not run scripts/host_preflight.py before the batch.")
     p.add_argument("--budget-usd", type=float, default=None,
-                   help="Batch spend cap forwarded to the host adapter (reported cost only).")
-    p.add_argument("--task-budget-usd", type=float, default=None,
-                   help="Per-stage spend cap forwarded to the host adapter (reported cost only).")
+                   help="Batch spend cap forwarded to the host adapter (hard by default).")
+    p.add_argument("--run-budget-usd", type=float, default=None,
+                   help="Per-research-case spend cap, spanning all model stages of that run.")
+    p.add_argument("--budget-mode", choices=("hard", "observe"), default=HARD,
+                   help="hard refuses calls it cannot prove are within the cap; observe only records.")
     p.add_argument("--seconds", type=int, default=330, choices=range(30, 356))
     p.add_argument("--workers", type=int, choices=(1, 2, 3, 4), default=2)
     p.add_argument("--max-rounds", type=int, choices=(1, 2, 3), default=3)
@@ -297,10 +314,13 @@ def main():
     if not chosen or set(args.only) - {case["id"] for case in chosen}:
         p.error("unknown or empty case selection")
     args.output.mkdir(parents=True, exist_ok=False)
+    args.cost_ledger = args.output / "cost.ledger.jsonl"
+    os.environ["SOURCEGLINT_HOST_COST_LEDGER"] = str(args.cost_ledger)
+    os.environ["SOURCEGLINT_HOST_BUDGET_MODE"] = args.budget_mode
     if args.budget_usd is not None:
         os.environ["SOURCEGLINT_HOST_BUDGET_USD"] = str(args.budget_usd)
-    if args.task_budget_usd is not None:
-        os.environ["SOURCEGLINT_HOST_TASK_BUDGET_USD"] = str(args.task_budget_usd)
+    if args.run_budget_usd is not None:
+        os.environ["SOURCEGLINT_HOST_RUN_BUDGET_USD"] = str(args.run_budget_usd)
     if not args.skip_preflight and "host_stdio" not in args.host_adapter:
         preflight = run_preflight(args)
         write_json(args.output / "preflight.json", preflight)
@@ -310,17 +330,37 @@ def main():
     state = commit_state(args.engine_checkout)
     stop = Event()
 
+    def budget_gate():
+        """Read the shared ledger so no per-process counter can fake a cap."""
+        if args.budget_mode != HARD or args.budget_usd is None:
+            return None
+        totals = CostLedger(args.cost_ledger).totals()
+        if totals["spent_usd"] >= args.budget_usd:
+            return "budget_exceeded"
+        return "cost_unknown" if totals["unknown_calls"] else None
+
     def guarded(case):
         if stop.is_set():
             return {"case": case["id"], "status": "SKIPPED", "skipped_reason": "host blocked"}
+        gate = budget_gate()
+        if gate is not None:
+            stop.set()
+            return {"case": case["id"], "status": "SKIPPED", "skipped_reason": gate}
         status = run_case(case, args, state)
-        if status.get("host_blocked") in {"insufficient_balance", "auth_failed", "model_not_found"}:
+        if status.get("host_blocked") in {"insufficient_balance", "auth_failed", "model_not_found",
+                                          "budget_exceeded", "cost_unknown"}:
             stop.set()
         return status
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for status in pool.map(guarded, chosen):
             print(json.dumps(status, ensure_ascii=False), flush=True)
+    totals = CostLedger(args.cost_ledger).totals()
+    write_json(args.output / "cost.json", {
+        "budget_usd": args.budget_usd, "run_budget_usd": args.run_budget_usd,
+        "budget_mode": args.budget_mode, "cost": totals,
+    })
+    print(json.dumps({"cost": totals}, ensure_ascii=False), flush=True)
     return 0
 
 

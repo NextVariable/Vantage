@@ -1,10 +1,14 @@
 """Contract tests for the provider-neutral command host runtime."""
 import json
+import os
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-from sourceglint.host_command import CommandHostModel, _extract_json
+from sourceglint.cost_ledger import CostLedger
+from sourceglint.host_command import CommandHostModel, _extract_json, build_model
 from sourceglint.intelligence.model import ModelStatus
 
 SCHEMA = {
@@ -92,8 +96,6 @@ def test_json_envelope_separates_model_text_from_usage(tmp_path):
 
 
 def test_build_model_requires_an_explicit_local_command(monkeypatch):
-    from sourceglint.host_command import build_model
-
     monkeypatch.delenv("SOURCEGLINT_HOST_CMD", raising=False)
     with pytest.raises(ValueError, match="SOURCEGLINT_HOST_CMD"):
         build_model()
@@ -101,6 +103,13 @@ def test_build_model_requires_an_explicit_local_command(monkeypatch):
     monkeypatch.setenv("SOURCEGLINT_HOST_TIMEOUT", "33")
     model = build_model()
     assert model.command[:1] == [sys.executable] and model.timeout == 33
+
+
+def test_malformed_command_config_never_echoes_its_raw_value(monkeypatch):
+    monkeypatch.setenv("SOURCEGLINT_HOST_CMD", "runner --key sk-SECRET123456 'unclosed")
+    with pytest.raises(ValueError) as error:
+        build_model()
+    assert "sk-SECRET123456" not in str(error.value)
 
 
 def test_argv_prompt_mode_passes_the_prompt_without_a_shell():
@@ -238,15 +247,19 @@ def test_batch_budget_latches_once_reported_spend_reaches_the_cap(tmp_path):
     assert spawn_count(counter) == 1
 
 
-def test_task_budget_fails_only_that_task(tmp_path):
+def test_run_budget_spans_stages_of_one_run_and_not_other_runs(tmp_path):
     counter = tmp_path / "spawns.txt"
-    model = CommandHostModel(command=envelope_command(counter, 0.02),
-                             output_mode="json_envelope", task_budget_usd=0.01)
-    assert call(model, task="assessment").status is ModelStatus.SUCCESS
-    second = call(model, task="assessment")
-    assert second.status is ModelStatus.UNAVAILABLE and "task budget" in second.error
-    assert model.blocked is None
-    assert call(model, task="synthesis").status is ModelStatus.SUCCESS
+    ledger = CostLedger(tmp_path / "cost.jsonl")
+    first = CommandHostModel(command=envelope_command(counter, 0.02), output_mode="json_envelope",
+                             run_budget_usd=0.01, run_id="case-a", ledger=ledger)
+    assert call(first, task="assessment").status is ModelStatus.SUCCESS
+    second = call(first, task="synthesis")
+    assert second.status is ModelStatus.UNAVAILABLE and "run_budget_exceeded" in second.error
+    assert first.blocked is None
+    # A different research run has its own run_id and its own share of the cap.
+    other = CommandHostModel(command=envelope_command(counter, 0.02), output_mode="json_envelope",
+                             run_budget_usd=0.01, run_id="case-b", ledger=ledger)
+    assert call(other, task="assessment").status is ModelStatus.SUCCESS
     assert spawn_count(counter) == 2
 
 
@@ -261,7 +274,125 @@ def test_unreported_cost_is_unknown_not_zero(tmp_path):
     assert summary["budget_remaining_usd"] is None
     record = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
     assert record["cost_reported"] is False and record["cost_usd"] is None
-    # Unknown cost must not be treated as a spend of zero that permits or
-    # blocks later calls on the strength of a fabricated number.
+    # Unknown cost must not be treated as zero: a hard cap refuses the next
+    # call because it cannot prove the spend stayed inside the cap.
+    blocked = call(model)
+    assert blocked.status is ModelStatus.UNAVAILABLE
+    assert model.blocked == "cost_unknown"
+    assert spawn_count(counter) == 1
+
+
+def test_observe_mode_records_unknown_cost_without_enforcing(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=envelope_command(counter, None), output_mode="json_envelope",
+                             budget_usd=0.01, budget_mode="observe")
     assert call(model).status is ModelStatus.SUCCESS
+    assert call(model).status is ModelStatus.SUCCESS
+    summary = model.usage_summary()
+    assert summary["budget_enforced"] is False
+    assert summary["cost_known"] is False
     assert spawn_count(counter) == 2
+
+
+def test_preflight_cost_is_counted_and_disclosed(tmp_path):
+    ledger = CostLedger(tmp_path / "cost.jsonl")
+    command = [sys.executable, "-c",
+               "import json; print(json.dumps({'type': 'result', 'result': json.dumps({'ok': True}), "
+               "'total_cost_usd': 0.02}))"]
+    model = CommandHostModel(command=command, output_mode="json_envelope",
+                             run_id="preflight", ledger=ledger)
+    result = model.preflight()
+    assert result["status"] == "pass"
+    assert result["cost_usd"] == 0.02 and result["cost_known"] is True
+    assert result["batch_spent_usd"] == 0.02 and result["batch_cost_known"] is True
+    assert ledger.totals()["entries"] == 1
+
+
+def test_403_rate_limit_is_transient_not_an_auth_failure(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=counting_failure(counter, "403 Forbidden: rate limit exceeded"))
+    first = call(model)
+    call(model)
+    assert first.status is ModelStatus.UNAVAILABLE
+    assert model.last_category == "rate_limited"
+    assert model.blocked is None
+    assert spawn_count(counter) == 2
+
+
+def test_403_without_rate_wording_is_an_auth_failure(tmp_path):
+    counter = tmp_path / "spawns.txt"
+    model = CommandHostModel(command=counting_failure(counter, "403 Forbidden: invalid api key"))
+    call(model)
+    call(model)
+    assert model.blocked == "auth_failed"
+    assert spawn_count(counter) == 1
+
+
+def _fake_host(tmp_path, cost):
+    price = f", 'total_cost_usd': {cost}" if cost is not None else ""
+    path = tmp_path / "fake_host.py"
+    path.write_text(
+        "import json\n"
+        f"print(json.dumps({{'type': 'result', 'result': json.dumps({{'answer': 'ok'}})"
+        f"{price}}}))\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _cross_process_spend(tmp_path, *, ledger, budget, run_id, cost, results):
+    fake = _fake_host(tmp_path, cost)
+    src = Path(__file__).resolve().parents[2] / "src"
+    code = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "from sourceglint.cost_ledger import CostLedger\n"
+        "from sourceglint.host_command import CommandHostModel\n"
+        f"model = CommandHostModel(command=[sys.executable, {str(fake)!r}], "
+        f"output_mode='json_envelope', budget_usd={budget}, run_id=sys.argv[1], "
+        f"ledger=CostLedger(Path({str(ledger)!r})))\n"
+        "response = model.complete_structured(task='assessment', payload={'request': 'x'}, "
+        "response_schema={'type': 'object'})\n"
+        f"Path({str(results)!r}).open('a', encoding='utf-8').write(response.status.value + '\\n')\n"
+        "print(model.blocked or '')\n"
+    )
+    return subprocess.Popen([sys.executable, "-c", code, run_id],
+                            env={**os.environ, "PYTHONPATH": str(src)},
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def test_concurrent_processes_share_one_batch_budget(tmp_path):
+    ledger = tmp_path / "batch.jsonl"
+    results = tmp_path / "results.txt"
+    children = [_cross_process_spend(tmp_path, ledger=ledger, budget=0.05,
+                                     run_id=f"case-{index}", cost=0.02, results=results)
+                for index in range(4)]
+    for child in children:
+        child.wait(timeout=90)
+    statuses = results.read_text(encoding="utf-8").split()
+    totals = CostLedger(ledger).totals()
+    assert totals["spent_usd"] >= 0.05
+    assert totals["unknown_calls"] == 0
+    assert totals["entries"] == len(statuses)
+    assert totals["spent_usd"] == round(0.02 * statuses.count("success"), 6)
+    # A fresh process starts with zero local counters; the shared ledger must
+    # still refuse it rather than resetting the cap per process.
+    fresh = CommandHostModel(command=[sys.executable, str(_fake_host(tmp_path, 0.02))],
+                             output_mode="json_envelope", budget_usd=0.05,
+                             run_id="case-new", ledger=CostLedger(ledger))
+    assert call(fresh).status is ModelStatus.UNAVAILABLE
+    assert fresh.blocked == "budget_exceeded"
+
+
+def test_unknown_cost_in_one_process_blocks_another_process(tmp_path):
+    ledger = tmp_path / "batch.jsonl"
+    results = tmp_path / "results.txt"
+    child = _cross_process_spend(tmp_path, ledger=ledger, budget=1.0,
+                                 run_id="case-a", cost=None, results=results)
+    child.wait(timeout=90)
+    assert results.read_text(encoding="utf-8").strip() == "success"
+    fresh = CommandHostModel(command=[sys.executable, str(_fake_host(tmp_path, 0.02))],
+                             output_mode="json_envelope", budget_usd=1.0,
+                             run_id="case-b", ledger=CostLedger(ledger))
+    assert call(fresh).status is ModelStatus.UNAVAILABLE
+    assert fresh.blocked == "cost_unknown"

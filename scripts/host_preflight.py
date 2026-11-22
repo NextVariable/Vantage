@@ -12,10 +12,13 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import sys
 from pathlib import Path
 
 import yaml
+
+from sourceglint.host_command import _sanitize
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,13 +44,16 @@ def main() -> int:
     parser.add_argument("--registry", default=str(ROOT / "config" / "sources-native.yaml"))
     parser.add_argument("--skip-model", action="store_true", help="check configuration only")
     args = parser.parse_args()
+    # The verification call is billed to the batch ledger under its own run id
+    # so its cost is disclosed and counted, never silently outside the cap.
+    os.environ.setdefault("SOURCEGLINT_RUN_ID", "preflight")
 
     report: dict = {"model_spec": args.model, "registry": registry_state(Path(args.registry))}
     try:
         model = load_factory(args.model)()
     except Exception as exc:  # configuration errors must surface, not be swallowed
         report.update({"status": "fail", "category": "configuration",
-                       "detail": f"{type(exc).__name__}: {exc}"})
+                       "detail": _sanitize(f"{type(exc).__name__}: {exc}")})
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 1
     report["model"] = getattr(model, "model_id", type(model).__name__)
