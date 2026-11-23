@@ -67,7 +67,7 @@ real installed Codex host over pipes, and `scripts/run_real_benchmark.py` now
 writes `provenance.json` with commit SHA, working-tree state, budgets, evidence
 hash, call accounting and the token split. A dirty checkout is stored with
 `release_evidence: false`. On 2026-11-23 the real host answered `clustering`
-(request `clustering-0001`) and returned a late `contradiction` reply 18.2 s
+(request `clustering-0001`) and returned a late `contradiction` reply 10.4 s
 after its 0.05 s deadline; the engine skipped that frame, dispatched
 `fact_synthesis` as `fact_synthesis-0003`, and matched its payload. All seven
 checks passed with no cross-framing.
