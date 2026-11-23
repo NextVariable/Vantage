@@ -135,6 +135,21 @@ def test_synthesis_and_brief_exclude_unassessed_candidates_but_ledger_keeps_them
     assert "Noise candidate" not in result.brief_markdown
 
 
+def test_empty_screening_falls_back_to_the_retained_corpus():
+    """A screening step that returns nothing must not erase retrieved evidence."""
+
+    def assess(payload):
+        return {"evidence_ids": [], "status": "covered"}
+
+    model = ScriptedModel(assess=assess)
+    result, report, _, ledger = execute(model, lambda *_: [observation()])
+    assert len(ledger) == 1
+    assert report["synthesis_evidence_count"] == 1
+    clustering = next(payload for task, payload in model.tasks if task == "clustering")
+    assert len(clustering["evidence_items"]) == 1
+    assert any("screening selected no evidence" in w for w in result.warnings)
+
+
 def test_timed_native_request_does_not_touch_network_after_deadline():
     from sourceglint.connectors._http import HttpTimeoutError, StdlibHttpClient
 

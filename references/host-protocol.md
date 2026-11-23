@@ -15,7 +15,7 @@ Do not backdate a current page.
 Reports include original platforms, dated citations and source excerpts.
 Keep vendor launch claims distinct from independent experiences, and retain
 counterexamples even when they do not become headline facts. The JSON
-`research_quality` is `LIMITED` or `NOT_ASSESSED`; it never certifies market
+`research_quality` is `ADEQUATE`, `LIMITED` or `NOT_ASSESSED`; it never certifies market
 representativeness. Show coverage limitations along with `brief_markdown`.
 Each FACT is reported with an `evidence support` status: `supported` means the
 cited excerpt was located verbatim in the cited item, `verified` additionally

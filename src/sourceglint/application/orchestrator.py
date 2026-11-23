@@ -262,13 +262,27 @@ def orchestrate(
             if ctx.ledger.exists(eid)
         )
         n_retained = evidence_count
+        screening_fallback = not screened_ids and n_retained > 0
+        if screening_fallback:
+            # Do not discard a completed retrieval because the screening step
+            # returned nothing (an unavailable or partial assessment).
+            screened_ids = frozenset(record.evidence_id for record in ctx.ledger)
+            warnings.append(
+                "adaptive: screening selected no evidence; analysis used the full retained corpus"
+            )
         evidence_count = len(screened_ids)
         adaptive_coverage = dict(research_result.coverage.adaptive_research or {})
         adaptive_coverage["synthesis_evidence_count"] = evidence_count
-        additional_gap = (
-            f"Coverage screening selected {evidence_count} of {n_retained} retained items. "
-            "Use the ledger for the full retrieval corpus."
-        )
+        adaptive_coverage["screening_fallback"] = screening_fallback
+        if screening_fallback:
+            additional_gap = (
+                f"Coverage screening selected no evidence; analysis used all {n_retained} retained items."
+            )
+        else:
+            additional_gap = (
+                f"Coverage screening selected {evidence_count} of {n_retained} retained items. "
+                "Use the ledger for the full retrieval corpus."
+            )
         coverage = replace(
             research_result.coverage,
             adaptive_research=adaptive_coverage,
