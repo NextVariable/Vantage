@@ -262,19 +262,38 @@ def orchestrate(
             if ctx.ledger.exists(eid)
         )
         n_retained = evidence_count
+        adaptive_coverage = dict(research_result.coverage.adaptive_research or {})
+        comparison_ids = None
+        if parsed.mode == "competitor":
+            from ..brief.competition import collect_comparison
+
+            products, comparisons = collect_comparison(parsed.query, adaptive.plan, ctx.ledger)
+            if products:
+                comparison_ids = frozenset(row["id"] for row in comparisons)
+                adaptive_coverage["competition_comparison"] = {
+                    "products": products, "observations": comparisons,
+                }
+                screened_ids &= comparison_ids
         screening_fallback = not screened_ids and n_retained > 0
         if screening_fallback:
             # Do not discard a completed retrieval because the screening step
             # returned nothing (an unavailable or partial assessment).
-            screened_ids = frozenset(record.evidence_id for record in ctx.ledger)
-            warnings.append(
-                "adaptive: screening selected no evidence; analysis used the full retained corpus"
-            )
+            if comparison_ids is None:
+                screened_ids = frozenset(record.evidence_id for record in ctx.ledger)
+                warnings.append(
+                    "adaptive: screening selected no evidence; analysis used the full retained corpus"
+                )
+        if comparison_ids is not None:
+            screened_ids = comparison_ids
         evidence_count = len(screened_ids)
-        adaptive_coverage = dict(research_result.coverage.adaptive_research or {})
         adaptive_coverage["synthesis_evidence_count"] = evidence_count
         adaptive_coverage["screening_fallback"] = screening_fallback
-        if screening_fallback:
+        if comparison_ids is not None:
+            additional_gap = (
+                f"Competition screening kept {evidence_count} of {n_retained} retained items "
+                "for synthesis and reporting; the raw ledger remains available for review."
+            )
+        elif screening_fallback:
             additional_gap = (
                 f"Coverage screening selected no evidence; analysis used all {n_retained} retained items."
             )

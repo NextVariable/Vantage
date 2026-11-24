@@ -132,6 +132,39 @@ def research_context(ctx: BriefContext) -> str:
 # -------- executive summary (§26, extractive) --------
 
 
+def comparison(data: Mapping | None, lookup: Mapping[str, object]) -> str:
+    if not data:
+        return ""
+    from .competition import DIMENSIONS
+
+    products = data["products"]
+    observations = data["observations"]
+    lines = ["## Competitive comparison", "",
+             "Dated source excerpts. An uncovered cell makes no claim about product capability.", ""]
+    headers = [_untrusted_inline(product).replace("|", "&#124;") for product in products]
+    lines.append("| Dimension | " + " | ".join(headers) + " |")
+    lines.append("| --- | " + " | ".join("---" for _ in products) + " |")
+    for dimension in DIMENSIONS:
+        cells = []
+        for product in products:
+            rows = [
+                row for row in observations
+                if row["product"] == product and row["dimension"] == dimension and row["id"] in lookup
+            ]
+            unique = {row["id"]: row for row in rows}
+            ranked = sorted(unique.values(), key=lambda row: (
+                _rec_field(lookup[row["id"]], "published_at"), row["id"]
+            ), reverse=True)
+            parts = [
+                f'{row["label"]}, source-reported: {_untrusted_inline(row["text"]).replace("|", "&#124;")}'
+                f' — {refs(lookup, (row["id"],)).replace("|", "%7C")}'
+                for row in ranked[:2]
+            ]
+            cells.append("<br>".join(parts) or "Uncovered in the retained sample")
+        lines.append(f"| {dimension} | " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n\n"
+
+
 def executive(sel: SelectedBrief) -> str:
     if not sel.executive:
         return ""

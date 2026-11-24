@@ -15,7 +15,7 @@ formatting layer via `sections` (heading/citation helpers imported from
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 from . import sections
 from .dtos import SelectedBrief
@@ -24,7 +24,7 @@ __all__ = ["render_brief_markdown", "render_no_evidence_markdown"]
 
 
 def render_brief_markdown(
-    selected: SelectedBrief, ledger: Any = None
+    selected: SelectedBrief, ledger: Any = None, *, comparison: Mapping | None = None
 ) -> str:
     """Render a fully selected brief to deterministic Markdown.
 
@@ -35,6 +35,7 @@ def render_brief_markdown(
     lookup = sections._evidence_lookup(ledger) if ledger is not None else {}
     parts = [
         sections.research_context(selected.context),
+        sections.comparison(comparison, lookup),
         sections.executive(selected),
         sections.facts(selected, lookup),
         sections.inferences(selected, lookup),

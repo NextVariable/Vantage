@@ -215,7 +215,10 @@ def run_brief_pipeline(brief_input: BriefInput) -> RenderedBrief:
         caps=brief_input.caps,
     )
     selected: SelectedBrief = selection.select_brief(prepared)
-    md = renderer.render_brief_markdown(selected, ledger)
+    comparison = selection._as_dict(brief_input.coverage).get("adaptive_research") or {}
+    md = renderer.render_brief_markdown(
+        selected, ledger, comparison=comparison.get("competition_comparison"),
+    )
 
     # ---- diagnostics (§33) -------------------------------------------------
     rendered = tuple(

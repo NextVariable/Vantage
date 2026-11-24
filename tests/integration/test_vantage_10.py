@@ -155,3 +155,87 @@ def test_timed_native_request_does_not_touch_network_after_deadline():
 
     with deadline_scope(monotonic() - 1), pytest.raises(HttpTimeoutError):
         StdlibHttpClient().request("https://example.invalid")
+
+
+def test_competition_timeout_keeps_both_sides_and_rejects_frozen_directory_pr():
+    from sourceglint.application.api import run_sourceglint
+    from sourceglint.intelligence.model import ModelResponse
+    from sourceglint.pipeline.adapters import RawSourceResult
+    from test_adaptive_research import answer
+
+    rows = [
+        RawSourceResult(
+            "host_web_search", "release", "cursor-voice", "https://cursor.com/changelog",
+            "Voice Chat with Agents",
+            "Voice chat works in the Agents Window, the IDE, on web, and in Cursor for iOS.",
+            published_at="2026-11-06T00:00:00Z",
+        ),
+        RawSourceResult(
+            "host_web_search", "release", "copilot-ignite",
+            "https://github.blog/changelog/2026-11-17-github-copilot-app-microsoft-ignite-releases",
+            "GitHub Copilot app, Microsoft Ignite releases",
+            "Azure DevOps integration is now in public preview.",
+            published_at="2026-11-17T00:00:00Z",
+        ),
+        RawSourceResult(
+            "github", "post", "1951", "https://github.com/jaw9c/awesome-remote-mcp-servers/pull/1951",
+            "Add Calven", "Adds Calven under Market Intelligence. Its hosted MCP server gives Cursor and Copilot access.",
+            published_at="2026-11-03T19:02:33Z",
+        ),
+    ]
+
+    class TimeoutModel:
+        def complete_structured(self, *, task, payload, response_schema):
+            if task == "research_planning":
+                return answer(task, goal="Compare the products", research_objects=["Cursor AI editor", "GitHub Copilot"],
+                              subquestions=[{
+                                  "question": "Which product changes shipped?", "priority": 1,
+                                  "evidence_types": ["T1_official"], "preferred_sources": ["host_web_search"],
+                                  "completion_criterion": "Dated changes from each vendor.",
+                                  "minimum_origins": 2, "query": "release changes", "language": "en",
+                              }])
+            return ModelResponse(task=task, status=ModelStatus.TIMEOUT)
+
+    class FrozenAdapter:
+        def retrieve(self, plan, request):
+            return rows
+
+    result = run_sourceglint(
+        "How did Cursor AI editor and GitHub Copilot change?", mode="competitor",
+        adaptive=True, model=TimeoutModel(), as_of="2026-11-24T08:15:00Z",
+        sources=[source("host_web_search")], adapter_factory=lambda *_: FrozenAdapter(),
+    )
+    body = result.brief_markdown
+    assert result.status.value == "PARTIAL"
+    assert result.delivery_level == "evidence_only_report"
+    assert result.diagnostics["evidence_count"] == 2
+    assert result.diagnostics["insight_count"] == 0
+    assert "| Dimension | Cursor AI editor | GitHub Copilot |" in body
+    assert "Voice chat works" in body and "Azure DevOps integration" in body
+    assert "2026-11-06" in body and "2026-11-17" in body
+    assert "| Firsthand use and counterexamples | Uncovered in the retained sample" in body
+    assert "Calven" not in body and "/pull/1951" not in body
+
+
+def test_comparison_preserves_firsthand_counterevidence_without_guessing_equivalence():
+    from sourceglint.brief import sections
+    from sourceglint.brief.competition import collect_comparison
+    from sourceglint.ledger import EvidenceRecord
+
+    records = [
+        EvidenceRecord("report", "reddit", "post", "https://reddit.com/r/example/01",
+                       "2026-11-24", "2026-11-19", title="Nimbus versus Orchard",
+                       snippet="I tried Nimbus for two days and stopped using it after sync failed."),
+        EvidenceRecord("promo", "github", "post", "https://github.com/someone/directory/pull/5",
+                       "2026-11-24", "2026-11-20", title="Add connector",
+                       snippet="Connector supports Nimbus and Orchard."),
+    ]
+    products, observations = collect_comparison(
+        "Compare Nimbus and Orchard", {"research_objects": ["Nimbus", "Orchard"]}, records,
+    )
+    body = sections.comparison({"products": products, "observations": observations},
+                               {row.evidence_id: row for row in records})
+    assert "First-person account" in body and "sync failed" in body
+    assert observations[0]["product"] == "Nimbus" and len(observations) == 1
+    assert "Uncovered in the retained sample" in body
+    assert "Connector supports" not in body
