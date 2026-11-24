@@ -61,6 +61,7 @@ python3 -m venv .venv
 
 ## 进一步了解
 
+- [Beta 候选验收与四类真实研究](docs/beta-final-closure.md)
 - [真实研究样例](docs/examples/2026-10-04/README.md)
 - [来源访问](docs/source-access-matrix.md)与[降级方式](docs/source-fallback-playbook.md)
 - [智能体集成与证据导出](references/host-protocol.md)

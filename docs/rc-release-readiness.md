@@ -1,5 +1,7 @@
 # Vantage 1.0 release readiness
 
+For the later Beta candidate verification and release decision, see [Beta closure](beta-final-closure.md).
+
 **BETA_ONLY** · `1.0.0b1` · `release/vantage-1.0-beta`
 
 The [original 1.0 development audit](vantage-1.0.md) compared the development branch with `main` (`0a93cc1`). This sprint compares the prior development engine (`7e1757e`) with the live benchmark engine (`13a0635`). Per-run metadata records the full commit and whether its checkout was dirty. The historical 20-case live retrieval evaluation used scripted model judgments. The RC benchmark uses a logged-in Codex host for the model exchanges and live public retrieval.

@@ -63,6 +63,7 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 
 ## More
 
+- [Beta candidate acceptance and four research cases](docs/beta-final-closure.md)
 - [Recorded research examples](docs/examples/2026-10-04/README.md)
 - [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
 - [Agent integration and evidence exports](references/host-protocol.md)
