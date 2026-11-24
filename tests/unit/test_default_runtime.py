@@ -38,4 +38,5 @@ def test_public_sources_factory_never_reads_connector_credentials(monkeypatch):
     assert runtime.default_adapter_factory("github", {}, allow_credentials=False).token is None
     reddit = runtime.default_adapter_factory("reddit", {}, allow_credentials=False)
     assert reddit.client_id is None and reddit.client_secret is None
-    assert runtime.default_adapter_factory("x", {}, allow_credentials=False) is None
+    for gated in ("x", "bluesky", "product_hunt", "semantic_scholar"):
+        assert runtime.default_adapter_factory(gated, {}, allow_credentials=False) is None

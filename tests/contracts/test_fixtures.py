@@ -57,6 +57,22 @@ def test_sources_yaml_validates_against_registry_schema():
     assert len(names) == len(set(names)), "source names must be unique"
 
 
+@pytest.mark.parametrize("profile", ["sources-hybrid.yaml", "sources-native.yaml", "sources-expanded.yaml"])
+def test_every_registry_profile_validates_against_registry_schema(profile):
+    """Each shipped registry profile conforms to source_registry.schema.json."""
+    import yaml
+
+    schema = load_schema("source_registry.schema.json")
+    path = CONFIG_DIR / profile
+    if not path.exists():
+        pytest.skip(f"{profile} is not shipped")
+    with path.open(encoding="utf-8") as fh:
+        registry = yaml.safe_load(fh)
+    validate(registry, schema)
+    names = [e["name"] for e in registry]
+    assert len(names) == len(set(names)), f"{profile} source names must be unique"
+
+
 def test_sources_yaml_has_no_real_secrets():
     """Seed registry contains no credential values (contract hygiene).
 

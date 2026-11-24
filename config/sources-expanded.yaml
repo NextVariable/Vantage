@@ -1,0 +1,306 @@
+# Vantage 1.1 — expanded opt-in source profile.
+#
+# Purpose: exercise the 1.1 structured connectors without changing the
+# default Skill run (`config/sources-hybrid.yaml`, 6 slots). Every source is
+# capped at one query per run so adding breadth does not multiply default
+# research cost. Use explicitly, e.g.
+#
+#   sourceglint research --registry config/sources-expanded.yaml ...
+#
+# Sources that need a named public board (lever, greenhouse, ashby), a numeric
+# appid (steam), or a country/indicator pair (world_bank) resolve to an empty
+# route and record a limitation when the host does not supply those inputs.
+
+- name: host_web_search
+  enabled: true
+  type: web
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 60
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, jp, de, fr, kr, cn, in, br]
+  languages: [en, ja, zh, de, fr, ko, pt, hi]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: github
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 85
+  capabilities: [search, comments]
+  rate_limit: { rpm: 60 }
+  markets: [global, us, gb, jp, de, fr, kr, cn]
+  languages: [en, de, fr]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: hacker_news
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 70
+  capabilities: [search, stories, comments]
+  rate_limit: { rpm: 60 }
+  markets: [global, us, gb]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: reddit
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 80
+  capabilities: [search, comments]
+  rate_limit: { rpm: 60 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: stack_overflow
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 70
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: devto
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 64
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: hugging_face
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 86
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: package_registries
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 66
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: arxiv
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 88
+  capabilities: [search]
+  rate_limit: { rpm: 3 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: qiita
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 72
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [jp]
+  languages: [ja]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: crossref
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 84
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: openalex
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 83
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: pypi
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 62
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: crates_io
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 61
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: gitlab
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 74
+  capabilities: [search, releases]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: lever
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: greenhouse
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: ashby
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 57
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: steam
+  enabled: true
+  type: marketplace
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 55
+  capabilities: [reviews]
+  rate_limit: { rpm: 20 }
+  markets: [global, us, gb, jp, de, fr, kr, cn]
+  languages: [en, ja, zh, de, fr, ko]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: world_bank
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 59
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, cn, jp, kr, in, br, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 86400
+  max_queries_per_run: 1
+
+- name: sec_edgar
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 63
+  capabilities: [search]
+  rate_limit: { rpm: 10 }
+  markets: [us]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1

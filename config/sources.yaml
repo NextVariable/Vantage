@@ -230,3 +230,189 @@
   markets: [global]
   languages: [en]
   cache_ttl: 3600
+
+# --- 1.1 structured expansion (opt-in) -----------------------------------
+# These connectors are implemented and offline-tested, but stay disabled in
+# the default runtime so a normal run keeps its 1.0 source mix and cost.
+# Enable them through config/sources-expanded.yaml or by flipping one entry.
+
+- name: crossref
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 84
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: openalex
+  # OPENALEX_API_KEY is optional: it only unlocks cursor paging and a polite
+  # pool. Anonymous first-page search works without it, so it is not a
+  # blocking credential.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 83
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: pypi
+  # Named-package lookup only; PyPI exposes no full-text search.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 62
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: crates_io
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 61
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: gitlab
+  # Anonymous public project + release search on gitlab.com.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 74
+  capabilities: [search, releases]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: lever
+  # Requires a named public board passed by the host/plan.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: greenhouse
+  # Requires a named public board; first_published is the hire date anchor.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: ashby
+  # Requires a named public board; oversized boards are refused (2 MB cap).
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 57
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: steam
+  # Public review endpoint; requires a verified numeric appid.
+  enabled: false
+  type: marketplace
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 55
+  capabilities: [reviews]
+  rate_limit: { rpm: 20 }
+  markets: [global, us, gb, jp, de, fr, kr, cn]
+  languages: [en, ja, zh, de, fr, ko]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: world_bank
+  # Named indicator series; observation year is not a publication date.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 59
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, cn, jp, kr, in, br, us, gb, de, fr]
+  languages: [en]
+  cache_ttl: 86400
+  max_queries_per_run: 1
+
+- name: sec_edgar
+  # Full-text filing metadata for US public companies.
+  enabled: false
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 63
+  capabilities: [search]
+  rate_limit: { rpm: 10 }
+  markets: [us]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: polymarket
+  # Candidate only: the public endpoint was unreachable during the 1.1 probe,
+  # so no connector is exposed and this entry stays disabled.
+  enabled: false
+  type: secondary
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 45
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global, us]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
