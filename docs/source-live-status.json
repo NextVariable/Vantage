@@ -48,10 +48,95 @@
     "steam": "review endpoint redirected to the store home page; the adapter refuses HTML and reports unavailability"
   },
   "skipped": {
-    "bluesky": ["BSKY_HANDLE", "BSKY_APP_PASSWORD"],
-    "product_hunt": ["PRODUCT_HUNT_TOKEN"],
-    "semantic_scholar": ["SEMANTIC_SCHOLAR_API_KEY"],
-    "x": ["X_BEARER_TOKEN"]
+    "bluesky": [
+      "BSKY_HANDLE",
+      "BSKY_APP_PASSWORD"
+    ],
+    "product_hunt": [
+      "PRODUCT_HUNT_TOKEN"
+    ],
+    "semantic_scholar": [
+      "SEMANTIC_SCHOLAR_API_KEY"
+    ],
+    "x": [
+      "X_BEARER_TOKEN"
+    ]
   },
-  "note": "This is a dated verification snapshot, not a permanent availability guarantee. arXiv's prior pass is kept in the 2026-10-04 snapshot, so 37 free structured routes have a live pass on record. Re-run the live suite after connector or upstream changes."
+  "note": "This is a dated verification snapshot, not a permanent availability guarantee. arXiv's prior pass is kept in the 2026-10-04 snapshot, so 37 free structured routes have a live pass on record. Re-run the live suite after connector or upstream changes.",
+  "phase3_host_web": {
+    "verified_at": "2026-11-24",
+    "catalog_entries": 137,
+    "catalog_with_host_route": 135,
+    "catalog_deduplicated_platform_candidates": 128,
+    "existing_tasks_results": {
+      "discovery_only": 4,
+      "verified": 23,
+      "failed": 21,
+      "partial": 17
+    },
+    "supplemental_tasks_results": {
+      "failed": 4,
+      "partial": 8,
+      "verified": 1
+    },
+    "catalog_host_lanes_not_individually_web_probed": 58,
+    "public_structured_latest_pass_excluding_cli": 35,
+    "public_cli_latest_pass": [
+      "youtube"
+    ],
+    "public_mcp_round_trip_verified": [],
+    "credentialed_round_trip_verified": [],
+    "historical_passes_only": {
+      "arxiv": "Passed 2026-10-04; latest Phase 2 test 429"
+    },
+    "validated_web_samples": [
+      "apple_app_store",
+      "brunch",
+      "campfire",
+      "capterra",
+      "clien",
+      "csdn",
+      "dcinside",
+      "douyin",
+      "economictimes",
+      "edinet",
+      "exame",
+      "g2",
+      "google_play",
+      "green_funding",
+      "inc42",
+      "indie_hackers",
+      "kr36",
+      "pr_times",
+      "readyfor",
+      "trustpilot",
+      "v2ex",
+      "walmart",
+      "wantedly",
+      "yourstory"
+    ],
+    "validated_web_auto_selectable_at_budget_10": [
+      "app_store",
+      "douyin",
+      "g2",
+      "google_play",
+      "green_funding",
+      "kr36",
+      "pr_times"
+    ],
+    "original_tasks_auto_selectable_at_budget_10": 15,
+    "web_live_engine_ledger_and_report": [
+      "g2",
+      "pr_times"
+    ],
+    "latest_deduplicated_platforms_engine_direct_or_live_web": 38,
+    "latest_deduplicated_platforms_with_auto_route_and_frozen_report_or_direct": 42,
+    "latest_deduplicated_platforms_with_named_host_replay_or_direct": 59,
+    "notes": [
+      "Direct counts come from the preceding Phase 2 live snapshot, which Phase 3 did not rerun.",
+      "Host public page, automatic routing, frozen acceptance and real full research are separate.",
+      "Named replay includes pages injected as real, frozen Host results into a shipped host lane; it is not a new live Vantage call.",
+      "Google discovery, aggregators, arXiv historical, and Steam bounded failure are excluded from current deduplicated totals."
+    ]
+  }
 }

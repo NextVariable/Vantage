@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "generated_at": "2026-11-24",
-  "environment": "TRAE build environment: no Host Web Search capability available",
+  "environment": "Codex Host Web Search and original-page opens on 2026-11-24; public, no platform credentials",
   "status_meaning": {
-    "pending_host": "not verified; catalog registration only",
-    "verified": "host search returned a relevant original page with a real date",
-    "failed": "probe ran and could not obtain a relevant page or date"
+    "verified": "relevant original item, visible date and attributable literal text",
+    "partial": "some useful material, but no complete original date/body association or wrong surface",
+    "failed": "no suitable original source, blocked, unavailable, or no dated item",
+    "discovery_only": "search index, mirror, or aggregator; not an independent publisher"
   },
-  "how_to_run": "Run one bounded query per platform with the domain restriction; capture the final URL, the page's own publication date, and a short supporting snippet; flip status to verified/failed with verified_at. Do not mark verified from a search-result snippet alone when the page date is unavailable.",
+  "how_to_run": "Repeat probe_query and the bounded alternate query if recorded, open the original public URL and check date, authorship and excerpt. Stage results are independent of the web probe. Automatic slots are enumerated at budget 10 across supported profiles, so smaller actual budgets can exclude the target.",
   "task_count": 65,
   "tasks": [
     {
@@ -49,8 +50,43 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Discovery route only; cite the original page, not the search result."
+      "status": "discovery_only",
+      "notes": "Discovery route only; cite the original page, not the search result.",
+      "probe_query": "what changed Cursor Voice Chat with Agents November 2026 original Cursor changelog",
+      "source_candidates": [
+        "https://cursor.com/changelog",
+        "https://prod.cursor.com/changelog/voice-chat",
+        "https://prod.cursor.com/en-US/changelog"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Found and opened the dated Cursor changelog using Codex search. Search provider identity is not exposed; Google itself is excluded as an evidence publisher.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 1,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 1,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "pr_times",
@@ -86,8 +122,65 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:prtimes.jp 2026 11月 AI 議事録 新機能 導入",
+      "source_candidates": [
+        "https://prtimes.jp/main/html/rd/p/000000075.000087427.html",
+        "https://prtimes.jp/main/html/rd/p/000000093.000015594.html",
+        "https://prtimes.jp/main/html/rd/p/000006977.000003442.html"
+      ],
+      "access_observations": [
+        "original_unavailable",
+        "original_opened",
+        "original_opened",
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:prtimes.jp パナソニック PC Edge AI Note Taker 提供開始 2026",
+      "sample": {
+        "published_at": "2026-11-04",
+        "date_basis": "visible original item date",
+        "source_type": "release",
+        "publisher_or_channel": "株式会社コマースロボティクス",
+        "title": "AIミニッツのプランを刷新",
+        "final_url": "https://prtimes.jp/main/html/rd/p/000000075.000087427.html",
+        "excerpt": "会議の録音から決まった書式の議事録を作る「議事録プラン」を中心に、「文字起こしプラン」「議事録プラン」「自社環境プラン」の3つに整理しました。",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Publisher announcement; publication November 4, actual plan change October 16."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 1,
+          "mode": "general",
+          "market": "jp",
+          "language": "ja"
+        },
+        "expanded_automatic": {
+          "slot": 1,
+          "mode": "general",
+          "market": "jp",
+          "language": "ja"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "automatic target, Expanded journal; three original issuer releases retained and cited",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "launch",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "xiaohongshu",
@@ -127,8 +220,42 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Index coverage is partial; treat note pages as consumer voice, not market sizing."
+      "status": "failed",
+      "notes": "Index coverage is partial; treat note pages as consumer voice, not market sizing.",
+      "probe_query": "site:xiaohongshu.com/explore 飞书 妙记 使用体验 录音 笔记",
+      "source_candidates": [
+        "https://pages.xiaohongshu.com/activity/deeplink",
+        "https://agree.xiaohongshu.com/h5/terms/ZXXY20230227002/-1"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Returned app deep-link / platform policy pages; no dated creator note for the test query.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 1,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 1,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "green_funding",
@@ -165,8 +292,60 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:greenfunding.jp AI ボイスレコーダー 文字起こし プロジェクト",
+      "source_candidates": [
+        "https://greenfunding.jp/lab/projects/9385",
+        "https://greenfunding.jp/gloture/projects/8821/supports/select"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-05-27",
+        "date_basis": "visible original item date",
+        "source_type": "release",
+        "publisher_or_channel": "TicNote campaign team",
+        "title": "TicNote project launch",
+        "final_url": "https://greenfunding.jp/lab/projects/9385",
+        "excerpt": "専用クラウド「TicNote Cloud」が、要約やマインドマップを自動で生成。",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Campaign timeline explicitly dates project publication; vendor claim only."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 3,
+          "mode": "trend",
+          "market": "jp",
+          "language": "ja"
+        },
+        "expanded_automatic": {
+          "slot": 3,
+          "mode": "trend",
+          "market": "jp",
+          "language": "ja"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "trend",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "zhihu",
@@ -202,8 +381,46 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Public Q&A pages are indexable; login-gated answers must not be claimed."
+      "status": "partial",
+      "notes": "Public Q&A pages are indexable; login-gated answers must not be claimed.",
+      "probe_query": "site:zhihu.com AI 会议纪要 飞书 妙记 使用体验",
+      "source_candidates": [
+        "https://zhuanlan.zhihu.com/p/2071207016408917230",
+        "https://zhuanlan.zhihu.com/p/2026120487881782869",
+        "https://www.zhihu.com/tardis/bd/art/2026120487881782869"
+      ],
+      "access_observations": [
+        "original_opened",
+        "http_403",
+        "http_403"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item_without_verified_date",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:zhuanlan.zhihu.com/p 录音 飞书 妙记 2026 知乎 体验",
+      "reason": "Tardis article body was readable but lacked a verifiable original date; direct column URLs returned 403.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 3,
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 3,
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "apple_app_store",
@@ -243,8 +460,61 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Public store pages and ratings; the owner API is a separate catalog entry."
+      "status": "verified",
+      "notes": "Public store pages and ratings; the owner API is a separate catalog entry.",
+      "probe_query": "site:apps.apple.com/us/app otter transcribe voice notes version history ratings",
+      "source_candidates": [
+        "https://apps.apple.com/us/app/otter-transcribe-voice-notes/id1276437113?see-all=reviews",
+        "https://apps.apple.com/us/app/otter-transcribe-voice-notes/id1276437113",
+        "https://apps.apple.com/us/app/otter-transcribe-voice-notes/id1276437113?platform=watch"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible"
+      },
+      "sample": {
+        "published_at": "2024-04-15",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "App Store reviewer",
+        "title": "Otter user review: Life Changer",
+        "final_url": "https://apps.apple.com/us/app/otter-transcribe-voice-notes/id1276437113?see-all=reviews",
+        "excerpt": "My university supplied it for me as an accommodation to have a live transcription/record of classes/lectures",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible",
+        "access_limit": "US storefront; featured sample outside the later live Otter window."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 8,
+          "mode": "launch",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 8,
+          "mode": "launch",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "searched in the live Hybrid case; usable dated original reviews fell outside 180-day window",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "voc",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "google_news",
@@ -284,8 +554,43 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Discovery route; retain the publisher URL and date."
+      "status": "discovery_only",
+      "notes": "Discovery route; retain the publisher URL and date.",
+      "probe_query": "Google News 2026 November GitHub Copilot Azure DevOps public preview original source",
+      "source_candidates": [
+        "https://news.google.com/",
+        "https://www.techradar.com/pro/security/microsofts-official-agent-framework-python-package-on-pypi-hijacked-to-push-login-stealing-malware",
+        "https://devblogs.microsoft.com/devops/azure-devops-integration-with-the-github-copilot-app-public-preview/"
+      ],
+      "access_observations": [
+        "consent_redirect"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Google News original surface went through a consent redirect. General search found a dated GitHub publisher page; Google News access was not verified.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 9,
+          "mode": "general",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 9,
+          "mode": "general",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "campfire",
@@ -322,8 +627,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:camp-fire.jp/projects ボイスレコーダー AI 議事録",
+      "source_candidates": [
+        "https://camp-fire.jp/projects/962161/view/activities/876443",
+        "https://camp-fire.jp/projects/search?word=%E3%83%9C%E3%82%A4%E3%82%B9%E3%83%AC%E3%82%B3%E3%83%BC%E3%83%80%E3%83%BC"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-08-05",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "YOUPLUS",
+        "title": "AIボイスレコーダー 活動報告",
+        "final_url": "https://camp-fire.jp/projects/962161/view/activities/876443",
+        "excerpt": "これ１つでこんなに楽になった！",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Dated creator update; campaign figures do not establish independent benefit."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "trend",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "kr36",
@@ -360,8 +707,60 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:36kr.com 2026 11 月 AI 硬件 录音 笔记",
+      "source_candidates": [
+        "https://www.36kr.com/p/4068082247701634",
+        "https://www.36kr.com/p/4068082247701634?f=rss"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-11-13",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "霞光社 via 36氪",
+        "title": "AI录音设备，正在争夺“最懂你”的位置",
+        "final_url": "https://www.36kr.com/p/4068082247701634",
+        "excerpt": "AI录音设备，多到桌面摆不下了。",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Bylined syndicated analysis; do not treat a repost as a separate corroboration of 霞光社."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 4,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 4,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "douyin",
@@ -399,8 +798,60 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:douyin.com/video 录音笔 讯飞 AI 测评",
+      "source_candidates": [
+        "https://www.douyin.com/shipin/7291558642804639783",
+        "https://www.douyin.com/shipin/7294459838330538024"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "caption_or_excerpt",
+        "comments": "not_observed",
+        "engagement": "account_totals_only"
+      },
+      "sample": {
+        "published_at": "2026-09-30",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "科大讯飞AI翻译耳机",
+        "title": "科大讯飞录音笔如何恢复出厂设置",
+        "final_url": "https://www.douyin.com/shipin/7291558642804639783",
+        "excerpt": "如何恢复出厂设置？请看视频了解具体操作",
+        "body": "caption_or_excerpt",
+        "comments": "not_observed",
+        "engagement": "account_totals_only",
+        "access_limit": "Dated item on public video topic page; only caption, no full video or comments."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 3,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 3,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "g2",
@@ -433,8 +884,60 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:g2.com/products/otter-ai/reviews 2026 meeting transcription what do you dislike",
+      "source_candidates": [
+        "https://www.g2.com/products/otter-ai/reviews",
+        "https://learn.g2.com/best-ai-meeting-assistants"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible"
+      },
+      "sample": {
+        "published_at": "2026-11-03",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "G2 reviewer",
+        "title": "Making Meetings More Productive with Otter.ai",
+        "final_url": "https://www.g2.com/products/otter-ai/reviews",
+        "excerpt": "Although Otter.ai is very useful, the transcription is not always completely accurate.",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible",
+        "access_limit": "Original G2 review card, stable aggregate URL only; sample may be solicited."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 2,
+          "mode": "competitor",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 2,
+          "mode": "competitor",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "explicit natural-language target using Hybrid at the baseline; one cited ledger entry",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "voc",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "bilibili",
@@ -473,8 +976,43 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:bilibili.com/video PLAUD Note 录音笔 实测 笔记",
+      "source_candidates": [
+        "https://www.bilibili.com/video/BV1DJ3C6BEYk/",
+        "https://www.bilibili.com/video/BV121gw61EWX"
+      ],
+      "access_observations": [
+        "http_412",
+        "http_412"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Both related video pages returned 412; indexed title alone does not verify source body, date, or live access.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 5,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 5,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "wechat_articles",
@@ -511,8 +1049,40 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Only publicly indexed official-account articles; there is no broad public search API."
+      "status": "failed",
+      "notes": "Only publicly indexed official-account articles; there is no broad public search API.",
+      "probe_query": "site:mp.weixin.qq.com 飞书 妙记 AI 会议纪要 发布",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "no_results",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:mp.weixin.qq.com/s 讯飞 录音笔 会议纪要 新品",
+      "reason": "No original public article surfaced in either targeted search.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 7,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "expanded_automatic": {
+          "slot": 7,
+          "mode": "channel",
+          "market": "cn",
+          "language": "zh"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "naver_blog",
@@ -550,8 +1120,39 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:blog.naver.com 클로바노트 회의록 사용 후기 2026",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "robots_block",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Search tool reported robots restriction for the Korean blog domain.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 2,
+          "mode": "channel",
+          "market": "kr",
+          "language": "ko"
+        },
+        "expanded_automatic": {
+          "slot": 2,
+          "mode": "channel",
+          "market": "kr",
+          "language": "ko"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "kickstarter",
@@ -591,8 +1192,36 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "No supported broad public API is assumed; use public project pages and search."
+      "status": "partial",
+      "notes": "No supported broad public API is assumed; use public project pages and search.",
+      "probe_query": "site:kickstarter.com/projects eink note tablet project update 2026",
+      "source_candidates": [
+        "https://updates.kickstarter.com/7-things-you-missed-at-ces/",
+        "https://www.kickstarter.com/projects/orbitkey/orbitkey-grid-desk-organizer/comments?category_id=28&total_hits=676914",
+        "https://www.kickstarter.com/projects/kairoglo/s3-ai-notes-answers-and-reading-in-your-pocket/faqs"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "count_only",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:kickstarter.com/projects \"Posted\" \"2026\" e ink tablet updates Kickstarter",
+      "reason": "Campaign FAQ, comment count and last-update shells loaded; no dated campaign update text retained. Dated Kickstarter newsroom post is a narrower surface.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "weibo",
@@ -630,8 +1259,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:weibo.com 讯飞 录音笔 2026 发布",
+      "source_candidates": [
+        "https://weibo.com/2/detail/5338668686377419",
+        "https://weibo.com/2/detail/5355800631447246"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Publisher/topic shell was returned without visible publication date or original microblog body.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "douban",
@@ -664,8 +1317,33 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:douban.com 电子书 阅读器 豆瓣 书评 2026",
+      "source_candidates": [
+        "https://m.douban.com/topic/499209749/",
+        "https://read.douban.com/helpcenter/reading/",
+        "https://m.douban.com/topic/499209749/?_spm_id=NTYzODA5MjI"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Search: queried. Original fetch: original_unavailable; no relevant dated original item was retained.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "taobao",
@@ -700,8 +1378,29 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Public pages are partially gated; record only accessible review and listing text."
+      "status": "failed",
+      "notes": "Public pages are partially gated; record only accessible review and listing text.",
+      "probe_query": "site:taobao.com 讯飞 智能录音笔 价格 商品",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "no_results",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "No usable public listing or dated review surfaced for the query.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "readyfor",
@@ -737,8 +1436,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:readyfor.jp/projects 日本 保護猫 2026 クラウドファンディング",
+      "source_candidates": [
+        "https://readyfor.jp/projects/2026smilecat",
+        "https://cf.readyfor.jp/animal_rights"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-10-01",
+        "date_basis": "visible original item date",
+        "source_type": "release",
+        "publisher_or_channel": "NPO法人Smile Cat",
+        "title": "保護猫の理解が進む未来へ！",
+        "final_url": "https://readyfor.jp/projects/2026smilecat",
+        "excerpt": "今回は保護猫シェルターの運営費(家賃、水道光熱費、医療費、猫たちの生活費など)として募らせていただきました",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Dated campaign launch; later updates have separate dates."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "trend",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "kakaku",
@@ -772,8 +1513,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Price and review pages are indexable; obtain the original product page rather than a search snippet."
+      "status": "partial",
+      "notes": "Price and review pages are indexable; obtain the original product page rather than a search snippet.",
+      "probe_query": "site:kakaku.com タブレット レビュー iPad 2026 口コミ",
+      "source_candidates": [
+        "https://review.kakaku.com/review/J0000047424/",
+        "https://kakaku.com/pc/pda/ranking_0030/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "listing_and_reviews_not_date_bound",
+        "comments": "not_observed",
+        "engagement": "aggregate_rating_visible"
+      },
+      "reason": "Dated vendor hardware launch and review listing opened; publish date and original text of a matching individual review were not confirmed in the captured page extract.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "jd",
@@ -807,8 +1572,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:item.jd.com 科大讯飞 智能录音笔",
+      "source_candidates": [
+        "https://item.jd.com/product/fY8hdZmPyJlcTMexCWGMgg.html",
+        "https://item.jd.com/product/QU9MM_S52dZT-x1n7fgKsQ.html"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Original JD product page opened, but no verifiable publish date or dated customer review in captured sample.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "naver_news",
@@ -841,8 +1630,39 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Aggregated headlines; cite the original outlet."
+      "status": "failed",
+      "notes": "Aggregated headlines; cite the original outlet.",
+      "probe_query": "site:news.naver.com 2026 11월 삼성 갤럭시 업데이트",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "robots_block",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Search tool reported robots restriction for the Korean news domain.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 7,
+          "mode": "general",
+          "market": "kr",
+          "language": "ko"
+        },
+        "expanded_automatic": {
+          "slot": 7,
+          "mode": "general",
+          "market": "kr",
+          "language": "ko"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "techmeme",
@@ -877,8 +1697,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "discovery_only",
+      "notes": "",
+      "probe_query": "site:techmeme.com 2026 November GitHub Copilot Cursor",
+      "source_candidates": [
+        "https://www.techmeme.com/261028/h1540",
+        "https://www.techmeme.com/261028/h1345"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Dated snapshot verified as discovery; headlines by other publishers are not independent Techmeme evidence.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "chrome_web_store",
@@ -918,8 +1762,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:chromewebstore.google.com detail web clipper notion updated reviews",
+      "source_candidates": [
+        "https://chromewebstore.google.com/detail/notion-web-clipper/knheggckgoiihginacbkhaalnibhilkk?hl=en",
+        "https://chromewebstore.google.com/publisher/notion-labs-inc/u2fd0ab1b7a73832e5e23f8a81f789e83"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "listing_copy",
+        "comments": "not_observed",
+        "engagement": "aggregate_rating_visible"
+      },
+      "reason": "Public extension description and aggregate ratings visible; October 12 is the listing update, not the publication date of an individual review or changelog.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "nikkei",
@@ -952,8 +1820,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Paywalled beyond the lede; record only the accessible portion and mark the limitation."
+      "status": "partial",
+      "notes": "Paywalled beyond the lede; record only the accessible portion and mark the limitation.",
+      "probe_query": "site:nikkei.com 2026年11月 半導体 日本 工場",
+      "source_candidates": [
+        "https://bookplus.nikkei.com/atcl/catalog/26/11/12/02916/",
+        "https://bookplus.nikkei.com/atcl/column/101400795/102000003/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Dated book listing surfaced; did not verify a dated original article about the requested semiconductor plant.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "coupang",
@@ -987,8 +1879,42 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:coupang.com/vp/products 무선 이어폰 리뷰",
+      "source_candidates": [
+        "https://www.coupang.com/vp/products/9445851612",
+        "https://www.coupang.com/vp/products/8775877068"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Opened product shell; matching dated reviews and full product text were not returned.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 9,
+          "mode": "voc",
+          "market": "kr",
+          "language": "ko"
+        },
+        "expanded_automatic": {
+          "slot": 9,
+          "mode": "voc",
+          "market": "kr",
+          "language": "ko"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "google_patents",
@@ -1022,8 +1948,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "discovery_only",
+      "notes": "",
+      "probe_query": "site:patents.google.com/patent speech diarization Google publication date 2025",
+      "source_candidates": [
+        "https://patents.google.com/patent/US20260171086A1/en",
+        "https://patents.google.com/patent/US20250252960A1/en"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Published date and document abstract visible, but Google mirrors patent-office records; treat as discovery, not a separate patent authority.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "capterra",
@@ -1058,8 +2008,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:capterra.com/p Otter AI reviews 2026 transcription",
+      "source_candidates": [
+        "https://www.capterra.com/p/202799/Otter/reviews/",
+        "https://www.capterra.com/transcription-software/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible"
+      },
+      "sample": {
+        "published_at": "2024-12-10",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "Capterra reviewer",
+        "title": "Otter.ai public customer review",
+        "final_url": "https://www.capterra.com/p/202799/Otter/reviews/",
+        "excerpt": "I can't figure out how to uninvite Otter to some of my events",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible",
+        "access_limit": "Date belongs to review, not page's October 2026 update."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "competitor",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "v2ex",
@@ -1095,8 +2087,54 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:v2ex.com/t Cursor 使用体验 2026 编辑器",
+      "source_candidates": [
+        "https://v2ex.com/go/cursor",
+        "https://www.v2ex.com/go/cursor?_t=410",
+        "https://www.v2ex.com/go/cursor"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "views_visible"
+      },
+      "alternate_probe_query": "site:v2ex.com/t Cursor 使用 2026 编辑器 账号",
+      "reason": "Cursor board opened, but the first retained thread candidate had ambiguous relative dates. Do not use the comment-list update as OP publication.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        }
+      },
+      "verified_at": "2026-11-24",
+      "sample": {
+        "published_at": "2026-07-13",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "V2EX community author",
+        "title": "搭建稳定先进的 AI 环境",
+        "final_url": "https://origin.v2ex.com/t/1226904",
+        "excerpt": "日常写代码 / 修 bug：Cursor 的写代码体验目前是我用下来觉得最丝滑的。",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "views_visible",
+        "access_limit": "Original header says Jul 13 and the author's dated article heading supplies 2026-07-13. Personal workflow only."
+      }
     },
     {
       "platform": "trustpilot",
@@ -1131,8 +2169,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:trustpilot.com/review notion.so 2026 review support",
+      "source_candidates": [
+        "https://www.trustpilot.com/review/notion.so",
+        "https://uk.trustpilot.com/review/notion.so"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible"
+      },
+      "sample": {
+        "published_at": "2026-11-16",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "Trustpilot reviewer",
+        "title": "Useful for organizing my course materials",
+        "final_url": "https://www.trustpilot.com/review/notion.so",
+        "excerpt": "I've been using Notion to organize things for my small online learning project",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible",
+        "access_limit": "One self-reported use case; not market-representative."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "competitor",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "indiegogo",
@@ -1169,8 +2249,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:indiegogo.com/projects e ink note reader campaign recent update",
+      "source_candidates": [
+        "https://www.indiegogo.com/en/projects/drmtian/e-ink-monitor-and-ebook-reader-2in1-device/updates",
+        "https://www.indiegogo.com/en/projects/tmobi/magink-ai-customizable-smart-e-ink-power-bank/comments"
+      ],
+      "access_observations": [
+        "empty_page"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Relevant project updates surfaced in search; original result returned no extracted body.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "kibidango",
@@ -1206,8 +2310,33 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:kibidango.com プロジェクト イヤホン 活動報告",
+      "source_candidates": [
+        "https://kibidango.com/projects/2547/reports/18240",
+        "https://kibidango.com/projects/2912/reports",
+        "https://kibidango.com/projects/1262"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Matched project update URL; original fetch unavailable in this host.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "yahoo_japan",
@@ -1242,8 +2371,29 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Discovery route; cite the original publisher when possible."
+      "status": "failed",
+      "notes": "Discovery route; cite the original publisher when possible.",
+      "probe_query": "site:news.yahoo.co.jp 2026年 東京 新製品 発表 AI 議事録",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "robots_block",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Search tool reported robots restriction for the news domain.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "juejin",
@@ -1278,8 +2428,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:juejin.cn/post Rust 2026 Cargo 项目 实践",
+      "source_candidates": [
+        "https://juejin.cn/post/7660367253884928034",
+        "https://juejin.cn/post/7649713327980101659"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Topic match was indexed; original article fetch failed.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "flipkart",
@@ -1314,8 +2488,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:flipkart.com Sony headphones product reviews India certified buyer",
+      "source_candidates": [
+        "https://www.flipkart.com/audio-video/headset/headphones/sony~brand/pr?sid=0pm%2Cfcn%2Cgc3",
+        "https://www.flipkart.com/audio-video/headset/headphones/wireless-headphones/sony~brand/pr?sid=0pm%2Cfcn%2Cgc3%2Cka8"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Category page returned; no matching item-level dated buyer review verified.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "jobs_pages",
@@ -1355,8 +2553,33 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Hiring is a strategy clue, not proof that a product or market move succeeded."
+      "status": "partial",
+      "notes": "Hiring is a strategy clue, not proof that a product or market move succeeded.",
+      "probe_query": "site:jobs.ashbyhq.com linear software engineer product job",
+      "source_candidates": [
+        "https://jobs.ashbyhq.com/linear/0c7c2e26-0a98-42cf-a47c-9a3999fb513b",
+        "https://jobs.ashbyhq.com/linear/0c7c2e26-0a98-42cf-a47c-9a3999fb513b?employmentType=FullTime",
+        "https://jobs.ashbyhq.com/Linear/0c7c2e26-0a98-42cf-a47c-9a3999fb513b"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Original Linear job URL returned a one-line client-rendered shell. Aggregation target overlaps Ashby/Lever/Greenhouse and is excluded from platform totals.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "brunch",
@@ -1391,8 +2614,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:brunch.co.kr 전자책 구독 밀리의서재 후기",
+      "source_candidates": [
+        "https://brunch.co.kr/%40faith97khk/367",
+        "https://brunch.co.kr/%40jd1435/40"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-07-31",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "Brunch author",
+        "title": "밀리의 서재를 다시 구독했습니다",
+        "final_url": "https://brunch.co.kr/@faith97khk/367",
+        "excerpt": "밀리의 서재 구독도 했습니다.",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Original Korean subscription experience."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "kr",
+          "language": "ko"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "inc42",
@@ -1428,8 +2693,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:inc42.com 2026 November India SaaS funding startup",
+      "source_candidates": [
+        "https://inc42.com/buzz/from-dreamteam-to-boba-bhai-indian-startups-raised-over-291-mn-this-week/",
+        "https://inc42.com/buzz/from-giva-to-eloelo-group-indian-startups-raised-255-mn-this-week/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-11-21",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "Shrishti Bisht / Inc42",
+        "title": "From Dreamteam To Boba Bhai — Indian Startups Raised Over $291 Mn This Week",
+        "final_url": "https://inc42.com/buzz/from-dreamteam-to-boba-bhai-indian-startups-raised-over-291-mn-this-week/",
+        "excerpt": "Accel was the most active investor this week",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Publisher's original roundup; each issuer's announcement independently supports its own round."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "expanded",
+          "mode": "general",
+          "market": "in",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "reclame_aqui",
@@ -1462,8 +2769,33 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:reclameaqui.com.br nubank 2026 reclamação atendimento",
+      "source_candidates": [
+        "https://www.reclameaqui.com.br/nubank/nubank-retem-indevidamente-r-9600-de-pix-apos-comprovada-devolucao-pelo-banco-sicredi-e-oferece-atendimento-ineficiente_ihCvKAaMCrCwSuJd/",
+        "https://www.reclameaqui.com.br/empresa/nubank/",
+        "https://www.reclameaqui.com.br/empresa/nubank/lista-reclamacoes/"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Found individual complaint URLs; original complaint fetch failed.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "indie_hackers",
@@ -1501,8 +2833,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:indiehackers.com/post launched SaaS onboarding founder 2026",
+      "source_candidates": [
+        "https://www.indiehackers.com/post/im-50-and-i-launched-my-first-solo-saas-a-few-months-ago-the-story-so-far-jZsDAMRNP4p1CQOZJnKh",
+        "https://www.indiehackers.com/post/im-a-solo-founder-it-took-me-9-months-and-at-least-3-stack-rewrites-to-ship-my-saas-a66b5fbe33?commentId=-Ot3UYGJpXadzWOCDPJg"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-07-05",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "Indie Hackers founder",
+        "title": "I'm 50 and I launched my first solo SaaS a few months ago",
+        "final_url": "https://www.indiehackers.com/post/im-50-and-i-launched-my-first-solo-saas-a-few-months-ago-the-story-so-far-jZsDAMRNP4p1CQOZJnKh",
+        "excerpt": "I got my first 3 users on launch day.",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Self-reported founder experience; no independent revenue or growth claim."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "papers_with_code",
@@ -1535,8 +2909,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:paperswithcode.com paper object detection benchmark",
+      "source_candidates": [
+        "https://production-media.paperswithcode.com/social-images/KxmnSifVbVVqOdYG.pdf",
+        "https://production-media.paperswithcode.com/social-images/fWvVzDNCKfGcVLZr.pdf"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Only media asset PDFs surfaced, not a relevant dated benchmark page.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "wantedly",
@@ -1569,8 +2967,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:wantedly.com/projects 日本 SaaS カスタマーサクセス 2026",
+      "source_candidates": [
+        "https://www.wantedly.com/projects/2568684",
+        "https://www.wantedly.com/projects/2387226"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-09-17",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "株式会社Lightblue",
+        "title": "カスタマーサクセスの採用",
+        "final_url": "https://www.wantedly.com/projects/2568684",
+        "excerpt": "顧客の声からプロダクトを進化させる｜カスタマーサクセス職を募集中！",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Issuer's original dated job post; intent signal only."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "competitor",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "economictimes",
@@ -1603,8 +3043,51 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:economictimes.indiatimes.com 2026 November India quick commerce results",
+      "source_candidates": [
+        "https://economictimes.indiatimes.com/industry/services/retail/quick-commerce-apps-take-the-festive-route-from-last-minute-buys-to-fashion-and-beauty-diwali-2026-sale-amazon-now-flipkart-myntra-consumer-trends/articleshow/135592122.cms",
+        "https://economictimes.indiatimes.com/topic/quick-commerce-sector-in-india/news",
+        "https://economictimes.indiatimes.com/topic/ecommerce-festive-sales/news"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-11-06",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "ET Online",
+        "title": "Quick commerce emerges beyond Diwali shopping panic",
+        "final_url": "https://economictimes.indiatimes.com/industry/services/retail/quick-commerce-apps-take-the-festive-route-from-last-minute-buys-to-fashion-and-beauty-diwali-2026-sale-amazon-now-flipkart-myntra-consumer-trends/articleshow/135592122.cms",
+        "excerpt": "Fashion, beauty, personal care and gifting are increasingly becoming part of the instant-delivery basket",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Original published November 6; page updated November 7."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "expanded",
+          "mode": "general",
+          "market": "in",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "huawei_appgallery",
@@ -1640,8 +3123,29 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:appgallery.huawei.com app Microsoft Office WPS Office 版本",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "no_results",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "No verified topical app/detail page or original date.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "edinet",
@@ -1673,8 +3177,51 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Japanese statutory filings; public pages are the reliable route."
+      "status": "verified",
+      "notes": "Japanese statutory filings; public pages are the reliable route.",
+      "probe_query": "site:edinet-fsa.go.jp 有価証券報告書 ソニー 2026 提出日",
+      "source_candidates": [
+        "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100ZB1N.pdf",
+        "https://disclosure2dl.edinet-fsa.go.jp/guide/static/disclosure/WZEK0090_001.html",
+        "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100W65N.pdf"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_applicable",
+        "engagement": "not_applicable"
+      },
+      "sample": {
+        "published_at": "2026-10-30",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "Sony Group via EDINET",
+        "title": "ソニーグループ株式会社 臨時報告書 S100ZB1N",
+        "final_url": "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/pdf/S100ZB1N.pdf",
+        "excerpt": "業績連動型株式ユニット（以下、「PSU」といいます。）を付与することを",
+        "body": "full_public_item",
+        "comments": "not_applicable",
+        "engagement": "not_applicable",
+        "access_limit": "Original regulator-hosted issuer filing, filing date on PDF cover; public PDF required no account."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "competitor",
+          "market": "jp",
+          "language": "ja"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "amazon",
@@ -1713,8 +3260,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:amazon.com Kindle Paperwhite customer reviews 2026 review",
+      "source_candidates": [
+        "https://www.amazon.com/dp/B0CZ9VFQ2P",
+        "https://digprjsurvey.amazon.com/csad/help/node/GK33S847NN4V6Y83"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "listing_copy",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Product detail page visible; no dated Kindle buyer review independently bound to a text excerpt in the captured sample.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "clien",
@@ -1748,8 +3319,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:clien.net iPad 전자책 독서 사용기 2026",
+      "source_candidates": [
+        "https://www.clien.net/service/board/use/19147192",
+        "https://www.clien.net/service/board/park/19292876"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "dates_and_text_visible",
+        "engagement": "counts_visible"
+      },
+      "sample": {
+        "published_at": "2026-02-20",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "Clien community author",
+        "title": "킨들 17년차 이용자의 이북리더 정착기",
+        "final_url": "https://www.clien.net/service/board/use/19147192",
+        "excerpt": "실물 도서 읽기 / 도서관에서 대출해서 읽기 / 전자기기를 통한 독서",
+        "body": "full_public_item",
+        "comments": "dates_and_text_visible",
+        "engagement": "counts_visible",
+        "access_limit": "Original user post, separately dated comments, views and reactions; not a current 30-day item."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "kr",
+          "language": "ko"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "yourstory",
@@ -1785,8 +3398,51 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:yourstory.com 2026 November India EV startup funding",
+      "source_candidates": [
+        "https://yourstory.com/2026/11/weekly-funding-roundup-oct-31-nov-6-sharp-rise-in-capital-inflow",
+        "https://yourstory.com/2026/09/shreshth-mishra-simple-energy-rs-1750-cr-pivot-scale-across-india",
+        "https://yourstory.com/2026/09/ev-two-wheeler-maker-simple-energy-bags-rs-1750-cr-funding"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-11-06",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "YourStory",
+        "title": "Weekly funding roundup Oct 31–Nov 6",
+        "final_url": "https://yourstory.com/2026/11/weekly-funding-roundup-oct-31-nov-6-sharp-rise-in-capital-inflow",
+        "excerpt": "The total funding for the first week of November was $263 million across 23 deals",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Financial-news reporting; use issuers' filings or releases for transaction corroboration."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "expanded",
+          "mode": "general",
+          "market": "in",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "tripadvisor",
@@ -1819,8 +3475,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:tripadvisor.com hotel review Singapore 2026 guest complaint review",
+      "source_candidates": [
+        "https://www.tripadvisor.com/Hotel_Review-g294265-d299774-Reviews-Singapore_Marriott_Tang_Plaza_Hotel-Singapore.html",
+        "https://www.tripadvisor.com/Hotel_Review-g294265-d306156-Reviews-Hotel_Grand_Pacific-Singapore.html"
+      ],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Relevant review listings surfaced; original fetch failed.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "shopee",
@@ -1862,8 +3542,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:shopee.sg wireless earbuds buyer reviews Singapore 2026",
+      "source_candidates": [
+        "https://shopee.sg/list/earbud/true%20wireless",
+        "https://shopee.sg/list/Wireless%20Earbuds/earbuds"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public list URL surfaced; original fetch failed and no dated review was found.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "y_combinator",
@@ -1897,8 +3601,35 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:ycombinator.com/launches workflow startup Launch YC 2026",
+      "source_candidates": [
+        "https://www.ycombinator.com/companies/keystroke",
+        "https://news.ycombinator.com/launches",
+        "https://www.ycombinator.com/companies/industry/workflow-automation"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:ycombinator.com/launches \"workflow\" product Launch YC",
+      "reason": "Search found Launch HN and a YC company directory; a batch year is not an original launch-post date.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "crowd_supply",
@@ -1934,8 +3665,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:crowdsupply.com open hardware update 2026 crowdfunding",
+      "source_candidates": [
+        "https://www.crowdsupply.com/available",
+        "https://www.crowdsupply.com/laptops-and-pcs"
+      ],
+      "access_observations": [
+        "http_403"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public listings surfaced; original fetch returned 403.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "csdn",
@@ -1969,8 +3724,51 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:blog.csdn.net 2026 FastAPI SSE 流式输出 实践",
+      "source_candidates": [
+        "https://blog.csdn.net/sinat_41617212/article/details/166903865",
+        "https://blog.csdn.net/2403_86779341",
+        "https://blog.csdn.net/m0_67081842"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "views_visible"
+      },
+      "sample": {
+        "published_at": "2026-10-27",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "CSDN author",
+        "title": "Agent 流式输出实战",
+        "final_url": "https://blog.csdn.net/sinat_41617212/article/details/166903865",
+        "excerpt": "本文系统讲解如何使用 SSE（Server-Sent Events）和 WebSocket 两种技术方案实现 Agent 的流式输出",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "views_visible",
+        "access_limit": "Original author tutorial; do not promote code sample performance to independent testing."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "cn",
+          "language": "zh"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "quora",
@@ -2005,8 +3803,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:quora.com how effective online appointment booking small business",
+      "source_candidates": [
+        "https://www.quora.com/Can-small-businesses-benefit-from-AI-chatbot-customer-service",
+        "https://www.quora.com/What-are-some-effective-strategies-for-improving-customer-service-and-increasing-customer-loyalty-in-a-small-business-or-startup"
+      ],
+      "access_observations": [
+        "http_403"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Original related question returned 403; no dated answer could be verified.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "exame",
@@ -2039,8 +3861,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:exame.com 2026 novembro Brasil fintech Nubank resultados",
+      "source_candidates": [
+        "https://exame.com/invest/mercados/nubank-bate-recorde-de-lucro-com-143-milhoes-de-clientes-mas-calote-tambem-sobe/",
+        "https://exame.com/invest/mercados/nubank-recebe-aval-do-bc-para-ter-licenca-bancaria-e-conclui-compra-do-banco-porto-real/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "sample": {
+        "published_at": "2026-11-12",
+        "date_basis": "visible original item date",
+        "source_type": "page",
+        "publisher_or_channel": "Mitchel Diniz / Exame",
+        "title": "Nubank bate recorde de lucro",
+        "final_url": "https://exame.com/invest/mercados/nubank-bate-recorde-de-lucro-com-143-milhoes-de-clientes-mas-calote-tambem-sobe/",
+        "excerpt": "O Nubank divulgou resultados históricos no terceiro trimestre de 2026",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "not_observed",
+        "access_limit": "Bylined market reporting; financial figures require issuer corroboration."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "expanded",
+          "mode": "general",
+          "market": "br",
+          "language": "pt"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "dcinside",
@@ -2072,8 +3936,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:gall.dcinside.com 전자책 리더기 사용 후기 2026",
+      "source_candidates": [
+        "https://gall.dcinside.com/mgallery/board/view/?id=ebook&no=6462",
+        "https://gall.dcinside.com/mgallery/board/view/?id=ebook&no=7177&page=1"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "count_only",
+        "engagement": "counts_visible"
+      },
+      "sample": {
+        "published_at": "2026-07-31",
+        "date_basis": "visible original item date",
+        "source_type": "post",
+        "publisher_or_channel": "DC Inside community author",
+        "title": "무스냅 후기 + 어플",
+        "final_url": "https://gall.dcinside.com/mgallery/board/view/?id=ebook&no=6462",
+        "excerpt": "생각 외로 빨라서 답답하거나 하진 않았음",
+        "body": "full_public_item",
+        "comments": "count_only",
+        "engagement": "counts_visible",
+        "access_limit": "Single Korean first-hand usage report; verify comment URLs and dates independently."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "general",
+          "market": "kr",
+          "language": "ko"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "walmart",
@@ -2107,8 +4013,50 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "verified",
+      "notes": "",
+      "probe_query": "site:walmart.com/reviews product Kindle electronics customer reviews 2026",
+      "source_candidates": [
+        "https://www.walmart.com/reviews/product/14969220996",
+        "https://www.walmart.com/ip/14224123713"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible"
+      },
+      "sample": {
+        "published_at": "2025-11-28",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "Walmart verified-purchase reviewer",
+        "title": "Fintie Kindle case customer review",
+        "final_url": "https://www.walmart.com/reviews/product/14969220996",
+        "excerpt": "Solid construction holds my Kindle.",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "rating_visible",
+        "access_limit": "Dated original verified-purchase review; older sample, no industry-wide claim."
+      },
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "competitor",
+          "market": "us",
+          "language": "en"
+        }
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "bestbuy",
@@ -2142,8 +4090,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:bestbuy.com customer reviews Sony WH1000XM headphone November 2026",
+      "source_candidates": [
+        "https://www.bestbuy.com/product/sony-wh-1000xm5-wireless-noise-cancelling-over-the-ear-headphones-black/J7XSRH5CXG/sku/12638967/reviews",
+        "https://www.bestbuy.com/product/sony-wh-1000xm5-wireless-noise-cancelling-over-the-ear-headphones-black/J7XSRH5CXG/sku/10938526/reviews"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Review interface rendered, but no matching original review publication date and text were bound to the same item.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "apple_podcasts",
@@ -2183,8 +4155,35 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:podcasts.apple.com/us/podcast November 2026 product growth episode",
+      "source_candidates": [
+        "https://podcasts.apple.com/us/podcast/lennys-podcast-product-career-growth/id1627920305",
+        "https://podcasts.apple.com/us/podcast/the-growth-podcast/id1763555775?uo=4",
+        "https://podcasts.apple.com/us/podcast/the-growth-podcast/id1763555775"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:podcasts.apple.com/us/podcast/id Lenny how to build AI evals product management 2026",
+      "reason": "Show/episode descriptions visible; captured show dates are partial or relative; no actual transcript or complete episode date retained.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "backerkit",
@@ -2220,8 +4219,35 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:backerkit.com/c/projects open source hardware launched update 2026",
+      "source_candidates": [
+        "https://www.backerkit.com/c/feeds/live/",
+        "https://www.backerkit.com/projects/1217066/redirect_to_platform",
+        "https://www.backerkit.com/projects/1220944/redirect_to_platform"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:backerkit.com/c \"update\" open hardware 2026 campaign",
+      "reason": "Found a tracker redirect and live feed, but no dated original update for a relevant campaign.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "tecmundo",
@@ -2255,8 +4281,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:tecmundo.com.br novembro 2026 lançamento celular Brasil",
+      "source_candidates": [
+        "https://www.tecmundo.com.br/produto/408241-redmagic-11-pro-1-celular-com-resfriamento-liquido-chegara-ao-brasil.htm",
+        "https://www.tecmundo.com.br/tags/celular-lancamento"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Relevant handset article surfaced; original fetch failed.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "spotify_podcasts",
@@ -2296,8 +4346,33 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "Public episode pages only; no broad public search API."
+      "status": "failed",
+      "notes": "Public episode pages only; no broad public search API.",
+      "probe_query": "site:open.spotify.com/episode 2026 November product management podcast",
+      "source_candidates": [
+        "https://open.spotify.com/episode/33oMOus6SMZvaN6CFKpXRo",
+        "https://open.spotify.com/embed/episode/33oMOus6SMZvaN6CFKpXRo",
+        "https://open.spotify.com/embed/episode/2ofvHPmdq0SB3JaeKmiWzs"
+      ],
+      "access_observations": [
+        "empty_page"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Episode link resolved, but extractor returned zero lines.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "betalist",
@@ -2330,8 +4405,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "partial",
+      "notes": "",
+      "probe_query": "site:betalist.com/startups 2026 customer feedback product launch",
+      "source_candidates": [
+        "https://betalist.com/help/",
+        "https://betalist.com/"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Help and directory pages returned; no dated relevant product launch.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "polymarket",
@@ -2363,8 +4462,32 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": "The public gamma API was unreachable during the 1.1 live probe, so no connector is exposed. Use only when prediction-market evidence is relevant; prices reflect a market, not ground truth."
+      "status": "partial",
+      "notes": "The public gamma API was unreachable during the 1.1 live probe, so no connector is exposed. Use only when prediction-market evidence is relevant; prices reflect a market, not ground truth.",
+      "probe_query": "site:polymarket.com/event 2026 November Fed rate decision market resolution rules",
+      "source_candidates": [
+        "https://polymarket.com/event/fed-rate-hike-in-2026",
+        "https://polymarket.com/event/another-fed-rate-hike-in-2026"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "rules_and_metrics_inconsistent_window",
+        "comments": "not_observed",
+        "engagement": "market_metrics_visible"
+      },
+      "reason": "Market page and metrics visible, but displayed resolution timeline included a future date relative to cutoff; excluded. Gamma endpoint failure from Phase 2 remains separate.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": false,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     },
     {
       "platform": "apkpure",
@@ -2396,8 +4519,637 @@
         "snippet",
         "author_or_channel"
       ],
-      "status": "pending_host",
-      "notes": ""
+      "status": "failed",
+      "notes": "",
+      "probe_query": "site:apkpure.com WhatsApp version history November 2026 release date",
+      "source_candidates": [],
+      "access_observations": [
+        "not_opened"
+      ],
+      "capabilities": {
+        "search": "no_results",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:apkpure.com WhatsApp version November 2026 Android",
+      "reason": "No relevant original version page with verifiable date.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "verified_at": "2026-11-24"
     }
-  ]
+  ],
+  "supplemental_tasks": [
+    {
+      "platform": "x",
+      "probe_query": "site:x.com cursor_ai November 2026 voice chat agents status",
+      "source_candidates": [
+        "https://x.com/i/trending/2048555233672855654",
+        "https://x.com/YuTengjing/status/1869269086846460245",
+        "https://x.com/nickwm/with_replies?lang=en"
+      ],
+      "access_observations": [
+        "http_403",
+        "http_403",
+        "http_403"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:x.com/cursor_ai/status Cursor agent voice 2026",
+      "reason": "Related status/profile URLs returned 403; no dated public post independently verified.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 3,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 3,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "x.com",
+        "twitter.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "status": "failed",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "reddit",
+      "probe_query": "site:reddit.com/r/GithubCopilot who use Github Copilot your experience November 2026",
+      "source_candidates": [
+        "https://www.reddit.com/r/ChatGPT/comments/1qf780w/when_the_ai_chatbot_youre_using_starts_to_act_like/",
+        "https://www.reddit.com/r/GithubCopilot/comments/1xzhxdj/who_use_github_copilot_your_experience/",
+        "https://www.reddit.com/r/GithubCopilot/comments/1xd2cxa/how_is_github_copilot_now/"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "comments_visible_relative_dates_only",
+        "comments": "text_without_complete_date",
+        "engagement": "not_observed"
+      },
+      "reason": "Public Copilot comments visible, but this read returned only relative times. A prior Beta archive observation is separate; its date was not independently reverified here.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 2,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 2,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "reddit.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "youtube",
+      "probe_query": "site:youtube.com/watch cursor voice chat agents Cursor November 2026",
+      "source_candidates": [
+        "https://www.youtube.com/watch?v=rOVomdnWhjQ",
+        "https://www.youtube.com/watch?v=fhCQu4ysVHs"
+      ],
+      "access_observations": [
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Video result surfaced; watch page fetch failed. CLI metadata is verified separately in the preceding direct/CLI snapshot.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 4,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 4,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "youtube.com",
+        "youtu.be"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "status": "failed",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "linkedin",
+      "probe_query": "site:linkedin.com/posts GitHub Copilot November 2026 Ignite Azure DevOps",
+      "source_candidates": [
+        "https://www.linkedin.com/posts/github_github-copilot-app-microsoft-ignite-releases-activity-7396551249638903808",
+        "https://pm.linkedin.com/company/github/",
+        "https://ls.linkedin.com/company/github/"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_unavailable"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "company_feed_excerpt",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public company feed excerpt visible, but specific post fetch failed and did not substantiate its publication date.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 10,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 10,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "linkedin.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "channel",
+        "jobs"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "product_hunt",
+      "probe_query": "site:producthunt.com/products time tracking product launch November 2026",
+      "source_candidates": [
+        "https://www.producthunt.com/changes",
+        "https://www.producthunt.com/topics/time-tracking?order=recent_launches",
+        "https://www.producthunt.com/products/producthunt?launch=product-hubs-launch-pages&page=1"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:producthunt.com/posts time tracking automatic launch review",
+      "reason": "Public lists and product content visible; no complete date paired with the relevant named launch and original body.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 7,
+          "mode": "general",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 7,
+          "mode": "general",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "producthunt.com"
+      ],
+      "evidence_roles": [
+        "launch",
+        "user_feedback",
+        "engagement"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "google_play",
+      "probe_query": "site:play.google.com/store/apps Notion notes updated on reviews",
+      "source_candidates": [
+        "https://play.google.com/store/apps/details?hl=en-US&id=notion.id",
+        "https://play.google.com/store/apps/details?gl=IN&hl=en_IN&id=notion.id"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "helpful_count_visible"
+      },
+      "sample": {
+        "published_at": "2026-02-26",
+        "date_basis": "visible original item date",
+        "source_type": "review",
+        "publisher_or_channel": "Google Play reviewer",
+        "title": "Notion: AI Workspace user review",
+        "final_url": "https://play.google.com/store/apps/details?hl=en-US&id=notion.id",
+        "excerpt": "My only complaint is the gap in the lines when you start writing below writing",
+        "body": "full_public_item",
+        "comments": "not_observed",
+        "engagement": "helpful_count_visible",
+        "access_limit": "Public sample shows ratings/helpfulness; no owner API and no full review export."
+      },
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 6,
+          "mode": "launch",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 6,
+          "mode": "launch",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "passed",
+        "frozen_report": "passed_evidence_only",
+        "live_vantage": "not_run",
+        "replay_context": {
+          "profile": "hybrid",
+          "mode": "voc",
+          "market": "global",
+          "language": "en"
+        }
+      },
+      "domains": [
+        "play.google.com"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement",
+        "launch"
+      ],
+      "status": "verified",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "tiktok",
+      "probe_query": "site:tiktok.com video Plaud Note recorder hands on 2026 review",
+      "source_candidates": [
+        "https://shop.tiktok.com/us/pdp/plaud-note-pro-ai-voice-recorder-4-mems-mics-50-hour-battery/1732087781359457102",
+        "https://shop.tiktok.com/us/pdp/smart-audio-recorder-plaud-note-with-300-mins-gpt-4o-transcription/1729492186699305806",
+        "https://shop.tiktok.com/us/pdp/ai-voice-recorder-plaud-note-64gb-with-case-app-control-summarization/1729568097208733700"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "results_with_access_barriers",
+        "body": "shop_listing",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:tiktok.com/@ \"PLAUD\" \"2026\" note review",
+      "reason": "Public shop product shell only; no dated original video/review supporting the topic.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 8,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 8,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "tiktok.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "instagram",
+      "probe_query": "site:instagram.com/reel Plaud Note 2026 recording review",
+      "source_candidates": [
+        "https://privacycenter.instagram.com/policies/dpf/version/7047067902038207/",
+        "https://accountscenter.instagram.com/profiles/17841474560291172/"
+      ],
+      "access_observations": [
+        "http_429"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "No relevant Reel could be verified; one indexed Meta policy page returned 429.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "instagram.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "status": "failed",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "jike",
+      "probe_query": "site:okjike.com/originalPosts 播客 即刻 小宇宙 2026",
+      "source_candidates": [
+        "https://m.okjike.com/originalPosts/603cd86149a42a0018f35b3e",
+        "https://m.okjike.com/originalPosts/67064af8a59d13d6d16488f5"
+      ],
+      "access_observations": [
+        "original_opened",
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "full_public_item_without_verified_date",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "alternate_probe_query": "site:okjike.com/originalPosts 小宇宙 上线 播客",
+      "reason": "Named author original post and text visible; original calendar date not exposed. No catalog row at this commit.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": false,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "okjike.com"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "launch"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "google_trends",
+      "probe_query": "site:trends.google.com trends 2026 World Cup search trends",
+      "source_candidates": [
+        "https://trends.google.com/trends?geo=GB&hl=en-US",
+        "https://trends.google.com/trending"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "dashboard_shell",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public Trends UI opened; no reproducible dated query series returned in this probe.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 5,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 5,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "trends.google.com"
+      ],
+      "evidence_roles": [
+        "market_demand",
+        "engagement"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "meta_ad_library",
+      "probe_query": "site:facebook.com/ads/library Notion ad library active",
+      "source_candidates": [
+        "https://business.facebook.com/ads/library",
+        "https://business.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=107069865175322"
+      ],
+      "access_observations": [
+        "empty_page"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "not_verified",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public entry returned an empty extracted page; no ad ID or flight dates validated.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 6,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 6,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "facebook.com"
+      ],
+      "evidence_roles": [
+        "ads",
+        "channel"
+      ],
+      "status": "failed",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "google_ads_transparency",
+      "probe_query": "site:adstransparency.google.com advertiser Notion Google ads transparency",
+      "source_candidates": [
+        "https://adstransparency.google.com/?platform=SEARCH&region=US",
+        "https://adstransparency.google.com/?domain=cloud.google.com&hl=en&region=anywhere"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "dashboard_shell",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Public surface opened, no specific advertiser creative and run dates confirmed.",
+      "vantage": {
+        "hybrid_automatic": {
+          "slot": 7,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "expanded_automatic": {
+          "slot": 7,
+          "mode": "channel",
+          "market": "global",
+          "language": "en"
+        },
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "adstransparency.google.com"
+      ],
+      "evidence_roles": [
+        "ads",
+        "channel"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    },
+    {
+      "platform": "tiktok_creative_center",
+      "probe_query": "site:ads.tiktok.com/business/creativecenter top ads electronics trends TikTok 2026",
+      "source_candidates": [
+        "https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en",
+        "https://ads.tiktok.com/business/library/NA_Creative_Center_Top_Ads_One_Pager.pdf",
+        "https://ads.tiktok.com/business/library/SMB_Creative_Playbook_External.pdf"
+      ],
+      "access_observations": [
+        "original_opened"
+      ],
+      "capabilities": {
+        "search": "queried",
+        "body": "dashboard_shell",
+        "comments": "not_observed",
+        "engagement": "not_observed"
+      },
+      "reason": "Top Ads UI and documentation visible; no specific ad creative plus published date verified.",
+      "vantage": {
+        "hybrid_automatic": null,
+        "expanded_automatic": null,
+        "named_catalog_web_allowed": true,
+        "frozen_ledger": "not_run",
+        "frozen_report": "not_run",
+        "live_vantage": "not_run"
+      },
+      "domains": [
+        "ads.tiktok.com"
+      ],
+      "evidence_roles": [
+        "ads",
+        "channel",
+        "engagement"
+      ],
+      "status": "partial",
+      "verified_at": "2026-11-24"
+    }
+  ],
+  "verified_at": "2026-11-24"
 }

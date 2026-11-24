@@ -247,3 +247,123 @@ limitation reporting.
 - X, Reddit, LinkedIn, G2, Capterra, Trustpilot, Product Hunt, the app-store
   owner APIs and the ad libraries need credentials or approval. This round
   prepared the application paths but did not register, buy or scrape anything.
+
+## Phase 3: Codex Host acceptance, 2026-11-24
+
+The earlier sections are the Phase 1–2 snapshots. Current web results replace
+the pending status, and the totals below use platform deduplication.
+
+[Task results and original samples](host-web-verification-tasks.json) ·
+[Search/body/comments/engagement matrix](source-host-capabilities.csv) ·
+[Machine-readable totals](source-live-status.json) ·
+[Authorization checklist](source-authorization.md#phase-3-authorization-checklist).
+
+### Live retrieval and counting
+
+| Measure | Observed |
+| --- | ---: |
+| Original tasks attempted | 65 of 65 |
+| Original tasks with a relevant, attributable and visibly dated original item | 23 |
+| Original tasks with partial access, failure, or discovery-only results | 17 partial / 21 failed / 4 discovery-only |
+| Supplemental public-web checks | 13 attempted; 1 verified / 8 partial / 4 failed |
+| Verified original web samples passing frozen STDIO → ledger → evidence-only report | 24 |
+| Of those, eligible for an automatic recommendation in a supported context at the ten-target cap | 7 |
+| Latest key-free structured connector passes, excluding CLI | 35 |
+| Latest working public CLI platforms | 1 (YouTube via yt-dlp metadata) |
+| Verified standalone MCP platforms / new authenticated round trips | 0 / 0 |
+| **Deduplicated latest live floor** (35 structured + 1 CLI + 2 live web platforms) | **38** |
+| Deduplicated when also including automatic routing + frozen report | 42 |
+| Deduplicated when also including a named Host route + frozen report | 59 |
+
+The structured and CLI counts use the preceding Phase 2 live test on
+2026-11-24. Phase 3 conducted separate Host probes. arXiv's Oct 4 pass remains
+historical beside the latest HTTP 429. Steam's bounded-redirection test
+does not demonstrate access to a review. App Store's iTunes search and public
+reviews are two capabilities of one platform; YouTube metadata uses one CLI
+route. Google Search, Google News, Techmeme, Google Patents, generic job-board
+aggregation and newsletter discovery do not add independent evidence-source
+platforms. Google Patents is useful as a mirror of a patent office document.
+The result for general Host discovery does not prove which vendor ran the index.
+
+The 149 original inventory rows give 136 independent candidate platforms after
+13 aggregate/sub-route entries. Its five matrix-external direct additions are
+PubMed, DOAJ, ClinicalTrials.gov, Open Library and Internet Archive. These are
+inventory rows, not a total to add to the shipped catalog. The 137 catalog
+entries include 135 Host-web route declarations. Under this audit's counting
+rules, six discovery/aggregator entries are excluded and three host sub-routes
+merge into their platforms: Apple App Store public reviews, TikTok Creative
+Center and Meta Ad Library. That leaves 128 catalog platform candidates, with
+58 Host-declared lanes outside the individual Phase 3 web sample. Those 58
+lanes were inspected as configuration entries and have no new individual
+public-web acceptance result from this round. Jike received a supplemental
+probe outside the catalog and had no complete item date.
+
+A passing web probe can demonstrate access to one public item. Some examples
+have historical dates and would need a matching user-requested research
+window. Visible review ratings, comment counts, and available comment text
+are marked separately. A caption can support only what that caption says.
+Licensing, breadth and future accessibility are outside an individual probe.
+
+### Automatic recommendations and named routes
+
+Before changing configuration, some eligible source types were consistently
+displaced by priority and the existing family/target cap. G2, for example, was
+never automatically recommended in the enumerated contexts despite being web
+readable. Its priority is now 97. A frozen test confirms G2 is recommended for
+global English voice-of-customer and PR TIMES for Japanese launch research at
+the actual three-target benchmark budget. Higher budgets are not required for
+these two cases. Across all inspected profile-supported contexts, 15 of the
+65 original tasks are automatically recommendable at ten targets; only
+seven dated-sample sources across both batches are in that set of recommended
+routes. The limit, family diversification and market/language filters still
+apply. The enumerated best context is stored per profile in the task record.
+
+For an explicitly requested platform or original domain already in the
+catalog and compatible with task scope, the Skill instructs the Host to
+substitute that target within its current budget and report the catalog ID
+only after trying it. This uses the existing Host request rather than a new
+engine route. The replay sends the frozen observations via the real
+StdioHostSource adapter, production normalization, Evidence Ledger and
+existing evidence fallback renderer. Offline replay uses an unavailable
+synthesis model by design, so a citation in a frozen evidence-only report does
+not certify successful model synthesis. A regular run with no explicit source
+can still omit lower-priority targets.
+
+Codex also performed one read-only natural-language profile dry run using the
+updated Skill. It chose Expanded for technical package/paper research, Hybrid
+for Otter feedback, Expanded for Japan launch research, and Expanded for
+competitive strategy using a named Ashby board and SEC filings. This tests
+selection by intent only. The actual research runs below use their scoped
+registry explicitly and provide the independent live path check.
+
+### Two real Vantage reports
+
+Both used clean start SHA `ed9a920a9ff3aa625764b855249e2a9becc229a9`, public
+source mode, the existing Codex STDIO Host and `gpt-6.1-sol`. Cutoff was
+2026-11-24 11:30 UTC. Each had one research round, up to five Host web operations
+and a 215-second engine-runner budget. The original request/reply traces, full
+reports, ledger and timing remain in ignored `runs/phase3-host/`.
+
+| Case | Selection and retained evidence | Status |
+| --- | --- | --- |
+| Japanese meeting-notes launch research, Expanded, 60 days | `pr_times` appeared in the three suggestions and was the searched Host source. Three original dated issuer publications entered the ledger and appeared as citations; the report preserves vendor attribution and lack of independent testing. | `PARTIAL / evidence_backed_brief / LIMITED`; 215.84 s including runner overhead. [AI Minutes](https://prtimes.jp/main/html/rd/p/000000075.000087427.html) · [ibisScribe](https://prtimes.jp/main/html/rd/p/000000093.000015594.html) · [YOMEL](https://prtimes.jp/main/html/rd/p/000000045.000066814.html) |
+| Otter feedback, Hybrid, 180 days | At baseline, G2 and App Store were named by the question, outside the automatic suggestions. Host searched them explicitly. Three G2 review cards were returned with one retained canonical URL in the final report. Apple cards with complete dates were outside this case's window; recent cards without a year were excluded. The surviving G2 item is an uncorroborated weak signal. | `SUCCESS / full_brief / LIMITED`; 168.91 s. [G2 original reviews](https://www.g2.com/products/otter-ai/reviews) · [App Store original reviews](https://apps.apple.com/us/app/otter-transcribe-voice-notes/id1276437113?see-all=reviews) |
+
+Engineering checks: 25 Phase 3 contract/replay checks passed. The full offline
+suite reported 2,475 passed and 45 live-by-default skips. Ruff and the
+repository and history scan passed.
+
+### Smallest remaining set
+
+1. Verify more named public Host routes in bounded end-to-end runs, starting
+   with Capterra/Trustpilot and Korean, Chinese and Brazil-local sources. To
+   widen automatic routes, measure real three-target behavior and adjust small
+   groups of priorities without starving first-party or local sources.
+2. Continue public-original checks where the first result was a shell, missing
+   a date or blocked (including X, Bilibili, Xiaohongshu, Weibo, WeChat,
+   LinkedIn and ad surfaces). Accept a date and body only when they can be
+   bound to the same item. Keep qualification, paid service and account access
+   as user actions. A provider restriction remains a missing route.
+3. Count any additional connector or MCP only after an authorized, dated
+   original item survives the shipped path. The present evidence does not
+   reach the 100-platform target.

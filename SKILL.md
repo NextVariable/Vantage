@@ -20,8 +20,8 @@ Run `.venv/bin/python -m sourceglint doctor` to inspect optional direct-source
 requirements. An offline readiness check does not verify current live access.
 
 Read [the bridge protocol](references/host-protocol.md) before the first run.
-Use the hybrid profile for bounded native retrieval plus host supplements. Missing
-platform keys must not prevent public search. If local dependencies or native
+Choose the source profile from the research question before running the command.
+Missing platform keys must not prevent public search. If local dependencies or native
 routes fail, retain usable evidence and report the missing depth. The host-only
 profile remains available for environments without local connectors.
 
@@ -40,11 +40,24 @@ Run from the Skill folder in an interactive terminal:
   --ledger runs/research-unique-name/evidence.jsonl --json
 ```
 
-For occasional breadth, use `--registry config/sources-expanded.yaml`, which
-enables the 1.1 free connectors at one query each (research registries, package
-registries, the App Store, Lemmy and the Japanese/Chinese publisher feeds).
-Keep the hybrid profile for default runs; adding sources must not multiply
-per-run calls.
+Use Hybrid for general research, social and review-led questions, and
+English-language product changes with no need for a specific structured route.
+Use Expanded when relevant registered sources add evidence the default mix
+cannot, such as package registries or research indexes for technical research,
+Japanese or Chinese publisher feeds for a local topic, or named job boards and
+SEC EDGAR for company strategy. Use Expanded when its Host entry supports a
+requested market or language absent from Hybrid, such as Brazil/Portuguese or
+India/Hindi. Match the market and language to the question.
+Provide a named board, package, or data series when a connector requires it.
+Only use one profile and keep the existing per-run budgets. Users can describe
+what they want in natural language.
+
+Host targets are suggestions. If the user explicitly requests a catalog
+platform with a compatible public web route, prefer that domain even if a
+higher-priority suggestion took its slot. Replace a suggestion within the
+same host target budget. Report the catalog ID in `searched_targets` only
+after trying it. Respect access, market, language, and dates. Undated excerpts
+can guide discovery; only a dated original item belongs in the ledger.
 
 Pass the query as safely quoted data. Choose a fresh ledger path for each run.
 Keep the session open and handle each `source_request` and `model_request` in

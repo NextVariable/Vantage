@@ -1,8 +1,7 @@
 # Source authorization guide (Vantage 1.1)
 
-This guide lists every source that needs a credential, an owner role, or an
-explicit approval before a direct connector can return data. It exists so a
-user can enable those routes deliberately.
+This guide records credential, ownership, and approval requirements for
+implemented connectors and potential platform routes.
 
 ## Rules the runtime follows
 
@@ -11,7 +10,8 @@ user can enable those routes deliberately.
 - Vantage never creates accounts, buys plans, tops up balances, or enables a
   paid API automatically. A missing credential is reported, not worked around.
 - When a credential is absent the source is marked `credential_required` /
-  `approval_required` and the public-web route stays available.
+  `approval_required`. A declared public-web fallback is usable only when the
+  original item can be verified.
 - Do not paste a key into a prompt, issue, commit, or config file. Set it in the
   environment of the process that runs Vantage.
 - Reddit, X, Bluesky and similar platforms forbid cookie scraping and
@@ -41,7 +41,7 @@ an upstream API currently works.
 
 | Source | Variable(s) | Access notes | Fallback when absent |
 | --- | --- | --- | --- |
-| X | `X_BEARER_TOKEN` | X API v2 app-only bearer token; paid tiers apply. | Public pages via host search. |
+| X | `X_BEARER_TOKEN` | X API v2 app-only bearer token; current endpoints use metered credits. | Public pages via host search. |
 | Bluesky | `BSKY_HANDLE`, `BSKY_APP_PASSWORD` | App password created in the account settings. | Public bsky.app pages. |
 | Product Hunt | `PRODUCT_HUNT_TOKEN` | GraphQL API token; commercial use needs Product Hunt approval. | producthunt.com pages. |
 | Semantic Scholar | `SEMANTIC_SCHOLAR_API_KEY` | Anonymous access is heavily rate-limited. | arXiv / OpenAlex / Crossref. |
@@ -96,7 +96,6 @@ and `max_queries_per_run`; the default Skill profile still uses six slots.
 
 | Source | Where to apply | What you get | Notes |
 | --- | --- | --- | --- |
-| Reddit | <https://www.reddit.com/prefs/apps> (script app) | OAuth client id/secret | Free. Keyless RSS often 404s; OAuth is the durable route. |
 | Bluesky | <https://bsky.app/settings/app-passwords> | App password | Free. Public AppView search returned 403 from this network. |
 | Semantic Scholar | <https://www.semanticscholar.org/product/api#api-key-form> | API key | Free key raises the anonymous rate limit. |
 | FRED | <https://fred.stlouisfed.org/docs/api/api_key.html> | API key | Free. |
@@ -111,7 +110,7 @@ and `max_queries_per_run`; the default Skill profile still uses six slots.
 
 | Source | Application | What is required | Depth if approved |
 | --- | --- | --- | --- |
-| Product Hunt | <https://www.producthunt.com/v2/oauth/applications> | App review before a token is issued | GraphQL posts, votes, comments |
+| Product Hunt | <https://www.producthunt.com/v2/oauth/applications> | Access token; permitted uses and commercial approval by case | GraphQL posts and available votes/comments |
 | LinkedIn | <https://developer.linkedin.com/product-catalog> | Partner/approval; no public search API | Member/profile data only within approved scopes; no feed scraping |
 | G2 | <https://www.g2.com/products/g2-review-api> | Commercial review-API agreement | Review text and ratings |
 | Capterra | Gartner Digital Markets partner data | Vendor/partner agreement; no public API | Review text and ratings |
@@ -121,7 +120,7 @@ and `max_queries_per_run`; the default Skill profile still uses six slots.
 | Amazon Product Advertising API | <https://webservices.amazon.com/paapi5/documentation/> | Affiliate approval + qualifying sales | Product metadata/pricing, not full review text |
 | Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity/verification | Ads by page, region-dependent |
 | TikTok Research API | <https://developers.tiktok.com/products/research-api/> | Research approval | Public video metadata within approved scope |
-| X | <https://developer.x.com/en/portal/dashboard> | Paid API tier | Recent search; full archive by plan |
+| X | <https://docs.x.com/x-api/getting-started/pricing> | API access and endpoint-specific credits | Recent search; full archive depends on access |
 
 ## Paid data services
 
@@ -166,3 +165,36 @@ then those platforms stay on the host-web route.
 - Rotate proxies or retry a blocked route indefinitely.
 - Print, log, commit, or transmit a credential value.
 - Create accounts, purchase plans, or start paid trials on the user's behalf.
+
+## Phase 3 authorization checklist
+
+Phase 3 only accessed public material, so the confirmed count of authorized
+platforms and independent MCP round trips is zero. Available or listed
+credentials describe possible routes. This table separates readiness in
+Vantage from provider scope; check the current provider terms and prices before
+applying. Where account or application details are required, the user obtains
+them outside the Skill.
+
+| Platform | Official entry and approval | Payment and resulting depth | Vantage and next check |
+| --- | --- | --- | --- |
+| X | [Developer Console / pricing](https://docs.x.com/x-api/getting-started/pricing), a project and app-only bearer with access to the relevant search endpoint. | Metered credits with endpoint-specific prices. Recent search and full archive have separate scope. Text and available metrics under the granted window. | Existing connector. Confirm recent, then if permitted full archive with a small one-query sample. |
+| Reddit | [Developer platform access](https://support.reddithelp.com/hc/en-us/articles/42728983564564-Developer-Platform-Accessing-Reddit-Data) · [Data API Terms](https://redditinc.com/policies/data-api-terms). Follow the provider approval path for the project and permitted purpose. | Access and commercial use depend on granted terms. A normal account alone cannot certify API access. Approved OAuth access may return dated posts and accessible comments. | Existing conditional OAuth. Test only after approval; compare separately to RSS 404 and partial archive. |
+| Bluesky | [App password settings](https://bsky.app/settings/app-passwords) for an account. | Free account and revocable app password; AppView search and public post metadata. | Existing connector. Verify known post and dates; use a small approved query. |
+| Semantic Scholar | [API key application](https://www.semanticscholar.org/product/api#api-key-form). | Free key subject to provider acceptance and limits; paper metadata and available abstract/citation fields. | Existing connector. Check one dated query and 429 handling. |
+| YouTube | [Data API quota](https://developers.google.com/youtube/data/determine_quota_cost) · [search](https://developers.google.com/youtube/v3/docs/search/list). Cloud project with Data API enabled and an appropriate key. | Quota-limited official search and eligible public comments. Caption access depends on resource and method authorization. | Current CLI is verified for metadata and needs no user action. Official API needs integration and a separate dated search/comment test. |
+| Product Hunt | [OAuth applications](https://www.producthunt.com/v2/oauth/applications) · [API terms](https://api.producthunt.com/v2/docs). Request appropriate scope; obtain business-use approval where needed. | Token, platform limits and commercial permission. Launch feed and available vote/comment fields. | Existing GraphQL connector. Probe recent named launch and preserve feed coverage limitation. |
+| LinkedIn | [Posts API](https://learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api) · [developer products](https://developer.linkedin.com/product-catalog). Product access and organization roles or approved scope. | Access depends on product and agreement; authorized Posts API covers scoped organization/person data. | Catalog only. After approval, first confirm selected organization and scope, then implement a bounded original-post check. |
+| G2 / Capterra | [G2 Review API](https://www.g2.com/products/g2-review-api) · [Gartner Digital Markets](https://www.gartner.com/en/digital-markets). Request a vendor agreement or approved partner access. | Commercial licence/quote; review text and ratings only within the contract. | Both public web samples verified. No dedicated licensed connector. Require a permitted review plus its ID/date before integration. |
+| Trustpilot | [Trustpilot developer portal](https://developers.trustpilot.com/), OAuth and applicable business unit/API product. | Scope and cost depend on the API plan. Public sample contains one dated review; account approval does not grant competitor review exports. | Public web verified, API catalog only. Check one approved business unit after confirming the plan. |
+| App Store and Google Play | [App Store Connect reviews](https://developer.apple.com/documentation/appstoreconnectapi/customer-reviews) · [Google Play reviews](https://developers.google.com/android-publisher/api-ref/rest/v3/reviews). Appropriate owner or administrator role and application identity. | Owner-scoped review data and separate developer-account requirements. Public sample accessible without granting those permissions. | App Store iTunes Search connector plus public reviews; Play public web verified. No owner-authorized runtime acceptance. Verify only a controlled app. |
+| TikTok / Instagram | [TikTok Research API](https://developers.tiktok.com/products/research-api/) · [Instagram API](https://developers.facebook.com/docs/instagram-platform/). TikTok Research is approval/eligibility restricted. Instagram requires app review, account type and scopes for the chosen surface. | Accounts alone do not unlock general search; data depth depends on approved purpose and endpoint. | No verified dedicated connector. Confirm eligible use and one dated accessible item before work. |
+| Google Trends / Ads / Meta / TikTok ads | [Trends Alpha](https://developers.google.com/search/apis/trends) · [Google Ads Transparency](https://support.google.com/adspolicy/answer/13733850) · [Meta Ad Library API](https://www.facebook.com/ads/library/api/) · [TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/). Terms and regions differ. | Public UIs and approval-scoped data products; pricing and eligibility depend on access route. Date range, advertiser and visible metrics must be independently captured. | Catalog only. The public probes did not verify a dated series or individual ad. |
+| 小红书、知乎、哔哩哔哩、微博、微信公众号、即刻 | Use public original pages or a platform-approved business/developer interface whose scope actually includes the requested objects. | A normal account does not establish research/API rights. No paid or login route was verified. | No authorized connector. Attempt a public original permalink with full date and text, or document the blocked route. |
+
+After obtaining user-approved access, configure the secret in the runtime
+environment, enable only the relevant registry entry, and run a single
+nonempty query or named-object probe. Record scope, date bounds, canonical URL,
+which fields were observed, and whether a matching public observation reached
+the ledger and report. If the provider denies access or requires new payment,
+leave the route unverified. The Skill does not ask for cookies or credential
+values in chat.

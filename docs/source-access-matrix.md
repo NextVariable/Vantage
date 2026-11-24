@@ -67,16 +67,32 @@ Live outcomes that changed a status:
   keeps the archive fallback.
 - YouTube's `yt-dlp` route is environment-dependent; the fallback stays public
   pages.
-- G2, Capterra, Trustpilot, Product Hunt, Kickstarter and the other approval or
-  paid surfaces still return 403 without credentials. They remain host-web
-  routes, not structured connectors.
-- Google News RSS redirects to a publisher page and cannot supply the original
-  article URL, so it is not implemented as a structured connector.
+- G2, Capterra and Trustpilot expose dated public review samples in Phase 3.
+  Their owner or commercial API route requires separate approval. The sampled
+  Product Hunt and Kickstarter web surfaces were partial.
+- Google News had a consent redirect in the original-page probe. Host search
+  is a discovery mechanism; retain the original publisher URL.
 
-Platforms that have no public structured endpoint are collected in
-[the host-search verification pack](host-web-verification-tasks.json): 65
-machine-readable tasks with domains, query templates and expected fields, all
-marked `pending_host`. None of them is counted as covered.
+## Phase 3 public Host acceptance
+
+All 65 original tasks were attempted, plus 13 additional checks. There are
+24 dated original web samples, including G2 and PR TIMES in two real Vantage
+reports. The 24 samples survive STDIO normalization, the ledger and the
+evidence-only report in frozen replay. At the up-to-ten-target budget seven
+are automatically recommendable in at least one profile-supported context.
+The other experiments depend on the named-source Host instruction. Record
+these stages separately and keep the user's permissions and per-run budget.
+
+The latest observed floor is 38 deduplicated platforms: 35 structured,
+YouTube via local CLI, and two live web platforms. Including the routes proven
+with automatic routing and frozen replay gives 42; including explicit named
+Host routes proven in frozen replay gives 59. Neither expanded total is a
+full real-research validation. arXiv remains historical after the latest 429,
+Steam remains a bounded failure, and no independent MCP or credentialed
+retrieval was verified in this round.
+
+[Search, body, comments and engagement matrix](source-host-capabilities.csv) ·
+[Complete per-platform web task results](host-web-verification-tasks.json).
 
 Per-row evidence is in [the 1.1 expansion record](source-expansion-1.1.md) and
 [its CSV](source-expansion-1.1.csv).
