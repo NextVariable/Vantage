@@ -13,11 +13,14 @@ from .resources import data_path
 from .source_catalog import load_source_catalog
 
 CONNECTORS = {
-    "arxiv", "ashby", "bluesky", "crates_io", "crossref", "devto", "github",
-    "gitlab", "greenhouse", "hacker_news", "hugging_face", "lever", "openalex",
-    "package_registries", "pypi", "qiita", "reddit",
-    "sec_edgar", "semantic_scholar", "steam", "world_bank",
-    "product_hunt", "stack_overflow", "x", "youtube",
+    "app_store", "arxiv", "ashby", "bluesky", "clinicaltrials", "crates_io",
+    "crossref", "datacite", "devto", "docker_hub", "doaj", "github", "gitlab",
+    "greenhouse", "hacker_news", "hugging_face", "internet_archive", "itmedia",
+    "lemmy", "lever", "makuake", "maven_central", "note", "nuget",
+    "open_library", "openalex", "package_registries", "pypi", "pubmed",
+    "qiita", "reddit", "rubygems", "sec_edgar", "semantic_scholar", "sspai",
+    "steam", "world_bank", "product_hunt", "stack_overflow", "x", "youtube",
+    "zenodo", "zenn",
 }
 
 

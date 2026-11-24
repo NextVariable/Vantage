@@ -131,3 +131,72 @@ class GitLabAdapter:
                 if len(out) == limit:
                     return out
         return out
+
+
+@dataclass(frozen=True)
+class LemmyAdapter:
+    """Federated Lemmy post search on a public instance (key-free)."""
+
+    http_client: HttpClient | None = None
+    max_per_query: int = 20
+    instance: str = "lemmy.world"
+    source_name: str = "lemmy"
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        query = _query(request, self.source_name)
+        limit = _limit(request, self.max_per_query)
+        params = urlencode({"q": query, "type_": "Posts", "sort": "New", "limit": min(limit, 50)})
+        payload = _json(self.http_client, self.source_name,
+                        f"https://{self.instance}/api/v3/search?{params}")
+        posts = payload.get("posts") if isinstance(payload, Mapping) else None
+        if not isinstance(posts, list):
+            raise AdapterInvalidResponse(self.source_name, "payload missing posts")
+        out: list[RawSourceResult] = []
+        for wrapper in posts:
+            post = wrapper.get("post") if isinstance(wrapper, Mapping) else None
+            if not isinstance(post, Mapping):
+                continue
+            title = " ".join(str(post.get("name") or "").split())
+            published = _rfc3339(post.get("published"))
+            url = str(post.get("ap_id") or "").strip()
+            if not title or not published or not url:
+                continue
+            creator = wrapper.get("creator") if isinstance(wrapper.get("creator"), Mapping) else {}
+            community = wrapper.get("community") if isinstance(wrapper.get("community"), Mapping) else {}
+            counts = wrapper.get("counts") if isinstance(wrapper.get("counts"), Mapping) else {}
+            out.append(RawSourceResult(
+                source=self.source_name,
+                source_type="post",
+                source_native_id=f"lemmy:{post.get('id')}",
+                url=url,
+                title=title,
+                text=_plain(post.get("body")) or title,
+                author=str(creator.get("name") or ""),
+                published_at=published,
+                market=str(request.get("market") or "global"),
+                language=str(request.get("query_language") or "en"),
+                query=query,
+                query_language=str(request.get("query_language") or "en"),
+                engagement={
+                    "points": _integer(counts.get("score")),
+                    "comments": _integer(counts.get("comments")),
+                },
+                raw_metadata={
+                    "instance": self.instance,
+                    "community": str(community.get("name") or ""),
+                    "community_actor": str(community.get("actor_id") or ""),
+                    "external_url": str(post.get("url") or ""),
+                    "date_semantics": "post_published",
+                },
+            ))
+            if len(out) == limit:
+                break
+        return out

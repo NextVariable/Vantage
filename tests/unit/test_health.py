@@ -24,6 +24,34 @@ def test_new_free_connectors_are_reported_as_implemented_but_disabled():
         assert rows[name]["missing_credentials"] == []
 
 
+def test_phase2_sources_are_implemented_and_opt_in():
+    report = build_report()
+    rows = {row["source"]: row for row in report["sources"]}
+    for name in (
+        "pubmed", "doaj", "zenodo", "datacite", "open_library",
+        "internet_archive", "clinicaltrials", "maven_central", "nuget",
+        "rubygems", "docker_hub", "app_store", "lemmy", "zenn", "note",
+        "itmedia", "sspai", "makuake",
+    ):
+        assert name in rows, f"{name} must be registered"
+        assert rows[name]["connector_implemented"] is True
+        assert rows[name]["state"] == "DISABLED"
+        assert rows[name]["missing_credentials"] == []
+
+
+def test_phase2_expanded_profile_enables_each_new_source_once():
+    import yaml
+
+    from sourceglint.resources import data_path
+
+    expanded = yaml.safe_load(data_path("config", "sources-expanded.yaml").read_text())
+    by_name = {entry["name"]: entry for entry in expanded}
+    for name in ("pubmed", "app_store", "zenn", "makuake", "docker_hub"):
+        assert name in by_name, f"{name} must be callable from the opt-in profile"
+        assert by_name[name]["enabled"] is True
+        assert by_name[name]["max_queries_per_run"] == 1
+
+
 def test_optional_openalex_key_is_not_a_blocking_credential(monkeypatch):
     monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
     report = build_report()

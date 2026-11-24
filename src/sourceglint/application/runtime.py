@@ -67,10 +67,29 @@ def default_adapter_factory(
     from ..connectors.bluesky import BlueskyAdapter
     from ..connectors.youtube import YouTubeAdapter
     from ..connectors.ats import AshbyAdapter, GreenhouseAdapter, LeverAdapter
-    from ..connectors.devplatforms import GitLabAdapter
-    from ..connectors.packages import CratesIoAdapter, PyPIAdapter
-    from ..connectors.reviews import SteamAdapter
-    from ..connectors.scholarly import CrossrefAdapter, OpenAlexAdapter
+    from ..connectors.devplatforms import GitLabAdapter, LemmyAdapter
+    from ..connectors.feeds import FeedAdapter
+    from ..connectors.publishers import NoteSearchAdapter, ZennSearchAdapter
+    from ..connectors.packages import (
+        CratesIoAdapter,
+        DockerHubAdapter,
+        MavenCentralAdapter,
+        NuGetAdapter,
+        PyPIAdapter,
+        RubyGemsAdapter,
+    )
+    from ..connectors.reviews import ITunesAppStoreAdapter, SteamAdapter
+    from ..connectors.scholarly import (
+        ClinicalTrialsAdapter,
+        CrossrefAdapter,
+        DataCiteAdapter,
+        DoajAdapter,
+        InternetArchiveAdapter,
+        OpenAlexAdapter,
+        OpenLibraryAdapter,
+        PubMedAdapter,
+        ZenodoAdapter,
+    )
     from ..connectors.open_sources import (
         ArxivAdapter,
         DevToAdapter,
@@ -157,6 +176,48 @@ def default_adapter_factory(
         return AshbyAdapter()
     if name == "steam":
         return SteamAdapter()
+    if name == "app_store":
+        return ITunesAppStoreAdapter()
+    if name == "lemmy":
+        return LemmyAdapter()
+
+    # Key-free public registries, datasets and app stores (1.1 phase 2).
+    public_registry_adapters = {
+        "pubmed": PubMedAdapter,
+        "doaj": DoajAdapter,
+        "zenodo": ZenodoAdapter,
+        "datacite": DataCiteAdapter,
+        "open_library": OpenLibraryAdapter,
+        "internet_archive": InternetArchiveAdapter,
+        "clinicaltrials": ClinicalTrialsAdapter,
+        "maven_central": MavenCentralAdapter,
+        "nuget": NuGetAdapter,
+        "rubygems": RubyGemsAdapter,
+        "docker_hub": DockerHubAdapter,
+    }
+    registry_adapter = public_registry_adapters.get(name)
+    if registry_adapter is not None:
+        return registry_adapter()
+
+    if name == "zenn":
+        return ZennSearchAdapter()
+    if name == "note":
+        return NoteSearchAdapter()
+
+    # Publisher and community feeds. Each feed is a distinct platform entry;
+    # feeds without a documented search parameter are topic-filtered locally.
+    feed_configs = {
+        "itmedia": dict(source_name="itmedia",
+                        feed_url="https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
+                        language="ja", market="global", source_type="page"),
+        "sspai": dict(source_name="sspai", feed_url="https://sspai.com/feed",
+                      language="zh", market="cn", source_type="post"),
+        "makuake": dict(source_name="makuake", feed_url="https://www.makuake.com/rss/",
+                        language="ja", market="jp", source_type="page"),
+    }
+    feed_config = feed_configs.get(name)
+    if feed_config is not None:
+        return FeedAdapter(**feed_config)
 
     if name in {"world_bank", "sec_edgar", "polymarket"}:
         from ..connectors.open_data import build_open_data_adapter
