@@ -17,7 +17,7 @@ from sourceglint.ledger import EvidenceLedger
 from sourceglint.source_catalog import load_source_catalog, select_host_search_targets
 
 ROOT = Path(__file__).resolve().parents[2]
-PACK = json.loads((ROOT / "docs/host-web-verification-tasks.json").read_text())
+PACK = json.loads((ROOT / "docs/host-web-verification-tasks.json").read_text(encoding="utf-8"))
 CATALOG = {row.name: row for row in load_source_catalog()}
 ROWS = PACK["tasks"] + PACK["supplemental_tasks"]
 VERIFIED = [row for row in ROWS if row["status"] == "verified"]
@@ -33,7 +33,7 @@ def replay(row):
     name = row["platform"]
     context = row["vantage"]["replay_context"]
     profile = context["profile"]
-    entries = yaml.safe_load((ROOT / f"config/sources-{profile}.yaml").read_text())
+    entries = yaml.safe_load((ROOT / f"config/sources-{profile}.yaml").read_text(encoding="utf-8"))
     host_entry = next(source for source in entries if source["name"] == "host_web_search")
     published_at = date.fromisoformat(sample["published_at"])
     as_of = published_at + timedelta(days=1)
