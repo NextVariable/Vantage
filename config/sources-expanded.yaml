@@ -304,3 +304,274 @@
   languages: [en]
   cache_ttl: 3600
   max_queries_per_run: 1
+
+# --- Vantage 1.1 phase 2: key-free registries, app store and publisher feeds ---
+- name: pubmed
+  # PubMed E-utilities esearch+esummary; journal pubdate is the anchor, epubdate kept apart.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 66
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global, us, gb, jp, cn]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: doaj
+  # DOAJ article search; journal year/month is the publication anchor.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 62
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: zenodo
+  # Zenodo records; publication_date preferred over record creation.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 60
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: datacite
+  # DataCite DOI metadata; published/issued, else doi_created (labelled).
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 60
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: open_library
+  # Open Library works; first_publish_year is year-precision and labelled.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 54
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global, us, gb]
+  languages: [en]
+  cache_ttl: 86400
+  max_queries_per_run: 1
+
+- name: internet_archive
+  # Internet Archive advancedsearch item metadata.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 54
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global, us]
+  languages: [en]
+  cache_ttl: 86400
+  max_queries_per_run: 1
+
+- name: clinicaltrials
+  # ClinicalTrials.gov v2; study first-posted date, last update kept apart.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global, us]
+  languages: [en]
+  cache_ttl: 3600
+  max_queries_per_run: 1
+
+- name: maven_central
+  # Maven Central Solr search; latest version timestamp (ms) is the anchor.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 57
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: nuget
+  # NuGet search plus registration entry for exact version published time.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 57
+  capabilities: [search]
+  rate_limit: { rpm: 30 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: rubygems
+  # RubyGems search plus per-gem document for version_created_at.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 56
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: docker_hub
+  # Docker Hub repository search plus detail for date_registered/last_updated.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 55
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: app_store
+  # iTunes Search API; app releaseDate anchor. Customer reviews need a numeric app id.
+  enabled: true
+  type: marketplace
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 66
+  capabilities: [search, reviews]
+  rate_limit: { rpm: 20 }
+  markets: [us, gb, jp, de, fr, kr, cn, in, br]
+  languages: [en, ja, de, fr, ko, zh]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: lemmy
+  # Lemmy federated post search on lemmy.world; ap_id is the canonical permalink.
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 50
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: zenn
+  # Zenn public article search JSON; RSS feed kept as documented fallback.
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 56
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [jp]
+  languages: [ja]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: note
+  # note.com public search JSON; canonical /{user}/n/{key} URL; RSS fallback.
+  enabled: true
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 55
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [jp]
+  languages: [ja]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: itmedia
+  # ITmedia News RSS; local topic filtering (feed has no search parameter).
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 55
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [jp]
+  languages: [ja]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: sspai
+  # SSPAI RSS; local topic filtering (official feed, no server-side query).
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 53
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [cn]
+  languages: [zh]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: makuake
+  # Makuake crowdfunding RSS/Atom; local topic filtering.
+  enabled: true
+  type: official
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 52
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [jp]
+  languages: [ja]
+  cache_ttl: 900
+  max_queries_per_run: 1
