@@ -1,0 +1,2403 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-24",
+  "environment": "TRAE build environment: no Host Web Search capability available",
+  "status_meaning": {
+    "pending_host": "not verified; catalog registration only",
+    "verified": "host search returned a relevant original page with a real date",
+    "failed": "probe ran and could not obtain a relevant page or date"
+  },
+  "how_to_run": "Run one bounded query per platform with the domain restriction; capture the final URL, the page's own publication date, and a short supporting snippet; flip status to verified/failed with verified_at. Do not mark verified from a search-result snippet alone when the page date is unavailable.",
+  "task_count": 65,
+  "tasks": [
+    {
+      "platform": "google_web",
+      "family": "web",
+      "domains": [
+        "google.com"
+      ],
+      "query_template": "{topic} site:google.com",
+      "alternative_query_template": "site:google.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "discovery"
+      ],
+      "priority": 100,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Discovery route only; cite the original page, not the search result."
+    },
+    {
+      "platform": "pr_times",
+      "family": "local",
+      "domains": [
+        "prtimes.jp"
+      ],
+      "query_template": "{topic} site:prtimes.jp",
+      "alternative_query_template": "site:prtimes.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "news",
+        "launch",
+        "official_change"
+      ],
+      "priority": 92,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "xiaohongshu",
+      "family": "social",
+      "domains": [
+        "xiaohongshu.com",
+        "xhslink.com"
+      ],
+      "query_template": "{topic} site:xiaohongshu.com",
+      "alternative_query_template": "site:xiaohongshu.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "priority": 92,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Index coverage is partial; treat note pages as consumer voice, not market sizing."
+    },
+    {
+      "platform": "green_funding",
+      "family": "crowdfunding",
+      "domains": [
+        "greenfunding.jp"
+      ],
+      "query_template": "{topic} site:greenfunding.jp",
+      "alternative_query_template": "site:greenfunding.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 91,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "zhihu",
+      "family": "community",
+      "domains": [
+        "zhihu.com"
+      ],
+      "query_template": "{topic} site:zhihu.com",
+      "alternative_query_template": "site:zhihu.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback"
+      ],
+      "priority": 90,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Public Q&A pages are indexable; login-gated answers must not be claimed."
+    },
+    {
+      "platform": "apple_app_store",
+      "family": "review",
+      "domains": [
+        "apps.apple.com"
+      ],
+      "query_template": "{topic} site:apps.apple.com",
+      "alternative_query_template": "site:apps.apple.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement",
+        "launch"
+      ],
+      "priority": 90,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Public store pages and ratings; the owner API is a separate catalog entry."
+    },
+    {
+      "platform": "google_news",
+      "family": "news",
+      "domains": [
+        "news.google.com"
+      ],
+      "query_template": "{topic} site:news.google.com",
+      "alternative_query_template": "site:news.google.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "discovery",
+        "news"
+      ],
+      "priority": 88,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Discovery route; retain the publisher URL and date."
+    },
+    {
+      "platform": "campfire",
+      "family": "crowdfunding",
+      "domains": [
+        "camp-fire.jp"
+      ],
+      "query_template": "{topic} site:camp-fire.jp",
+      "alternative_query_template": "site:camp-fire.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 88,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "kr36",
+      "family": "local",
+      "domains": [
+        "36kr.com"
+      ],
+      "query_template": "{topic} site:36kr.com",
+      "alternative_query_template": "site:36kr.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "news",
+        "launch",
+        "funding"
+      ],
+      "priority": 88,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "douyin",
+      "family": "video",
+      "domains": [
+        "douyin.com"
+      ],
+      "query_template": "{topic} site:douyin.com",
+      "alternative_query_template": "site:douyin.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "channel"
+      ],
+      "priority": 88,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "g2",
+      "family": "review",
+      "domains": [
+        "g2.com"
+      ],
+      "query_template": "{topic} site:g2.com",
+      "alternative_query_template": "site:g2.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 86,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "bilibili",
+      "family": "video",
+      "domains": [
+        "bilibili.com"
+      ],
+      "query_template": "{topic} site:bilibili.com",
+      "alternative_query_template": "site:bilibili.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "engagement",
+        "channel"
+      ],
+      "priority": 86,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "wechat_articles",
+      "family": "local",
+      "domains": [
+        "mp.weixin.qq.com"
+      ],
+      "query_template": "{topic} site:mp.weixin.qq.com",
+      "alternative_query_template": "site:mp.weixin.qq.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "news",
+        "channel",
+        "official_change"
+      ],
+      "priority": 86,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Only publicly indexed official-account articles; there is no broad public search API."
+    },
+    {
+      "platform": "naver_blog",
+      "family": "community",
+      "domains": [
+        "blog.naver.com"
+      ],
+      "query_template": "{topic} site:blog.naver.com",
+      "alternative_query_template": "site:blog.naver.com review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "channel"
+      ],
+      "priority": 86,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "kickstarter",
+      "family": "crowdfunding",
+      "domains": [
+        "kickstarter.com"
+      ],
+      "query_template": "{topic} site:kickstarter.com",
+      "alternative_query_template": "site:kickstarter.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "de",
+        "fr"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 84,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "No supported broad public API is assumed; use public project pages and search."
+    },
+    {
+      "platform": "weibo",
+      "family": "social",
+      "domains": [
+        "weibo.com"
+      ],
+      "query_template": "{topic} site:weibo.com",
+      "alternative_query_template": "site:weibo.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "news",
+        "channel"
+      ],
+      "priority": 84,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "douban",
+      "family": "review",
+      "domains": [
+        "douban.com"
+      ],
+      "query_template": "{topic} site:douban.com",
+      "alternative_query_template": "site:douban.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 84,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "taobao",
+      "family": "commerce",
+      "domains": [
+        "taobao.com",
+        "tmall.com"
+      ],
+      "query_template": "{topic} site:taobao.com",
+      "alternative_query_template": "site:taobao.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 84,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Public pages are partially gated; record only accessible review and listing text."
+    },
+    {
+      "platform": "readyfor",
+      "family": "crowdfunding",
+      "domains": [
+        "readyfor.jp"
+      ],
+      "query_template": "{topic} site:readyfor.jp",
+      "alternative_query_template": "site:readyfor.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 82,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "kakaku",
+      "family": "review",
+      "domains": [
+        "kakaku.com"
+      ],
+      "query_template": "{topic} site:kakaku.com",
+      "alternative_query_template": "site:kakaku.com review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 82,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Price and review pages are indexable; obtain the original product page rather than a search snippet."
+    },
+    {
+      "platform": "jd",
+      "family": "commerce",
+      "domains": [
+        "jd.com"
+      ],
+      "query_template": "{topic} site:jd.com",
+      "alternative_query_template": "site:jd.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 82,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "naver_news",
+      "family": "local",
+      "domains": [
+        "news.naver.com"
+      ],
+      "query_template": "{topic} site:news.naver.com",
+      "alternative_query_template": "site:news.naver.com review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "news"
+      ],
+      "priority": 82,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Aggregated headlines; cite the original outlet."
+    },
+    {
+      "platform": "techmeme",
+      "family": "news",
+      "domains": [
+        "techmeme.com"
+      ],
+      "query_template": "{topic} site:techmeme.com",
+      "alternative_query_template": "site:techmeme.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "news",
+        "discovery"
+      ],
+      "priority": 80,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "chrome_web_store",
+      "family": "review",
+      "domains": [
+        "chromewebstore.google.com"
+      ],
+      "query_template": "{topic} site:chromewebstore.google.com",
+      "alternative_query_template": "site:chromewebstore.google.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement",
+        "launch"
+      ],
+      "priority": 80,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "nikkei",
+      "family": "local",
+      "domains": [
+        "nikkei.com"
+      ],
+      "query_template": "{topic} site:nikkei.com",
+      "alternative_query_template": "site:nikkei.com review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "news"
+      ],
+      "priority": 80,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Paywalled beyond the lede; record only the accessible portion and mark the limitation."
+    },
+    {
+      "platform": "coupang",
+      "family": "commerce",
+      "domains": [
+        "coupang.com"
+      ],
+      "query_template": "{topic} site:coupang.com",
+      "alternative_query_template": "site:coupang.com review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 80,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "google_patents",
+      "family": "research",
+      "domains": [
+        "patents.google.com"
+      ],
+      "query_template": "{topic} site:patents.google.com",
+      "alternative_query_template": "site:patents.google.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "academic_research",
+        "official_change"
+      ],
+      "priority": 80,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "capterra",
+      "family": "review",
+      "domains": [
+        "capterra.com"
+      ],
+      "query_template": "{topic} site:capterra.com",
+      "alternative_query_template": "site:capterra.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "de",
+        "fr"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 78,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "v2ex",
+      "family": "community",
+      "domains": [
+        "v2ex.com"
+      ],
+      "query_template": "{topic} site:v2ex.com",
+      "alternative_query_template": "site:v2ex.com review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "developer_activity"
+      ],
+      "priority": 78,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "trustpilot",
+      "family": "review",
+      "domains": [
+        "trustpilot.com"
+      ],
+      "query_template": "{topic} site:trustpilot.com",
+      "alternative_query_template": "site:trustpilot.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "de",
+        "fr"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "indiegogo",
+      "family": "crowdfunding",
+      "domains": [
+        "indiegogo.com"
+      ],
+      "query_template": "{topic} site:indiegogo.com",
+      "alternative_query_template": "site:indiegogo.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "kibidango",
+      "family": "crowdfunding",
+      "domains": [
+        "kibidango.com"
+      ],
+      "query_template": "{topic} site:kibidango.com",
+      "alternative_query_template": "site:kibidango.com review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "yahoo_japan",
+      "family": "local",
+      "domains": [
+        "yahoo.co.jp"
+      ],
+      "query_template": "{topic} site:yahoo.co.jp",
+      "alternative_query_template": "site:yahoo.co.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "discovery",
+        "news"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Discovery route; cite the original publisher when possible."
+    },
+    {
+      "platform": "juejin",
+      "family": "developer",
+      "domains": [
+        "juejin.cn"
+      ],
+      "query_template": "{topic} site:juejin.cn",
+      "alternative_query_template": "site:juejin.cn review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "developer_activity"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "flipkart",
+      "family": "commerce",
+      "domains": [
+        "flipkart.com"
+      ],
+      "query_template": "{topic} site:flipkart.com",
+      "alternative_query_template": "site:flipkart.com review OR pricing OR changelog",
+      "markets": [
+        "in"
+      ],
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 76,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "jobs_pages",
+      "family": "professional",
+      "domains": [
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com"
+      ],
+      "query_template": "{topic} site:greenhouse.io",
+      "alternative_query_template": "site:greenhouse.io review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "jobs",
+        "official_change"
+      ],
+      "priority": 74,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Hiring is a strategy clue, not proof that a product or market move succeeded."
+    },
+    {
+      "platform": "brunch",
+      "family": "community",
+      "domains": [
+        "brunch.co.kr"
+      ],
+      "query_template": "{topic} site:brunch.co.kr",
+      "alternative_query_template": "site:brunch.co.kr review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback"
+      ],
+      "priority": 74,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "inc42",
+      "family": "local",
+      "domains": [
+        "inc42.com"
+      ],
+      "query_template": "{topic} site:inc42.com",
+      "alternative_query_template": "site:inc42.com review OR pricing OR changelog",
+      "markets": [
+        "in"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "news",
+        "launch",
+        "funding"
+      ],
+      "priority": 74,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "reclame_aqui",
+      "family": "review",
+      "domains": [
+        "reclameaqui.com.br"
+      ],
+      "query_template": "{topic} site:reclameaqui.com.br",
+      "alternative_query_template": "site:reclameaqui.com.br review OR pricing OR changelog",
+      "markets": [
+        "br"
+      ],
+      "languages": [
+        "pt"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 74,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "indie_hackers",
+      "family": "community",
+      "domains": [
+        "indiehackers.com"
+      ],
+      "query_template": "{topic} site:indiehackers.com",
+      "alternative_query_template": "site:indiehackers.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "voc",
+        "launch",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback",
+        "launch"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "papers_with_code",
+      "family": "research",
+      "domains": [
+        "paperswithcode.com"
+      ],
+      "query_template": "{topic} site:paperswithcode.com",
+      "alternative_query_template": "site:paperswithcode.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor"
+      ],
+      "evidence_roles": [
+        "academic_research",
+        "developer_activity"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "wantedly",
+      "family": "professional",
+      "domains": [
+        "wantedly.com"
+      ],
+      "query_template": "{topic} site:wantedly.com",
+      "alternative_query_template": "site:wantedly.com review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "jobs",
+        "official_change"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "economictimes",
+      "family": "local",
+      "domains": [
+        "economictimes.indiatimes.com"
+      ],
+      "query_template": "{topic} site:economictimes.indiatimes.com",
+      "alternative_query_template": "site:economictimes.indiatimes.com review OR pricing OR changelog",
+      "markets": [
+        "in"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "news"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "huawei_appgallery",
+      "family": "review",
+      "domains": [
+        "appgallery.huawei.com"
+      ],
+      "query_template": "{topic} site:appgallery.huawei.com",
+      "alternative_query_template": "site:appgallery.huawei.com review OR pricing OR changelog",
+      "markets": [
+        "cn",
+        "global"
+      ],
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "edinet",
+      "family": "professional",
+      "domains": [
+        "edinet-fsa.go.jp"
+      ],
+      "query_template": "{topic} site:edinet-fsa.go.jp",
+      "alternative_query_template": "site:edinet-fsa.go.jp review OR pricing OR changelog",
+      "markets": [
+        "jp"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "modes": [
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "official_change",
+        "funding"
+      ],
+      "priority": 72,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Japanese statutory filings; public pages are the reliable route."
+    },
+    {
+      "platform": "amazon",
+      "family": "commerce",
+      "domains": [
+        "amazon.com",
+        "amazon.co.jp"
+      ],
+      "query_template": "{topic} site:amazon.com",
+      "alternative_query_template": "site:amazon.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "de",
+        "fr"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc",
+        "launch"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "clien",
+      "family": "community",
+      "domains": [
+        "clien.net"
+      ],
+      "query_template": "{topic} site:clien.net",
+      "alternative_query_template": "site:clien.net review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "developer_activity"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "yourstory",
+      "family": "local",
+      "domains": [
+        "yourstory.com"
+      ],
+      "query_template": "{topic} site:yourstory.com",
+      "alternative_query_template": "site:yourstory.com review OR pricing OR changelog",
+      "markets": [
+        "in"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "news",
+        "launch",
+        "funding"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "tripadvisor",
+      "family": "review",
+      "domains": [
+        "tripadvisor.com"
+      ],
+      "query_template": "{topic} site:tripadvisor.com",
+      "alternative_query_template": "site:tripadvisor.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "shopee",
+      "family": "commerce",
+      "domains": [
+        "shopee.com",
+        "shopee.sg",
+        "shopee.co.id",
+        "shopee.com.br"
+      ],
+      "query_template": "{topic} site:shopee.com",
+      "alternative_query_template": "site:shopee.com review OR pricing OR changelog",
+      "markets": [
+        "sg",
+        "id",
+        "br",
+        "global"
+      ],
+      "languages": [
+        "en",
+        "id",
+        "pt"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "y_combinator",
+      "family": "launch",
+      "domains": [
+        "ycombinator.com"
+      ],
+      "query_template": "{topic} site:ycombinator.com",
+      "alternative_query_template": "site:ycombinator.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding"
+      ],
+      "priority": 70,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "crowd_supply",
+      "family": "crowdfunding",
+      "domains": [
+        "crowdsupply.com"
+      ],
+      "query_template": "{topic} site:crowdsupply.com",
+      "alternative_query_template": "site:crowdsupply.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 68,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "csdn",
+      "family": "developer",
+      "domains": [
+        "csdn.net"
+      ],
+      "query_template": "{topic} site:csdn.net",
+      "alternative_query_template": "site:csdn.net review OR pricing OR changelog",
+      "markets": [
+        "cn"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "developer_activity"
+      ],
+      "priority": 68,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "quora",
+      "family": "community",
+      "domains": [
+        "quora.com"
+      ],
+      "query_template": "{topic} site:quora.com",
+      "alternative_query_template": "site:quora.com review OR pricing OR changelog",
+      "markets": [
+        "global",
+        "in"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "user_feedback"
+      ],
+      "priority": 68,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "exame",
+      "family": "local",
+      "domains": [
+        "exame.com"
+      ],
+      "query_template": "{topic} site:exame.com",
+      "alternative_query_template": "site:exame.com review OR pricing OR changelog",
+      "markets": [
+        "br"
+      ],
+      "languages": [
+        "pt"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "news"
+      ],
+      "priority": 68,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "dcinside",
+      "family": "community",
+      "domains": [
+        "dcinside.com"
+      ],
+      "query_template": "{topic} site:dcinside.com",
+      "alternative_query_template": "site:dcinside.com review OR pricing OR changelog",
+      "markets": [
+        "kr"
+      ],
+      "languages": [
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "voc"
+      ],
+      "evidence_roles": [
+        "community_discussion"
+      ],
+      "priority": 66,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "walmart",
+      "family": "commerce",
+      "domains": [
+        "walmart.com"
+      ],
+      "query_template": "{topic} site:walmart.com",
+      "alternative_query_template": "site:walmart.com review OR pricing OR changelog",
+      "markets": [
+        "us"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 66,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "bestbuy",
+      "family": "commerce",
+      "domains": [
+        "bestbuy.com"
+      ],
+      "query_template": "{topic} site:bestbuy.com",
+      "alternative_query_template": "site:bestbuy.com review OR pricing OR changelog",
+      "markets": [
+        "us"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market",
+        "voc"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "commerce",
+        "engagement"
+      ],
+      "priority": 66,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "apple_podcasts",
+      "family": "video",
+      "domains": [
+        "podcasts.apple.com"
+      ],
+      "query_template": "{topic} site:podcasts.apple.com",
+      "alternative_query_template": "site:podcasts.apple.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "channel"
+      ],
+      "priority": 66,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "backerkit",
+      "family": "crowdfunding",
+      "domains": [
+        "backerkit.com"
+      ],
+      "query_template": "{topic} site:backerkit.com",
+      "alternative_query_template": "site:backerkit.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "market",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "funding",
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 65,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "tecmundo",
+      "family": "local",
+      "domains": [
+        "tecmundo.com.br"
+      ],
+      "query_template": "{topic} site:tecmundo.com.br",
+      "alternative_query_template": "site:tecmundo.com.br review OR pricing OR changelog",
+      "markets": [
+        "br"
+      ],
+      "languages": [
+        "pt"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc"
+      ],
+      "evidence_roles": [
+        "news",
+        "user_feedback"
+      ],
+      "priority": 64,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "spotify_podcasts",
+      "family": "video",
+      "domains": [
+        "open.spotify.com"
+      ],
+      "query_template": "{topic} site:open.spotify.com",
+      "alternative_query_template": "site:open.spotify.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en",
+        "ja",
+        "zh",
+        "de",
+        "fr",
+        "ko"
+      ],
+      "modes": [
+        "general",
+        "trend",
+        "competitor",
+        "voc",
+        "channel"
+      ],
+      "evidence_roles": [
+        "community_discussion",
+        "channel"
+      ],
+      "priority": 64,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "Public episode pages only; no broad public search API."
+    },
+    {
+      "platform": "betalist",
+      "family": "launch",
+      "domains": [
+        "betalist.com"
+      ],
+      "query_template": "{topic} site:betalist.com",
+      "alternative_query_template": "site:betalist.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "competitor",
+        "launch"
+      ],
+      "evidence_roles": [
+        "launch",
+        "market_demand"
+      ],
+      "priority": 62,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    },
+    {
+      "platform": "polymarket",
+      "family": "community",
+      "domains": [
+        "polymarket.com"
+      ],
+      "query_template": "{topic} site:polymarket.com",
+      "alternative_query_template": "site:polymarket.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "trend",
+        "market"
+      ],
+      "evidence_roles": [
+        "market_demand",
+        "engagement"
+      ],
+      "priority": 60,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": "The public gamma API was unreachable during the 1.1 live probe, so no connector is exposed. Use only when prediction-market evidence is relevant; prices reflect a market, not ground truth."
+    },
+    {
+      "platform": "apkpure",
+      "family": "review",
+      "domains": [
+        "apkpure.com"
+      ],
+      "query_template": "{topic} site:apkpure.com",
+      "alternative_query_template": "site:apkpure.com review OR pricing OR changelog",
+      "markets": [
+        "global"
+      ],
+      "languages": [
+        "en"
+      ],
+      "modes": [
+        "competitor",
+        "market"
+      ],
+      "evidence_roles": [
+        "user_feedback",
+        "engagement"
+      ],
+      "priority": 60,
+      "expected_fields": [
+        "final_url",
+        "title",
+        "published_at",
+        "snippet",
+        "author_or_channel"
+      ],
+      "status": "pending_host",
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+platform,category,implementation_class,preferred_route,status_code,status,verified_at,endpoint,sample_url,time_anchor,note
+PubMed,科研与知识,B,官方公开 JSON 接口,4,direct_verified,2026-11-24,https://eutils.ncbi.nlm.nih.gov/entrez/eutils/,https://pubmed.ncbi.nlm.nih.gov/{pmid}/,journal pubdate,"E-utilities esearch+esummary, key-free; epubdate kept separate."
+DOAJ,科研与知识,B,官方公开 JSON 接口,4,direct_verified,2026-11-24,https://doaj.org/api/search/articles/{query},https://doaj.org/article/{id},journal year/month,Open-access article search; index created_date kept separate.
+ClinicalTrials.gov,科研与知识,B,官方公开 JSON 接口,4,direct_verified,2026-11-24,https://clinicaltrials.gov/api/v2/studies,https://clinicaltrials.gov/study/{nct},study first posted,last-update-posted kept separate.
+Open Library,科研与知识,B,官方公开 JSON 接口,4,direct_verified,2026-11-24,https://openlibrary.org/search.json,https://openlibrary.org{key},first_publish_year (year precision),"Year precision is labelled, never padded to a day."
+Internet Archive,科研与知识,B,官方公开 JSON 接口,4,direct_verified,2026-11-24,https://archive.org/advancedsearch.php,https://archive.org/details/{identifier},item date,"Archive item date, not necessarily first publication."

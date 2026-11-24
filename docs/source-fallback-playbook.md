@@ -53,6 +53,10 @@ a local readiness check alone cannot establish live availability.
 | Ashby board | Response above 2 MB | Refused with a size bound; smaller boards are parsed normally. |
 | Polymarket | Connection failure | No connector; catalog marked `unavailable`. |
 | Named-board / named-series sources | No board, appid, country/indicator, or form filter | `AdapterInvalidResponse` with a precise instruction; nothing is guessed. |
+| Publisher RSS without a query parameter | The feed returns its whole channel | Topic terms are filtered locally; items without a title, link or date are skipped. |
+| Zenn / note RSS | Feed content did not match the topic | Public site JSON search is used; RSS stays documented as the fallback. |
+| Google News RSS | Redirects to a publisher page and cannot supply the original article URL | Not implemented as a structured connector; host search must cite the original page. |
+| PR Times `/feed/` | HTTP 404 | Public pages through host search; no connector is claimed. |
 
 A blocked route is recorded once and not retried indefinitely. Credential-gated
 sources never fall back to cookies or logged-in scraping; see

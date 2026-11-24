@@ -63,22 +63,28 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 
 ### 1.1 source expansion (development branch)
 
-`dev/vantage-1.1-global-sources` adds ten live-verified credential-free
-connectors — Crossref, OpenAlex, PyPI, Crates.io, GitLab, Lever, Greenhouse,
-Ashby, World Bank and SEC EDGAR — and corrects the date semantics of the
-existing Stack Overflow, DEV, Hugging Face, npm and arXiv routes. The new
-registry slots are disabled by default and enabled only through
+`dev/vantage-1.1-global-sources` adds twenty-eight live-verified credential-free
+connectors. Phase 1 added Crossref, OpenAlex, PyPI, Crates.io, GitLab, Lever,
+Greenhouse, Ashby, World Bank and SEC EDGAR, and corrected the date semantics of
+the existing Stack Overflow, DEV, Hugging Face, npm and arXiv routes. Phase 2
+added PubMed, DOAJ, Zenodo, DataCite, Open Library, Internet Archive,
+ClinicalTrials.gov, Maven Central, NuGet, RubyGems, Docker Hub, App Store
+(iTunes Search), Lemmy, Zenn, note, ITmedia, SSPAI and Makuake. The new registry
+slots are disabled by default and enabled only through
 `config/sources-expanded.yaml`, one query per source, so a default Skill run
 keeps its 1.0 source mix and cost. Adaptive routing, the evidence ledger, FACT
 checks and the host protocol are unchanged. The version still prints
 `1.0.0b1`; this branch is not a 1.1 release.
 
-The catalog now registers 122 distinct platforms. Only 18 have verified direct
-structured access and 1 has verified web coverage this round; the remaining
-catalog rows are honestly marked `registered_only`, `credential_required` or
-`unavailable`. See the [149-row expansion record](docs/source-expansion-1.1.md),
-[its disposition CSV](docs/source-expansion-1.1.csv) and the
-[authorization guide](docs/source-authorization.md).
+The catalog registers 134 distinct platforms across 137 entries. 37 have
+verified direct structured access and 1 has verified web coverage this round;
+65 host-only entries are listed in a machine-readable verification pack as
+`pending_host`, and the rest are honestly marked `registered_only`,
+`credential_required`, `approval_required` or `unavailable`. See the
+[149-row expansion record](docs/source-expansion-1.1.md),
+[its disposition CSV](docs/source-expansion-1.1.csv),
+[the host-search verification pack](docs/host-web-verification-tasks.json) and
+the [authorization guide](docs/source-authorization.md).
 
 ## More
 

@@ -21,10 +21,28 @@ Development branch only; no 1.1 release or tag.
 - Bound Ashby boards at 2 MB and map Greenhouse `first_published` separately
   from `updated_at`.
 - Record 149 research candidates in `docs/source-expansion-1.1.csv` with honest
-  states; register 122 distinct platforms while counting only verified routes as
+  states; register 134 distinct platforms while counting only verified routes as
   coverage.
 - Add `docs/source-authorization.md`, `docs/source-expansion-1.1.md` and
   profile-schema tests. No secret value is read, logged, or committed.
+- Add eighteen further key-free connectors after a live round-trip: PubMed,
+  DOAJ, Zenodo, DataCite, Open Library, Internet Archive, ClinicalTrials.gov,
+  Maven Central, NuGet, RubyGems, Docker Hub, App Store (iTunes Search), Lemmy,
+  Zenn, note, ITmedia, SSPAI and Makuake. Each returns an original URL, a
+  labelled publication anchor and a source-native id; no archive feed is
+  counted as live coverage.
+- Add shared RSS/Atom parsing and a bounded local topic filter for publisher
+  feeds that expose no query parameter; add Zenn and note public search
+  endpoints with RSS documented as fallback.
+- Add coarse-date and fallback labelling (`date_precision`, `date_semantics`)
+  for registries that only publish a year or a version time; cap detail
+  lookups at three per query for NuGet, RubyGems and Docker Hub.
+- Add `docs/host-web-verification-tasks.json`: 65 machine-readable host-search
+  tasks (`status: pending_host`) covering catalog rows with no structured
+  endpoint. None is counted as verified coverage.
+- Extend `docs/source-authorization.md` with credential-free routes, free
+  registration entries, approval/owner requirements and paid services, with
+  application links and expected data depth.
 
 ## 1.0.0b1 — beta
 

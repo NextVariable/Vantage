@@ -41,8 +41,10 @@ Run from the Skill folder in an interactive terminal:
 ```
 
 For occasional breadth, use `--registry config/sources-expanded.yaml`, which
-enables the 1.1 free connectors at one query each. Keep the hybrid profile for
-default runs; adding sources must not multiply per-run calls.
+enables the 1.1 free connectors at one query each (research registries, package
+registries, the App Store, Lemmy and the Japanese/Chinese publisher feeds).
+Keep the hybrid profile for default runs; adding sources must not multiply
+per-run calls.
 
 Pass the query as safely quoted data. Choose a fresh ledger path for each run.
 Keep the session open and handle each `source_request` and `model_request` in

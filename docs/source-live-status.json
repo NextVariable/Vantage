@@ -1,23 +1,57 @@
 {
-  "verified_at": "2026-10-04",
-  "command": "RUN_LIVE_TESTS=1 .venv/bin/python -m pytest tests/live -q -ra",
+  "verified_at": "2026-11-24",
+  "command": "RUN_LIVE_TESTS=1 .venv/bin/python -m pytest tests/live -q -rA",
+  "result": "39 tests passed, 2 failed, 4 skipped; 36 sources returned real dated items",
   "passed": [
-    "arxiv",
+    "app_store",
+    "ashby",
+    "clinicaltrials",
+    "crates_io",
+    "crossref",
+    "datacite",
     "devto",
+    "docker_hub",
+    "doaj",
     "github",
+    "gitlab",
+    "greenhouse",
     "hacker_news",
     "hugging_face",
+    "internet_archive",
+    "itmedia",
+    "lemmy",
+    "lever",
+    "makuake",
+    "maven_central",
+    "note",
+    "nuget",
+    "open_library",
+    "openalex",
     "package_registries",
+    "pypi",
+    "pubmed",
     "qiita",
-    "reddit",
+    "rubygems",
+    "sec_edgar",
+    "sspai",
     "stack_overflow",
-    "youtube"
+    "world_bank",
+    "youtube",
+    "zenodo",
+    "zenn"
   ],
+  "failed": {
+    "arxiv": "upstream rate limit (429) during this run; passed the 2026-10-04 snapshot",
+    "reddit": "keyless RSS returned 404; the archive fallback still runs"
+  },
+  "bounded": {
+    "steam": "review endpoint redirected to the store home page; the adapter refuses HTML and reports unavailability"
+  },
   "skipped": {
     "bluesky": ["BSKY_HANDLE", "BSKY_APP_PASSWORD"],
     "product_hunt": ["PRODUCT_HUNT_TOKEN"],
     "semantic_scholar": ["SEMANTIC_SCHOLAR_API_KEY"],
     "x": ["X_BEARER_TOKEN"]
   },
-  "note": "This is a dated verification snapshot, not a permanent availability guarantee. Re-run the live suite after connector or upstream changes."
+  "note": "This is a dated verification snapshot, not a permanent availability guarantee. arXiv's prior pass is kept in the 2026-10-04 snapshot, so 37 free structured routes have a live pass on record. Re-run the live suite after connector or upstream changes."
 }

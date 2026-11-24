@@ -65,6 +65,88 @@ an upstream API currently works.
 | PitchBook | none (enterprise licence) | Requires explicit user approval; no automated access. | Public pages. |
 | OpenAlex | `OPENALEX_API_KEY` (optional) | Only unlocks cursor paging / polite pool. Anonymous search works. | Anonymous search. |
 
+## Phase 2: routes that need no credential at all
+
+These were added after a live round-trip and can be used by setting
+`GTM_INTELLIGENCE_SOURCES_YAML=config/sources-expanded.yaml` (or by enabling a
+single registry entry). No account, key, cookie or paid plan is involved.
+
+| Platform | Route | Published access terms to respect |
+| --- | --- | --- |
+| PubMed | E-utilities `esearch`/`esummary`, JSON | NCBI asks for ≤3 requests/second without a key and an identifying User-Agent (set: `VantageResearch/1.1`). |
+| DOAJ | `doaj.org/api/search/articles` | Public open-access metadata; keep the article link. |
+| Zenodo | `zenodo.org/api/records` | Public records; respect the record licence. |
+| DataCite | `api.datacite.org/dois` | Public DOI metadata; cite the DOI. |
+| Open Library | `openlibrary.org/search.json` | Public bibliographic data; year-only dates are labelled. |
+| Internet Archive | `archive.org/advancedsearch.php` | Public item metadata; item dates are archive fields. |
+| ClinicalTrials.gov | `api/v2/studies` | Public registry data. |
+| Maven Central | `search.maven.org/solrsearch/select` | Public artifact metadata. |
+| NuGet | Search + registration endpoints | Public package metadata. |
+| RubyGems | `rubygems.org/api/v1` | Public gem metadata. |
+| Docker Hub | `hub.docker.com/v2` | Public repository metadata; detail lookups are capped at three per query. |
+| App Store | `itunes.apple.com/search` | Public storefront search; reviews only via a public app id. |
+| Lemmy | `lemmy.world/api/v3/search` | Public federated posts on that instance. |
+| Zenn / note | Site JSON search endpoints | Public article search used by the sites themselves; RSS kept as fallback. |
+| ITmedia / SSPAI / Makuake | Official RSS/Atom feeds | Public feeds; topic filtering is local because the feeds expose no query parameter. |
+
+Rate limits are enforced per source by the existing registry (`rate_limit.rpm`)
+and `max_queries_per_run`; the default Skill profile still uses six slots.
+
+## Free registration (no payment) — user action required
+
+| Source | Where to apply | What you get | Notes |
+| --- | --- | --- | --- |
+| Reddit | <https://www.reddit.com/prefs/apps> (script app) | OAuth client id/secret | Free. Keyless RSS often 404s; OAuth is the durable route. |
+| Bluesky | <https://bsky.app/settings/app-passwords> | App password | Free. Public AppView search returned 403 from this network. |
+| Semantic Scholar | <https://www.semanticscholar.org/product/api#api-key-form> | API key | Free key raises the anonymous rate limit. |
+| FRED | <https://fred.stlouisfed.org/docs/api/api_key.html> | API key | Free. |
+| USPTO | <https://developer.uspto.gov/api-catalog> | Open Data Portal key | Free. |
+| Companies House | <https://developer.company-information.service.gov.uk/> | API key | Free UK register. |
+| EPO OPS | <https://developers.epo.org/> | Key + secret | Free tier with quota. |
+| Rakuten | <https://webservice.rakuten.co.jp/> | Application id | Free; Japanese marketplace data. |
+| Telegram | <https://my.telegram.org> | `api_id` / `api_hash` | Public channels only; no scraping of private chats. |
+| Discord | <https://discord.com/developers/applications> | Bot token | Message content is a privileged intent and needs approval. |
+
+## Approval or owner role required
+
+| Source | Application | What is required | Depth if approved |
+| --- | --- | --- | --- |
+| Product Hunt | <https://www.producthunt.com/v2/oauth/applications> | App review before a token is issued | GraphQL posts, votes, comments |
+| LinkedIn | <https://developer.linkedin.com/product-catalog> | Partner/approval; no public search API | Member/profile data only within approved scopes; no feed scraping |
+| G2 | <https://www.g2.com/products/g2-review-api> | Commercial review-API agreement | Review text and ratings |
+| Capterra | Gartner Digital Markets partner data | Vendor/partner agreement; no public API | Review text and ratings |
+| Trustpilot | <https://developers.trustpilot.com/> | Business-unit authorization for review API | Your own business unit; others via public pages |
+| Google Play | <https://developers.google.com/android-publisher> | Owner service account | Your own app's reviews/statistics; competitor data stays public-web |
+| App Store Connect | <https://developer.apple.com/documentation/appstoreconnectapi/customer-reviews> | Owner key (issuer id + key id) | Your own app's reviews; competitor reviews need a public app id |
+| Amazon Product Advertising API | <https://webservices.amazon.com/paapi5/documentation/> | Affiliate approval + qualifying sales | Product metadata/pricing, not full review text |
+| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity/verification | Ads by page, region-dependent |
+| TikTok Research API | <https://developers.tiktok.com/products/research-api/> | Research approval | Public video metadata within approved scope |
+| X | <https://developer.x.com/en/portal/dashboard> | Paid API tier | Recent search; full archive by plan |
+
+## Paid data services
+
+| Service | Model | Use |
+| --- | --- | --- |
+| Similarweb | Subscription | Traffic/audience estimates |
+| SEMrush / Ahrefs | Subscription | Search and backlink intelligence |
+| Crunchbase | Subscription | Company/funding data |
+| PitchBook | Enterprise licence | Private-market data |
+| IT桔子 | Commercial API | China startup/funding data |
+| The Lens | Institutional/free scholarly tier | Patents and scholarly records |
+
+Prices change frequently and are quoted by the vendor; Vantage does not embed a
+price list or start a trial. Confirm the current price and terms on the
+provider's page before purchasing.
+
+## Aggregators that cover several platforms at once
+
+One contract can cover many platforms (for example DataForSEO for SERPs, Apify
+actors, or social-data vendors such as ScrapeCreators). They are **not**
+integrated by default: an aggregator's terms may not permit redistribution of
+every platform's content, and several operate by scraping. If you want one,
+authorize it explicitly and confirm that the covered platforms allow it. Until
+then those platforms stay on the host-web route.
+
 ## Configuration steps
 
 1. Obtain access from the provider under its current terms.

@@ -61,19 +61,24 @@ python3 -m venv .venv
 
 ### 1.1 全球来源扩展（开发分支）
 
-`dev/vantage-1.1-global-sources` 新增十个经过真实联网验证的免凭据直连来源：
-Crossref、OpenAlex、PyPI、Crates.io、GitLab、Lever、Greenhouse、Ashby、
-World Bank 与 SEC EDGAR；同时修正了 Stack Overflow、DEV、Hugging Face、npm
-与 arXiv 的日期语义。新来源在 `config/sources.yaml` 中默认关闭，只能通过
+`dev/vantage-1.1-global-sources` 新增二十八个经过真实联网验证的免凭据直连来源。
+第一阶段新增 Crossref、OpenAlex、PyPI、Crates.io、GitLab、Lever、Greenhouse、
+Ashby、World Bank 与 SEC EDGAR，并修正 Stack Overflow、DEV、Hugging Face、npm
+与 arXiv 的日期语义。第二阶段新增 PubMed、DOAJ、Zenodo、DataCite、Open
+Library、Internet Archive、ClinicalTrials.gov、Maven Central、NuGet、RubyGems、
+Docker Hub、App Store（iTunes Search）、Lemmy、Zenn、note、ITmedia、SSPAI 与
+Makuake。新来源在 `config/sources.yaml` 中默认关闭，只能通过
 `config/sources-expanded.yaml` 按每个来源一次查询的方式启用，因此默认 Skill
-检索的 16 个槽位、成本与 1.0 行为保持不变。研究编排、证据台账、FACT 校验与
-宿主协议均未改动。版本仍为 `1.0.0b1`，本分支不是 1.1 正式发布。
+检索的槽位、成本与 1.0 行为保持不变。研究编排、证据台账、FACT 校验与宿主协议
+均未改动。版本仍为 `1.0.0b1`，本分支不是 1.1 正式发布。
 
-来源目录目前登记 122 个独立平台，但本轮只有 18 个完成结构化直连验证、1 个
-完成真实网页覆盖验证；其余条目如实标记为 `registered_only`、
-`credential_required` 或 `unavailable`。详见
+来源目录目前登记 137 条、134 个独立平台，其中 37 个完成结构化直连验证、1 个
+完成真实网页覆盖验证；另有 65 个仅能走宿主检索的条目已写入机器可读验证清单，
+状态为 `pending_host`；其余条目如实标记为 `registered_only`、
+`credential_required`、`approval_required` 或 `unavailable`。详见
 [149 条来源处置记录](docs/source-expansion-1.1.md)、
-[处置 CSV](docs/source-expansion-1.1.csv)与
+[处置 CSV](docs/source-expansion-1.1.csv)、
+[宿主检索验证清单](docs/host-web-verification-tasks.json)与
 [授权指南](docs/source-authorization.md)。
 
 ## 进一步了解
