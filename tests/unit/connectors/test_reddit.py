@@ -158,6 +158,26 @@ def test_keyless_rss_paces_consecutive_queries():
     assert sleeps == [2.0]
 
 
+def test_keyless_rss_404_is_bounded_unavailability():
+    cap = _ScriptedHttpClient([
+        ("raise", HttpPermanentError(404, "https://www.reddit.com/search.rss"), None),
+    ])
+    adapter = RedditAdapter(http_client=cap, allow_keyless_rss=True)
+    with pytest.raises(AdapterUnavailable, match="404"):
+        adapter.retrieve(plan=_plan(), request=_request())
+
+
+def test_keyless_rss_404_preserves_archive_fallback_and_records_limitation():
+    # A non-Latin query yields no derivable community, so the archive lane stops
+    # without extra calls; the failed RSS route must not raise away the run.
+    cap = _ScriptedHttpClient([
+        ("raise", HttpPermanentError(404, "https://www.reddit.com/search.rss"), None),
+    ])
+    adapter = RedditAdapter(http_client=cap, allow_keyless_rss=True, include_archive=True)
+    assert adapter.retrieve(plan=_plan(), request=_request(query="会议助手")) == []
+    assert any("Reddit RSS unavailable" in item for item in adapter.limitations)
+
+
 def test_keyless_rss_must_be_enabled_by_host():
     cap = _ScriptedHttpClient([])
     with pytest.raises(AdapterAuthMissing):

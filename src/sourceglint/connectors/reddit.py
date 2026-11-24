@@ -386,9 +386,18 @@ class RedditAdapter:
         except HttpTimeoutError as exc:
             raise AdapterTimeout(self.source_name, str(exc))
         except HttpPermanentError as exc:
+            if exc.status in (403, 404):
+                # The keyless Atom route is commonly retired or gated per
+                # network. Record it as a bounded unavailability so the host
+                # can fall back to the public archive/post page instead of
+                # treating the whole source as malformed.
+                raise AdapterUnavailable(
+                    self.source_name,
+                    f"reddit RSS returned {exc.status} (keyless route unavailable)",
+                ) from exc
             raise AdapterInvalidResponse(
                 self.source_name, f"reddit RSS returned {exc.status}"
-            )
+            ) from exc
         except Exception as exc:
             raise AdapterUnavailable(
                 self.source_name, f"reddit RSS {type(exc).__name__}: {exc}"

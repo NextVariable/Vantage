@@ -120,6 +120,7 @@ class HttpClient(Protocol):
         method: str = "GET",
         json_data: Mapping[str, object] | None = None,
         form_data: Mapping[str, str] | None = None,
+        max_bytes: int | None = None,
     ) -> HttpResponse:
         ...
 
@@ -147,6 +148,7 @@ class StdlibHttpClient:
         method: str = "GET",
         json_data: Mapping[str, object] | None = None,
         form_data: Mapping[str, str] | None = None,
+        max_bytes: int | None = None,
     ) -> HttpResponse:
         """Issue a bounded HTTP request; retry only transient failures."""
         if json_data is not None and form_data is not None:
@@ -167,6 +169,7 @@ class StdlibHttpClient:
                     method=method,
                     json_data=json_data,
                     form_data=form_data,
+                    max_bytes=max_bytes,
                 )
             except (HttpTransientError, HttpTimeoutError) as exc:
                 last_exc = exc
@@ -194,6 +197,7 @@ class StdlibHttpClient:
         method: str,
         json_data: Mapping[str, object] | None,
         form_data: Mapping[str, str] | None = None,
+        max_bytes: int | None = None,
     ) -> HttpResponse:
         # Build headers with User-Agent always first.
         merged: dict[str, str] = {"User-Agent": self.user_agent}
@@ -220,7 +224,11 @@ class StdlibHttpClient:
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 status = int(getattr(resp, "status", 200) or 200)
-                body = resp.read()
+                body = resp.read(max_bytes + 1) if max_bytes is not None else resp.read()
+                if max_bytes is not None and len(body) > max_bytes:
+                    # Oversized bodies are refused as a permanent error so a
+                    # connector can report a bounded-access limitation.
+                    raise HttpPermanentError(status=413, url=url)
                 # Map urllib's http.client.HTTPMessage to a plain dict.
                 hdrs: dict[str, str] = {
                     k.lower(): v for k, v in resp.headers.items()

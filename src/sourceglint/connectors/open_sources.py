@@ -6,13 +6,16 @@ keeping source-specific request and mapping logic explicit.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 from urllib.parse import urlencode
 from xml.etree import ElementTree
 
+from ..deadline import remaining_time
 from ..pipeline.adapters import (
+    AdapterError,
     AdapterInvalidResponse,
     AdapterRateLimited,
     AdapterTimeout,
@@ -142,6 +145,30 @@ def _json(http: HttpClient, source: str, url: str) -> Any:
         raise AdapterInvalidResponse(source, "upstream body was not JSON") from exc
 
 
+_NPM_DOC_LOOKUPS = 5
+
+
+def _npm_registry_publish_time(
+    http: HttpClient, source: str, name: str, version: str
+) -> str:
+    """Read the exact version upload time from the package document.
+
+    The npm search endpoint's per-package ``date`` is an index field and must
+    not be presented as a product publication date. The registry document's
+    ``time[version]`` is the authoritative per-version upload timestamp.
+    """
+    try:
+        payload = _json(http, source, f"https://registry.npmjs.org/{name}")
+    except AdapterError:
+        return ""
+    if not isinstance(payload, Mapping):
+        return ""
+    times = payload.get("time")
+    if not isinstance(times, Mapping):
+        return ""
+    return _rfc3339(times.get(version))
+
+
 @dataclass(frozen=True)
 class StackOverflowAdapter:
     http_client: HttpClient | None = None
@@ -189,7 +216,14 @@ class StackOverflowAdapter:
                 language=str(request.get("query_language") or "en"), query=query,
                 query_language=str(request.get("query_language") or "en"),
                 engagement={"points": _integer(item.get("score")), "comments": _integer(item.get("answer_count")), "views": _integer(item.get("view_count"))},
-                raw_metadata={"tags": list(item.get("tags") or []), "is_answered": bool(item.get("is_answered"))},
+                raw_metadata={
+                    "tags": list(item.get("tags") or []),
+                    "is_answered": bool(item.get("is_answered")),
+                    # Update markers are kept apart from the creation date.
+                    "last_edit_date": _rfc3339(item.get("last_edit_date")),
+                    "last_activity_date": _rfc3339(item.get("last_activity_date")),
+                    "date_semantics": "question_creation",
+                },
             ))
         return out
 
@@ -243,7 +277,12 @@ class DevToAdapter:
                 published_at=published, market=str(request.get("market") or "global"), language="en",
                 query=query, query_language=str(request.get("query_language") or "en"),
                 engagement={"likes": _integer(item.get("public_reactions_count") or item.get("positive_reactions_count")), "comments": _integer(item.get("comments_count"))},
-                raw_metadata={"tags": item.get("tag_list") or item.get("tags") or []},
+                raw_metadata={
+                    "tags": item.get("tag_list") or item.get("tags") or [],
+                    "edited_at": _rfc3339(item.get("edited_at")),
+                    "readable_publish_date": str(item.get("readable_publish_date") or ""),
+                    "date_semantics": "article_published",
+                },
             ))
             if len(out) == limit:
                 break
@@ -275,7 +314,10 @@ class HuggingFaceAdapter:
             if not isinstance(item, Mapping):
                 continue
             native_id = str(item.get("modelId") or item.get("id") or "").strip()
-            published = _rfc3339(item.get("lastModified") or item.get("createdAt"))
+            # Hugging Face exposes two distinct timestamps. Only createdAt marks
+            # when the model object appeared; lastModified changes on card or
+            # file edits and must never be presented as a publication date.
+            published = _rfc3339(item.get("createdAt"))
             if not native_id or not published:
                 continue
             pipeline_tag = str(item.get("pipeline_tag") or "").strip()
@@ -287,7 +329,13 @@ class HuggingFaceAdapter:
                 published_at=published, market="global", language="en", query=query,
                 query_language=str(request.get("query_language") or "en"),
                 engagement={"likes": _integer(item.get("likes"))},
-                raw_metadata={"downloads": _integer(item.get("downloads")), "pipeline_tag": pipeline_tag, "tags": list(item.get("tags") or [])},
+                raw_metadata={
+                    "downloads": _integer(item.get("downloads")),
+                    "pipeline_tag": pipeline_tag,
+                    "tags": list(item.get("tags") or []),
+                    "last_modified": _rfc3339(item.get("lastModified")),
+                    "date_semantics": "model_created",
+                },
             ))
         return out
 
@@ -320,17 +368,30 @@ class PackageRegistriesAdapter:
         if not isinstance(payload, Mapping) or not isinstance(payload.get("objects"), list):
             raise AdapterInvalidResponse(self.source_name, "payload missing objects")
         out: list[RawSourceResult] = []
+        lookup_budget = min(_limit(request, self.max_per_query), _NPM_DOC_LOOKUPS)
+        lookups = 0
         for wrapper in payload["objects"]:
             if not isinstance(wrapper, Mapping) or not isinstance(wrapper.get("package"), Mapping):
                 continue
             package = wrapper["package"]
             name = str(package.get("name") or "").strip()
             version = str(package.get("version") or "").strip()
-            published = _rfc3339(package.get("date"))
+            index_date = _rfc3339(package.get("date"))
             links = package.get("links") if isinstance(package.get("links"), Mapping) else {}
             url = str(links.get("npm") or (f"https://www.npmjs.com/package/{name}" if name else ""))
-            if not name or not version or not published or not url:
+            if not name or not version or not url:
                 continue
+            published = ""
+            publish_time_source = "unresolved"
+            if lookups < lookup_budget:
+                remaining = remaining_time()
+                if remaining is None or remaining > 3.0:
+                    published = _npm_registry_publish_time(
+                        self.http_client, self.source_name, name, version
+                    )
+                    lookups += 1
+                    if published:
+                        publish_time_source = "registry_version_time"
             author = package.get("author") if isinstance(package.get("author"), Mapping) else {}
             publisher = package.get("publisher") if isinstance(package.get("publisher"), Mapping) else {}
             score = wrapper.get("score") if isinstance(wrapper.get("score"), Mapping) else {}
@@ -341,7 +402,16 @@ class PackageRegistriesAdapter:
                 author=str(author.get("name") or publisher.get("username") or ""),
                 published_at=published, market="global", language="en", query=query,
                 query_language=str(request.get("query_language") or "en"),
-                raw_metadata={"registry": "npm", "package": name, "version": version, "search_score": score.get("final")},
+                raw_metadata={
+                    "registry": "npm",
+                    "package": name,
+                    "version": version,
+                    "search_score": score.get("final"),
+                    # The search date is an index timestamp, not the release date.
+                    "search_index_date": index_date,
+                    "publish_time": publish_time_source,
+                    "date_semantics": "registry_version_upload",
+                },
             ))
         return out
 
@@ -480,11 +550,12 @@ class ArxivAdapter:
     def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
         query = _query(request, self.source_name)
         expression = f'all:"{query}"'
+        limit = _limit(request, self.max_per_query)
         start = _date_start(plan, request)
         end = _as_of(request)
         if start and end:
             expression += f" AND submittedDate:[{start.strftime('%Y%m%d%H%M')} TO {end.strftime('%Y%m%d%H%M')}]"
-        params = {"search_query": expression, "start": 0, "max_results": _limit(request, self.max_per_query), "sortBy": "submittedDate", "sortOrder": "descending"}
+        params = {"search_query": expression, "start": 0, "max_results": limit, "sortBy": "submittedDate", "sortOrder": "descending"}
         response = _get(self.http_client, self.source_name, f"https://export.arxiv.org/api/query?{urlencode(params)}")
         try:
             root = ElementTree.fromstring(response.body)
@@ -492,13 +563,21 @@ class ArxivAdapter:
             raise AdapterInvalidResponse(self.source_name, "upstream body was not Atom XML") from exc
         ns = {"a": "http://www.w3.org/2005/Atom"}
         out: list[RawSourceResult] = []
+        seen: set[str] = set()
         for entry in root.findall("a:entry", ns):
             native_url = (entry.findtext("a:id", default="", namespaces=ns) or "").strip()
             native_id = native_url.rsplit("/", 1)[-1]
             title = " ".join((entry.findtext("a:title", default="", namespaces=ns) or "").split())
             published = _rfc3339(entry.findtext("a:published", default="", namespaces=ns))
+            updated = _rfc3339(entry.findtext("a:updated", default="", namespaces=ns))
             if not native_id or not native_url or not title or not published:
                 continue
+            # Replacement versions share one paper id. The feed is sorted newest
+            # first, so the first occurrence is the current record.
+            base_id = re.sub(r"v\d+$", "", native_id)
+            if base_id in seen:
+                continue
+            seen.add(base_id)
             authors = [x.findtext("a:name", default="", namespaces=ns) for x in entry.findall("a:author", ns)]
             summary = " ".join((entry.findtext("a:summary", default="", namespaces=ns) or title).split())
             out.append(RawSourceResult(
@@ -507,5 +586,15 @@ class ArxivAdapter:
                 author=", ".join(x for x in authors[:4] if x), published_at=published,
                 market="global", language="en", query=query,
                 query_language=str(request.get("query_language") or "en"),
+                raw_metadata={
+                    "version": native_id[len(base_id):] or "v1",
+                    "updated_at": updated,
+                    "primary_category": entry.findtext(
+                        "{http://arxiv.org/schemas/atom}primary_category", default=""
+                    ),
+                    "date_semantics": "first_submission",
+                },
             ))
+            if len(out) == limit:
+                break
         return out

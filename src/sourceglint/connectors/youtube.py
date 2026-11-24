@@ -162,7 +162,14 @@ class YouTubeAdapter:
                 if not in_window(_published_at(item), bounds) or len(output) >= limit:
                     continue
             description = str(item.get("description") or "").strip()
-            metadata = {"duration_seconds": _count(item.get("duration"))}
+            metadata = {
+                "duration_seconds": _count(item.get("duration")),
+                "route": "yt_dlp",
+                "date_semantics": "video_upload",
+                "content_kind": "video_metadata",
+                "transcript_requested": self.include_transcripts,
+                "transcript_status": "not_requested",
+            }
             body = description or title
             if self.include_transcripts:
                 from ._deep import in_window
@@ -177,9 +184,11 @@ class YouTubeAdapter:
                         if transcript:
                             body = transcript
                             metadata["transcript_status"] = "available"
+                            metadata["content_kind"] = "video_transcript"
                             metadata["video_description"] = description
                         else:
-                            self.limitations.append(f"YouTube transcript unavailable: {video_id}")
+                            metadata["transcript_status"] = "empty"
+                            self.limitations.append(f"YouTube transcript empty: {video_id}")
                     except Exception as exc:
                         metadata["transcript_status"] = "failed"
                         self.limitations.append(f"YouTube transcript failed for {video_id}: {type(exc).__name__}")

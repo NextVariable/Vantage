@@ -66,6 +66,11 @@ def default_adapter_factory(
     from ..connectors.reddit import RedditAdapter
     from ..connectors.bluesky import BlueskyAdapter
     from ..connectors.youtube import YouTubeAdapter
+    from ..connectors.ats import AshbyAdapter, GreenhouseAdapter, LeverAdapter
+    from ..connectors.devplatforms import GitLabAdapter
+    from ..connectors.packages import CratesIoAdapter, PyPIAdapter
+    from ..connectors.reviews import SteamAdapter
+    from ..connectors.scholarly import CrossrefAdapter, OpenAlexAdapter
     from ..connectors.open_sources import (
         ArxivAdapter,
         DevToAdapter,
@@ -132,6 +137,31 @@ def default_adapter_factory(
         return XAdapter(bearer_token=_env("X_BEARER_TOKEN") or None)
     if name == "product_hunt":
         return ProductHuntAdapter(token=_env("PRODUCT_HUNT_TOKEN") or None)
+    if name == "openalex":
+        return OpenAlexAdapter(
+            api_key=(_env("OPENALEX_API_KEY") or None) if allow_credentials else None,
+        )
+    if name == "crossref":
+        return CrossrefAdapter()
+    if name == "pypi":
+        return PyPIAdapter()
+    if name == "crates_io":
+        return CratesIoAdapter()
+    if name == "gitlab":
+        return GitLabAdapter()
+    if name == "lever":
+        return LeverAdapter()
+    if name == "greenhouse":
+        return GreenhouseAdapter()
+    if name == "ashby":
+        return AshbyAdapter()
+    if name == "steam":
+        return SteamAdapter()
+
+    if name in {"world_bank", "sec_edgar", "polymarket"}:
+        from ..connectors.open_data import build_open_data_adapter
+
+        return build_open_data_adapter(name)
     # official_web and host_web_search need a host search/fetch capability
     # or an official-fetch connector — not present standalone in this repo.
     return None

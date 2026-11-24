@@ -35,6 +35,23 @@ class StubHttp:
         return HttpResponse(status=200, body=body, url=url)
 
 
+class RoutedHttp:
+    """Serve different payloads by URL fragment, like the real registry."""
+
+    user_agent = "test"
+
+    def __init__(self, routes: Mapping[str, object]):
+        self.routes = routes
+        self.calls: list[str] = []
+
+    def request(self, url: str, *, headers: Mapping[str, str] | None = None, timeout=15.0, method="GET", json_data=None):
+        self.calls.append(url)
+        for needle, payload in self.routes.items():
+            if needle in url:
+                return HttpResponse(status=200, body=json.dumps(payload).encode(), url=url)
+        return HttpResponse(status=404, body=b"{}", url=url)
+
+
 REQUEST = {
     "query": "AI agents",
     "query_language": "en",
@@ -48,12 +65,14 @@ PLAN = {"time_window": {"days": 30}}
 def test_stack_overflow_maps_search_result_and_time_window():
     http = StubHttp({"items": [{
         "question_id": 123, "title": "AI agents", "link": "https://stackoverflow.com/q/123",
-        "creation_date": 1780000000, "score": 4, "answer_count": 2, "view_count": 40,
+        "creation_date": 1780000000, "last_activity_date": 1780100000,
+        "score": 4, "answer_count": 2, "view_count": 40,
         "owner": {"display_name": "Ada"}, "tags": ["python"], "is_answered": True,
     }]})
     out = StackOverflowAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert out[0].source == "stack_overflow"
     assert out[0].engagement == {"points": 4, "comments": 2, "views": 40}
+    assert out[0].raw_metadata["last_activity_date"].startswith("2026-05")
     assert "fromdate=" in http.calls[0]
 
 
@@ -61,38 +80,70 @@ def test_devto_uses_real_search_endpoint_and_maps_engagement():
     http = StubHttp([{
         "id": 9, "title": "Agent workflows", "url": "https://dev.to/a/agent-workflows",
         "description": "A practical workflow", "published_timestamp": "2026-09-20T10:00:00Z",
+        "edited_at": "2026-09-22T10:00:00Z",
         "public_reactions_count": 12, "comments_count": 3, "user": {"username": "a"},
         "tag_list": ["ai"],
     }])
     out = DevToAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert out[0].source_native_id == "9"
     assert out[0].engagement == {"likes": 12, "comments": 3}
+    assert out[0].raw_metadata["edited_at"] == "2026-09-22T10:00:00Z"
     assert "/api/articles/search?" in http.calls[0]
 
 
 def test_hugging_face_maps_model_search():
     http = StubHttp([{
-        "modelId": "org/model", "lastModified": "2026-09-28T09:00:00Z",
+        "modelId": "org/model", "createdAt": "2026-09-01T09:00:00Z",
+        "lastModified": "2026-09-28T09:00:00Z",
         "pipeline_tag": "text-generation", "likes": 8, "downloads": 99, "tags": ["transformers"],
     }])
     out = HuggingFaceAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert out[0].url == "https://huggingface.co/org/model"
     assert out[0].raw_metadata["downloads"] == 99
+    assert out[0].published_at == "2026-09-01T09:00:00Z"
+    assert out[0].raw_metadata["last_modified"] == "2026-09-28T09:00:00Z"
+
+
+def test_hugging_face_does_not_present_update_time_as_publication_date():
+    http = StubHttp([{
+        "modelId": "org/old-model", "lastModified": "2026-09-28T09:00:00Z",
+        "pipeline_tag": "text-generation",
+    }])
+    out = HuggingFaceAdapter(http_client=http).retrieve(PLAN, REQUEST)
+    assert out == []
 
 
 def test_package_registries_maps_npm_search():
-    http = StubHttp({"objects": [{
-        "package": {
-            "name": "agent-kit", "version": "1.2.3", "date": "2026-09-28T00:00:00Z",
-            "description": "Agent toolkit", "links": {"npm": "https://www.npmjs.com/package/agent-kit"},
-            "author": {"name": "Ada"},
-        },
-        "score": {"final": 0.9},
-    }]})
+    http = RoutedHttp({
+        "-/v1/search": {"objects": [{
+            "package": {
+                "name": "agent-kit", "version": "1.2.3", "date": "2026-09-28T00:00:00Z",
+                "description": "Agent toolkit", "links": {"npm": "https://www.npmjs.com/package/agent-kit"},
+                "author": {"name": "Ada"},
+            },
+            "score": {"final": 0.9},
+        }]},
+        "/agent-kit": {"time": {"1.2.3": "2026-09-27T08:00:00Z"}},
+    })
     out = PackageRegistriesAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert out[0].source_native_id == "npm:agent-kit@1.2.3"
     assert out[0].author == "Ada"
     assert out[0].raw_metadata["registry"] == "npm"
+    assert out[0].raw_metadata["search_index_date"] == "2026-09-28T00:00:00Z"
+    assert out[0].published_at == "2026-09-27T08:00:00Z"
+    assert out[0].raw_metadata["publish_time"] == "registry_version_time"
+
+
+def test_npm_index_date_is_not_a_publication_date_when_document_is_missing():
+    http = RoutedHttp({"-/v1/search": {"objects": [{
+        "package": {
+            "name": "agent-kit", "version": "1.2.3", "date": "2026-09-28T00:00:00Z",
+            "description": "Agent toolkit", "links": {"npm": "https://www.npmjs.com/package/agent-kit"},
+        },
+    }]}})
+    out = PackageRegistriesAdapter(http_client=http).retrieve(PLAN, REQUEST)
+    assert out[0].published_at == ""
+    assert out[0].raw_metadata["publish_time"] == "unresolved"
 
 
 def test_package_registry_compacts_prompt_length_query_before_request():
@@ -138,12 +189,31 @@ def test_arxiv_maps_atom_entries():
     <feed xmlns="http://www.w3.org/2005/Atom"><entry>
       <id>http://arxiv.org/abs/2609.12345v1</id><title> Agent Research </title>
       <summary> A useful paper. </summary><published>2026-09-20T12:00:00Z</published>
+      <updated>2026-09-22T12:00:00Z</updated>
       <author><name>Ada</name></author>
     </entry></feed>'''
     http = StubHttp(body=atom)
     out = ArxivAdapter(http_client=http).retrieve(PLAN, REQUEST)
     assert out[0].source_native_id == "2609.12345v1"
     assert out[0].url == "https://arxiv.org/abs/2609.12345v1"
+    assert out[0].published_at == "2026-09-20T12:00:00Z"
+    assert out[0].raw_metadata["updated_at"] == "2026-09-22T12:00:00Z"
+    assert out[0].raw_metadata["version"] == "v1"
+
+
+def test_arxiv_deduplicates_replacement_versions():
+    atom = b'''<?xml version="1.0" encoding="UTF-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <entry><id>http://arxiv.org/abs/2609.12345v2</id><title>Paper</title>
+        <summary>v2</summary><published>2026-09-20T12:00:00Z</published>
+        <updated>2026-09-25T12:00:00Z</updated></entry>
+      <entry><id>http://arxiv.org/abs/2609.12345v1</id><title>Paper</title>
+        <summary>v1</summary><published>2026-09-20T12:00:00Z</published>
+        <updated>2026-09-20T12:00:00Z</updated></entry>
+    </feed>'''
+    out = ArxivAdapter(http_client=StubHttp(body=atom)).retrieve(PLAN, REQUEST)
+    assert [row.source_native_id for row in out] == ["2609.12345v2"]
+    assert out[0].raw_metadata["version"] == "v2"
 
 
 @pytest.mark.parametrize("adapter_type", [StackOverflowAdapter, DevToAdapter, HuggingFaceAdapter, PackageRegistriesAdapter, QiitaAdapter])
