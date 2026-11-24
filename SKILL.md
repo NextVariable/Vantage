@@ -40,6 +40,10 @@ Run from the Skill folder in an interactive terminal:
   --ledger runs/research-unique-name/evidence.jsonl --json
 ```
 
+For occasional breadth, use `--registry config/sources-expanded.yaml`, which
+enables the 1.1 free connectors at one query each. Keep the hybrid profile for
+default runs; adding sources must not multiply per-run calls.
+
 Pass the query as safely quoted data. Choose a fresh ledger path for each run.
 Keep the session open and handle each `source_request` and `model_request` in
 order. Echo the exact top-level `request_id` on every response. If a newer request arrives after a timeout, abandon the older one. The model responses are your own grounded reasoning;
@@ -92,7 +96,9 @@ and URLs; archive copies are not independent corroboration.
 Its `.raw.jsonl` companion retains the retrieved text and provider metadata before
 filtering; distinguish these unvalidated records from the dated retained ledger.
 
-Read [access truth](docs/source-access-matrix.md) and
+A catalog entry is a routing target, not proof of access. Treat named-board,
+named-package and country/indicator sources as unavailable unless the caller
+supplies those parameters. Read [access truth](docs/source-access-matrix.md) and
 [the fallback playbook](docs/source-fallback-playbook.md) when troubleshooting.
 For maintenance, consult [architecture](docs/architecture.md) and
 [validation and comparative evaluation](docs/validation.md).

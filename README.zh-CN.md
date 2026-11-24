@@ -59,9 +59,27 @@ python3 -m venv .venv
 - JSON 同时提供 `execution_status` 和兼容字段 `status`。每条事实性发现附带证据支持状态：`supported`（引文可在所引来源中逐字定位）、`verified`（另经宿主语义支持校验）、`partial`（只能支持部分陈述）、`vendor_only`（仅有厂商材料支持）或 `unverified`（无法确认）。合法但无关的引用、拼接引文和厂商自称的“独立测试”都会被拒绝，不会被标为已验证事实。
 - 行业、需求与竞争研究是基础能力；机会发现和产品建议只在明确请求时生成。
 
+### 1.1 全球来源扩展（开发分支）
+
+`dev/vantage-1.1-global-sources` 新增十个经过真实联网验证的免凭据直连来源：
+Crossref、OpenAlex、PyPI、Crates.io、GitLab、Lever、Greenhouse、Ashby、
+World Bank 与 SEC EDGAR；同时修正了 Stack Overflow、DEV、Hugging Face、npm
+与 arXiv 的日期语义。新来源在 `config/sources.yaml` 中默认关闭，只能通过
+`config/sources-expanded.yaml` 按每个来源一次查询的方式启用，因此默认 Skill
+检索的 16 个槽位、成本与 1.0 行为保持不变。研究编排、证据台账、FACT 校验与
+宿主协议均未改动。版本仍为 `1.0.0b1`，本分支不是 1.1 正式发布。
+
+来源目录目前登记 122 个独立平台，但本轮只有 18 个完成结构化直连验证、1 个
+完成真实网页覆盖验证；其余条目如实标记为 `registered_only`、
+`credential_required` 或 `unavailable`。详见
+[149 条来源处置记录](docs/source-expansion-1.1.md)、
+[处置 CSV](docs/source-expansion-1.1.csv)与
+[授权指南](docs/source-authorization.md)。
+
 ## 进一步了解
 
 - [Beta 候选验收与四类真实研究](docs/beta-final-closure.md)
+- [1.1 来源扩展记录](docs/source-expansion-1.1.md)与[授权指南](docs/source-authorization.md)
 - [真实研究样例](docs/examples/2026-10-04/README.md)
 - [来源访问](docs/source-access-matrix.md)与[降级方式](docs/source-fallback-playbook.md)
 - [智能体集成与证据导出](references/host-protocol.md)

@@ -61,9 +61,29 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 - The JSON makes `execution_status` explicit while preserving the legacy `status`. Each factual finding carries an evidence support state: `supported` (the quote occurs verbatim in the cited item), `verified` (additionally passed the separate semantic check), `partial` (only part of the statement is quoted), `vendor_only` (only vendor material supports it) or `unverified` (support could not be established). A valid but unrelated evidence id, a stitched quotation, or a vendor claim of independent testing is rejected — never promoted to a verified fact.
 - Industry, demand and competitive research are the core. Opportunity hypotheses and product recommendations are generated only when explicitly requested.
 
+### 1.1 source expansion (development branch)
+
+`dev/vantage-1.1-global-sources` adds ten live-verified credential-free
+connectors — Crossref, OpenAlex, PyPI, Crates.io, GitLab, Lever, Greenhouse,
+Ashby, World Bank and SEC EDGAR — and corrects the date semantics of the
+existing Stack Overflow, DEV, Hugging Face, npm and arXiv routes. The new
+registry slots are disabled by default and enabled only through
+`config/sources-expanded.yaml`, one query per source, so a default Skill run
+keeps its 1.0 source mix and cost. Adaptive routing, the evidence ledger, FACT
+checks and the host protocol are unchanged. The version still prints
+`1.0.0b1`; this branch is not a 1.1 release.
+
+The catalog now registers 122 distinct platforms. Only 18 have verified direct
+structured access and 1 has verified web coverage this round; the remaining
+catalog rows are honestly marked `registered_only`, `credential_required` or
+`unavailable`. See the [149-row expansion record](docs/source-expansion-1.1.md),
+[its disposition CSV](docs/source-expansion-1.1.csv) and the
+[authorization guide](docs/source-authorization.md).
+
 ## More
 
 - [Beta candidate acceptance and four research cases](docs/beta-final-closure.md)
+- [1.1 source expansion record](docs/source-expansion-1.1.md) and [authorization guide](docs/source-authorization.md)
 - [Recorded research examples](docs/examples/2026-10-04/README.md)
 - [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
 - [Agent integration and evidence exports](references/host-protocol.md)

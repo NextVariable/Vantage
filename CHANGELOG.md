@@ -2,6 +2,30 @@
 
 Python 3.10 compatibility is exercised by the public CI matrix; recommendation ID construction avoids syntax that requires Python 3.12.
 
+## Unreleased — 1.1 global source expansion
+
+Development branch only; no 1.1 release or tag.
+
+- Add credential-free direct connectors for Crossref, OpenAlex, PyPI,
+  Crates.io, GitLab, Lever, Greenhouse, Ashby, World Bank and SEC EDGAR,
+  behind new registry slots that are disabled by default.
+- Add `config/sources-expanded.yaml`: an opt-in profile that enables the free
+  routes at one query per source so default research cost is unchanged.
+- Correct publish semantics: Stack Overflow and DEV keep edit/activity fields
+  separate; Hugging Face uses `createdAt` rather than `lastModified`; npm reads
+  the registry per-version time instead of the search index date; arXiv uses the
+  first submission and de-duplicates versions.
+- Classify Reddit RSS 404 as bounded unavailability and keep the archive lane;
+  separate YouTube metadata, transcript-request and transcript-status fields;
+  add a Steam review adapter that refuses HTML redirect gates.
+- Bound Ashby boards at 2 MB and map Greenhouse `first_published` separately
+  from `updated_at`.
+- Record 149 research candidates in `docs/source-expansion-1.1.csv` with honest
+  states; register 122 distinct platforms while counting only verified routes as
+  coverage.
+- Add `docs/source-authorization.md`, `docs/source-expansion-1.1.md` and
+  profile-schema tests. No secret value is read, logged, or committed.
+
 ## 1.0.0b1 — beta
 
 - Add request/response correlation to the default STDIO host. Timed-out replies

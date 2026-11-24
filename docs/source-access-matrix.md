@@ -20,7 +20,7 @@ biases; provider failures and incomplete coverage must still be disclosed.
 
 | Layer | Current examples | What “usable” means |
 |---|---|---|
-| Built-in direct connector | Reddit RSS, Hacker News, GitHub, YouTube, Stack Overflow, DEV, Hugging Face, npm search, Qiita, arXiv; X, Product Hunt, Bluesky and Semantic Scholar when credentialed | The repository contains and tests an adapter. The dated live snapshot distinguishes current successes from credential-blocked checks; availability can still drift. |
+| Built-in direct connector | Reddit RSS, Hacker News, GitHub, YouTube, Stack Overflow, DEV, Hugging Face, npm search, Qiita, arXiv, Crossref, OpenAlex, PyPI, Crates.io, GitLab, Lever, Greenhouse, Ashby, World Bank, SEC EDGAR; X, Product Hunt, Bluesky and Semantic Scholar when credentialed | The repository contains and tests an adapter. The dated live snapshot distinguishes current successes from credential-blocked checks; availability can still drift. |
 | Official/third-party route declared, connector not yet built | LinkedIn, Meta, app stores, ScrapeCreators and paid intelligence APIs | Technically possible under the provider's credentials, permissions, pricing and terms. Merely setting a credential does not create a connector. |
 | Host web search fallback | Public pages from X, YouTube, Product Hunt, reviews, crowdfunding, news, social and local-market sites | The host can search indexed public pages and return traceable dates/URLs. Coverage may be partial and engagement/comment depth may be missing. |
 | User-authorized/private | Discord, Telegram and private communities | Only content the user has authorized through a bot, MCP connector, browser session or export. No broad private-community search is claimed. |
@@ -38,6 +38,27 @@ biases; provider failures and incomplete coverage must still be disclosed.
 - Apple and Google official review APIs are owner-authorized. They do not provide unrestricted competitor-review APIs.
 - Kickstarter, Makuake, GREEN FUNDING, CAMPFIRE and similar crowdfunding sources are represented through public project pages/search unless a supported commercial integration is added.
 - Google Search/News are discovery routes. Final evidence must cite the original page.
+
+## 1.1 expansion status
+
+The 1.1 round added ten verified credential-free connectors (Crossref, OpenAlex,
+PyPI, Crates.io, GitLab, Lever, Greenhouse, Ashby, World Bank, SEC EDGAR) and
+activated five existing ones with corrected date semantics (Stack Overflow, DEV,
+Hugging Face, npm, arXiv). The new slots are disabled in `config/sources.yaml`
+and enabled only through `config/sources-expanded.yaml`, one query per source.
+
+Live outcomes that changed a status:
+
+- Steam's review endpoint redirected to the store home page from the probe
+  network; the catalog entry moved from `ready` to `search_fallback`.
+- Polymarket's public API was unreachable; the catalog entry moved to
+  `unavailable` and no connector is exposed.
+- Reddit's keyless RSS returned 404; the route reports a bounded limitation and
+  keeps the archive fallback.
+- YouTube's `yt-dlp` route exited 1; the fallback stays public pages.
+
+Per-row evidence is in [the 1.1 expansion record](source-expansion-1.1.md) and
+[its CSV](source-expansion-1.1.csv).
 
 ## Efficiency policy
 

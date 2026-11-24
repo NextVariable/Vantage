@@ -42,3 +42,18 @@ Paid providers and browser-cookie access require explicit authorization.
 Check the platform's current documentation when diagnosing transport failures.
 Use only one bounded alternate route and record the actual source status;
 a local readiness check alone cannot establish live availability.
+
+## 1.1 route outcomes
+
+| Route | Failure seen | Bounded behaviour |
+| --- | --- | --- |
+| Reddit keyless RSS | HTTP 404 | Classified as unavailable; the archive lane still runs and appends a limitation, so other evidence survives. |
+| YouTube `yt-dlp` | Exit 1 | Classified separately from timeout and empty transcript; public pages remain the fallback. |
+| Steam reviews | 302 to the store home page | Classified as a regional/anti-bot gate; the adapter refuses HTML instead of fabricating reviews. |
+| Ashby board | Response above 2 MB | Refused with a size bound; smaller boards are parsed normally. |
+| Polymarket | Connection failure | No connector; catalog marked `unavailable`. |
+| Named-board / named-series sources | No board, appid, country/indicator, or form filter | `AdapterInvalidResponse` with a precise instruction; nothing is guessed. |
+
+A blocked route is recorded once and not retried indefinitely. Credential-gated
+sources never fall back to cookies or logged-in scraping; see
+[the authorization guide](source-authorization.md).

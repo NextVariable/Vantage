@@ -1,0 +1,150 @@
+id,platform,category,implementation_class,independent_platform,preferred_route,status_code,status,verified_at,note
+x,X,社交,D,yes,官方 Recent Search；Full Archive 按项目权限,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+reddit,Reddit,社交,A,yes,现有 RSS／公开档案；批准后 OAuth,2,implemented_unverified,,The keyless RSS route returned 404 in this round; bounded archive fallback and public post pages remain.
+bluesky,Bluesky,社交,D,yes,现有认证 AppView 搜索,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+threads,Threads,社交,D,yes,Meta Threads Keyword Search,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+facebook,Facebook,社交,F,yes,公开原帖／页面搜索,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+instagram,Instagram,社交,F,yes,公开 Reels／帖子网页,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+tiktok,TikTok,社交,F,yes,公开短视频网页,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+mastodon,Mastodon,社交,B,yes,实例标签与公开时间线 API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+lemmy,Lemmy,社交,B,yes,指定实例官方 API 搜索,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+wikimedia,Wikipedia / Wikimedia,科研与知识,B,yes,MediaWiki 搜索与公开修订,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+github,GitHub,开发者,A,yes,现有 REST 仓库、issues、PR、releases,4,direct_structured_verified,2026-11-24,
+gitlab,GitLab,开发者,B,yes,公开 Projects / Releases REST；命名项目,4,direct_structured_verified,2026-11-24,Live probe returned public projects and bounded releases.
+hacker_news,Hacker News,开发者,A,yes,Algolia 搜索 + HN 官方 Firebase,4,direct_structured_verified,2026-11-24,
+hugging_face,Hugging Face,开发者,A,yes,现有 Hub REST 模型搜索；MCP 备选,4,direct_structured_verified,2026-11-24,createdAt is mapped as creation; lastModified is kept separate.
+stack_overflow,Stack Overflow,开发者,A,yes,现有 Stack Exchange REST,4,direct_structured_verified,2026-11-24,
+devto,DEV,开发者,A,yes,现有 Forem 文章 API,4,direct_structured_verified,2026-11-24,
+npm,npm,开发者,A,yes,现有 package_registries 的 npm 搜索；包元数据补版本时间,4,direct_structured_verified,2026-11-24,Live registry lookup supplies the per-version publish time; index date stays separate.
+pypi,PyPI,开发者,B,yes,命名包 JSON API；核对 release 文件上传时间,4,direct_structured_verified,2026-11-24,Live probe returned requests@2.34.2 with its earliest upload time.
+docker_hub,Docker Hub,开发者,B,yes,公开 repo/tags Hub API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+crates_io,Crates.io,开发者,B,yes,crates.io 公共 API 或 sparse index,4,direct_structured_verified,2026-11-24,Live probe returned serde@1.0.229 and related crates.
+rubygems,RubyGems,开发者,B,yes,RubyGems V1/V2 公共 API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+packagist,Packagist,开发者,B,yes,Packagist Search + P2 API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+maven_central,Maven Central,开发者,B,yes,Central REST 搜索及官方仓库元数据,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+nuget,NuGet,开发者,B,yes,官方 V3 Search / Registration,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+go_packages,Go Packages,开发者,B,yes,Go module proxy 的指定模块元数据,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+docker_official_images,Docker Official Images,开发者,B,no,官方镜像 GitHub repo 的明确变更,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+arxiv,arXiv,科研与知识,A,yes,现有官方 Atom Query API,4,direct_structured_verified,2026-11-24,First submission is the publish anchor; updated stays separate.
+semantic_scholar,Semantic Scholar,科研与知识,D,yes,现有 Graph Search API,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+openalex,OpenAlex,科研与知识,B,yes,Works REST 基础匿名；授权 key 供分页,4,direct_structured_verified,2026-11-24,Live probe returned works with publication dates; anonymous first page.
+crossref,Crossref,科研与知识,B,yes,官方 Works REST,4,direct_structured_verified,2026-11-24,Live probe returned DOI items with full issued dates.
+google_patents,Google Patents,科研与知识,F,yes,公开搜索；原始专利局核验,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+uspto,USPTO,科研与知识,D,yes,Open Data Portal API；公开 Patent Center 作备选,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+epo,European Patent Office,科研与知识,D,yes,OPS 认证 + Espacenet 公开,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+europe_pmc,Europe PMC,科研与知识,B,yes,官方 REST,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+datacite,DataCite Commons,科研与知识,B,yes,官方 DOI REST 查询,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+zenodo,Zenodo,科研与知识,B,yes,公开 records REST,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+papers_with_code,Papers with Code,科研与知识,G,yes,历史链接；重新核验服务现状,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+product_hunt,Product Hunt,产品发布,D,yes,现有官方 GraphQL 最近 feed,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+indie_hackers,Indie Hackers,产品发布,F,yes,公开帖子和访谈,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+betalist,BetaList,产品发布,F,yes,公开项目页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+show_hn,Show HN,产品发布,A,no,现有 HN adapter；建议增加 show_hn 标签,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+yc_launches,YC Launches,产品发布,F,yes,公开发布页与目录,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+alternativeto,AlternativeTo,产品发布,F,yes,公开比较和社区评语,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+wellfound,Wellfound,产品发布,F,yes,公开可见公司和职位页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+crunchbase,Crunchbase,产品发布,E,yes,购买授权 API／公开可见网页,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+betapage,BetaPage,产品发布,F,yes,公开产品目录,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+g2,G2,用户评价,F,yes,公开可见评价页；许可数据服务另评,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+capterra,Capterra,用户评价,F,yes,公开可见评价页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+trustpilot,Trustpilot,用户评价,F,yes,公开企业评价页面；官方业务 API 授权,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+app_store,Apple App Store,用户评价,B,yes,iTunes Search 查应用元数据；评论走公开页/持有 app API,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+google_play,Google Play,用户评价,F,yes,公开应用和可见评论；Publisher API 只适用获授权应用,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+chrome_web_store,Chrome Web Store,用户评价,F,yes,公开扩展详情和索引,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+steam,Steam Reviews,用户评价,B,yes,Steam Store appreviews 官方接口,8,access_failed,,The appreviews endpoint redirected to the store home page from the probe network; the connector reports bounded unavailability.
+amazon,Amazon,用户评价,F,yes,公开可见商品页／评论,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+rakuten,Rakuten Ichiba,用户评价,D,yes,Rakuten Web Service 商品 API；公开可见评价备选,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+kakaku,Kakaku,用户评价,F,yes,公开比较与评价页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+sourceforge,SourceForge,用户评价,F,yes,公开产品比较/评论,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+linkedin,LinkedIn,商业/招聘/披露,F,yes,公开公司招聘及公开可见帖；授权组织 Posts API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+greenhouse,Greenhouse Job Board,商业/招聘/披露,B,yes,官方公开 Job Board GET；指定 board,4,direct_structured_verified,2026-11-24,Live probe returned jobs from the stripe board; named board required.
+lever,Lever Postings,商业/招聘/披露,B,yes,官方公司 postings feed；US/EU 主机,4,direct_structured_verified,2026-11-24,Live probe returned postings from the leverdemo board; named board required.
+ashby,Ashby Public Job Posting,商业/招聘/披露,B,yes,官方 public job board API,4,direct_structured_verified,2026-11-24,Live probe returned postings from the linear board; boards above 2 MB are refused.
+jobs_pages,企业招聘页面,商业/招聘/披露,F,no,公司 canonical 招聘页、公开 JobPosting JSON-LD,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+company_websites,企业官网,商业/招聘/披露,F,no,宿主定向搜索；已知 URL 允许公开直读,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+company_changelogs,企业更新日志,商业/招聘/披露,F,no,原始 changelog/官方 RSS；现有 official_web 通用路线,3,web_search_verified,2026-11-24,Retrieved an original vendor changelog through the Beta host search; not re-run in this round.
+pricing_pages,公开定价页面,商业/招聘/披露,F,no,公开原始价格页／有日期的变更公告,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+sec_edgar,SEC EDGAR,商业/招聘/披露,B,yes,官方 submissions / companyfacts,4,direct_structured_verified,2026-11-24,Live probe returned 8-K filing metadata; filing body is not fetched.
+public_financials,公开财报与 IR,商业/招聘/披露,F,no,发行人 IR、监管原文,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+uk_companies_house,Companies House,商业/招聘/披露,D,yes,公开公司资料 API（API key）,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+edinet,日本 EDINET,商业/招聘/披露,D,yes,金融厅 EDINET API（注册 key）,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+google_trends,Google Trends,获客与营销,F,yes,公开趋势页／事先授权导出；官方 API Alpha,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+meta_ad_library,Meta Ad Library,获客与营销,D,yes,Meta 官方授权 API；公开 UI 备选,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+google_ads_transparency,Google Ads Transparency,获客与营销,F,yes,公开透明度中心,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+tiktok_creative_center,TikTok Creative Center,获客与营销,F,yes,公开趋势及广告库页面,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+similarweb,Similarweb,获客与营销,E,yes,授权商业 API；公开估算页备选,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+semrush,Semrush,获客与营销,E,yes,授权商业 API,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+ahrefs,Ahrefs,获客与营销,E,yes,正式 API 授权,7,approval_required,,Requires explicit approval or a paid licence; never enabled automatically.
+g2_market_reports,G2 Research Reports,获客与营销,G,no,仅用户已获权报告；无普适合法自动化,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+youtube,YouTube,内容与社区,A,yes,现有无 Cookie yt-dlp；官方 Data API 授权／公开网页备选,8,access_failed,,yt-dlp exited 1 in the live probe; metadata-only route stays optional with a host-page fallback.
+substack,Substack,内容与社区,C,yes,公开发布物 RSS，feedparser 复用,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+medium,Medium,内容与社区,C,yes,公开作者/Publication RSS，feedparser,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+podcast_rss,播客 RSS,内容与社区,C,no,指定公开节目 RSS，feedparser,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+rss_newsletters,公开 RSS / Newsletter,内容与社区,C,no,显式 feed 列表，feedparser,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+discord,Discord,内容与社区,D,yes,用户批准的 bot/MCP 或导出,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+telegram,Telegram,内容与社区,D,yes,用户授权 bot/API／导出；公开频道页备选,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+discourse,公开 Discourse 论坛,内容与社区,B,yes,官方 API 搜索及公开主题 JSON/RSS,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+techmeme,Techmeme,内容与社区,C,yes,公开 feed/站点；上游 CLI 经许可后备选,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+google_web,Google Web,内容与社区,F,no,Host Web Search 路由,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+google_news,Google News,内容与社区,F,no,Host 发现→原站,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+gdelt,GDELT,内容与社区,B,yes,官方 2.0 DOC API 查新闻线索,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+kickstarter,Kickstarter,众筹,F,yes,公开项目记录,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+indiegogo,Indiegogo,众筹,F,yes,公开项目页和日期,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+backerkit,BackerKit,众筹,F,yes,公开众筹项,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+crowd_supply,Crowd Supply,众筹,F,yes,公开项目和更新,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+makuake,Makuake,众筹,F,yes,公开日文项目页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+green_funding,GREEN FUNDING,众筹,F,yes,公开日文项目页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+campfire,CAMPFIRE,众筹,F,yes,公开日文项目页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+readyfor,READYFOR,众筹,F,yes,公开日文众筹页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+kibidango,Kibidango,众筹,F,yes,公开日文项目,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+xiaohongshu,小红书,中国市场,F,yes,仅公开可见笔记的定向网页检索,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+zhihu,知乎,中国市场,F,yes,公开问题和回答页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+weibo,微博,中国市场,F,yes,公开可见帖子和话题,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+bilibili,哔哩哔哩,中国市场,F,yes,公开视频简介/原创内容；自有账号接口另评,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+jike,即刻,中国市场,F,yes,公开可见动态和话题,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+sspai,少数派,中国市场,F,yes,公开文章与社区页,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+wechat_mp,微信公众号,中国市场,F,yes,公开可访问原文；自有公众号 API 另评,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+kr36,36氪,中国市场,F,yes,公开新闻/公司报道,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+huxiu,虎嗅,中国市场,F,yes,公开文章,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+itjuzi,IT桔子,中国市场,E,yes,商业数据授权；公开摘要备选,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+douyin,抖音,中国市场,F,yes,公开可见视频、品牌/市场页面,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+gitee,Gitee,中国市场,D,yes,官方 API 的公开对象；需按 endpoint 核 token,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+csdn,CSDN,中国市场,F,yes,公开文章与讨论,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+oschina,开源中国,中国市场,F,yes,公开项目和新闻,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+qiita,Qiita,日本市场,A,yes,现有官方 Articles API,4,direct_structured_verified,2026-11-24,
+zenn,Zenn,日本市场,C,yes,公开 feed/文章，feedparser；谨慎使用官方 CLI 的稿件格式,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+note_jp,note,日本市场,F,yes,公开日文作者/文章；作者 RSS 另证,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+pr_times,PR TIMES,日本市场,F,yes,公开日文发布原文,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+itmedia,ITmedia,日本市场,F,yes,公开日文科技报道,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+yahoo_japan,Yahoo! JAPAN News,日本市场,F,yes,公开栏目/文章，优先原出版方,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+impress_watch,Impress Watch,日本市场,F,yes,公开产品/行业文章,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+jstage,J-STAGE,日本市场,B,yes,J-STAGE Web API 公开元数据,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+yahoo_finance,Yahoo Finance,金融与公开统计,F,yes,公开页面；第三方 CLI 仅经权利确认后考虑,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+polymarket,Polymarket,金融与公开统计,B,yes,公共 Gamma 市场发现／官方只读数据 API,8,access_failed,,gamma-api was unreachable from the probe network; no connector is exposed.
+fred,FRED,金融与公开统计,D,yes,官方 FRED API key,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+world_bank,World Bank Open Data,金融与公开统计,B,yes,官方 Indicators REST,4,direct_structured_verified,2026-11-24,Live probe returned a CN GDP series; observation year is not a publish date.
+eurostat,Eurostat,金融与公开统计,B,yes,官方 dissemination REST/SDMX,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+ecb,ECB Data Portal,金融与公开统计,B,yes,官方 ECB SDMX REST,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+oecd,OECD Data Explorer,金融与公开统计,B,yes,官方 SDMX REST,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+statcan,Statistics Canada,金融与公开统计,B,yes,官方 Web Data Service,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+data_gov,Data.gov,金融与公开统计,B,yes,官方 CKAN 目录搜索,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+gleif,GLEIF,商业/招聘/披露,B,yes,官方 LEI REST 搜索,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+comtrade,UN Comtrade,金融与公开统计,D,yes,官方免费/订阅 API 按其配额,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+ssrn,SSRN,科研与知识,F,yes,公开摘要和 DOI 入口,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+openreview,OpenReview,科研与知识,B,yes,公开 venue 与 Notes API,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+the_lens,The Lens,科研与知识,D,yes,许可学术/专利 API,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+bandcamp,Bandcamp,内容与社区,F,yes,公开原创页面；限品牌/行业问题,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+lobsters,Lobsters,开发者,B,yes,公开 RSS/公开故事 JSON；按主题路由,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+blender_extensions,Blender Extensions,产品发布,F,yes,官方公开扩展列表与记录,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+osf,Open Science Framework,科研与知识,B,yes,官方 OSF public search/项目对象,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+stackoverflow_meta,Stack Exchange network,开发者,B,no,Stack Exchange API 多站点 scope,9,not_applicable_or_aggregator,,Aggregator or sub-route; not counted as an independent platform.
+open_dart,韩国 OpenDART,金融与公开统计,D,yes,韩国 FSS 官方 OpenDART disclosure API（key）,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+kosis,韩国 KOSIS,金融与公开统计,D,yes,官方统计 OpenAPI，按公开数据集申请 key,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+india_ogd,印度 Open Government Data,金融与公开统计,D,yes,官方开放数据 API（数据集支持时用 key）/公开数据下载,6,credential_required,,Needs user-authorised API access; a public-web fallback stays available.
+brazil_cvm,巴西 CVM Dados Abertos,金融与公开统计,B,yes,官方公开 CSV/ZIP 与目录,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+brazil_ibge,巴西 IBGE,金融与公开统计,B,yes,官方 REST 主机与具名统计资料,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+stats_sa,Statistics South Africa,金融与公开统计,F,yes,官方原始报告与数据表,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+sgx_announcements,SGX 公司公告,商业/招聘/披露,F,yes,交易所公开公司公告,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+asx_announcements,ASX 公司公告,商业/招聘/披露,F,yes,交易所公开 Market Announcements,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+sedar_plus,加拿大 SEDAR+,商业/招聘/披露,F,yes,监管平台公开查询与发行人正式披露,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
+jpx_tdnet,日本 JPX / TDnet,日本市场,F,yes,JPX 指定公开适时披露页面,1,registered_only,,"Registered with a domain-scoped host-web route; no host search was available in the build environment, so it is not counted as verified coverage."
