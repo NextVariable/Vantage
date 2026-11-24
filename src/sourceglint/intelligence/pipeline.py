@@ -41,7 +41,7 @@ from .dtos import (
     ResearchContext,
     ValidatedCluster,
 )
-from .factors import FactorSet, derive_factors
+from .factors import derive_factors
 from .features import build_evidence_index, derive_all_features
 from .preparation import prepare_evidence
 from .signals import build_signal, validate_signal_contract
@@ -140,7 +140,7 @@ def run_intelligence_pipeline(
 
     signals: list[dict] = []
     diagnostics = []
-    factor_sets: list[FactorSet] = []
+    scored_candidates = []
     semantic_degraded = False
     semantic_calls = 0
     semantic_skips = 0
@@ -185,11 +185,17 @@ def run_intelligence_pipeline(
                 model=None, research_context=ctx, cache=cache,
                 semantic_reason=semantic_reason,
             )
-        factor_sets.append(fset)
+        scored_candidates.append((cluster_item, features, assessment, fset))
         semantic_degraded = semantic_degraded or fset.degraded
+    # Rank a mixture of complete and incomplete rows on common factors.
+    # Weak-signal assessment still sees the relevance actually measured per row.
+    ranking_unassessed = tuple(sorted({
+        name for _, _, _, fset in scored_candidates for name in fset.unassessed
+    }))
+    for cluster_item, features, assessment, fset in scored_candidates:
         signal, diag = build_signal(
             cluster_item, features, assessment, fset,
-            evidence_by_id=evidence_index, cfg=cfg,
+            evidence_by_id=evidence_index, cfg=cfg, ranking_unassessed=ranking_unassessed,
         )
         violations = validate_signal_contract(signal)
         if violations:

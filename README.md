@@ -55,10 +55,10 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 
 ### Status and trust
 
-- `status`: `SUCCESS` means the core research and brief completed; `PARTIAL` means usable output with a degraded stage; `NO_EVIDENCE` means no usable evidence; `FAILED` means the run did not complete. `SUCCESS` never implies full coverage or research quality.
+- `status`: `SUCCESS` means the required execution stages completed and a usable brief was produced; `PARTIAL` means usable output with a degraded stage; `NO_EVIDENCE` means no usable evidence; `FAILED` means the run did not complete. `SUCCESS` never implies full coverage or research quality.
 - `delivery_level`: `full_brief`, `evidence_backed_brief`, `evidence_only_report` or `no_evidence`. It describes the deliverable, not the status.
 - `research_quality`: a separate coverage verdict (`ADEQUATE`, `LIMITED` or `NOT_ASSESSED`). A brief cannot upgrade it.
-- Every FACT carries an evidence support state: `supported` (the quote occurs verbatim in the cited item), `verified` (additionally passed the separate semantic check), `partial` (only part of the statement is quoted), `vendor_only` (only vendor material supports it) or `unverified` (support could not be established). A valid but unrelated evidence id, a stitched quotation, or a vendor claim of independent testing is rejected — never promoted to a verified fact.
+- The JSON makes `execution_status` explicit while preserving the legacy `status`. Each factual finding carries an evidence support state: `supported` (the quote occurs verbatim in the cited item), `verified` (additionally passed the separate semantic check), `partial` (only part of the statement is quoted), `vendor_only` (only vendor material supports it) or `unverified` (support could not be established). A valid but unrelated evidence id, a stitched quotation, or a vendor claim of independent testing is rejected — never promoted to a verified fact.
 - Industry, demand and competitive research are the core. Opportunity hypotheses and product recommendations are generated only when explicitly requested.
 
 ## More

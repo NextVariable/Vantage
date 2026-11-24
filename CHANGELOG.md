@@ -13,7 +13,8 @@ Python 3.10 compatibility is exercised by the public CI matrix; recommendation I
   `verified`.
 - Exclude unassessed semantic factors from the score and renormalise the
   remaining weights, so a skipped relevance check is not scored as zero. Report
-  score completeness, coverage and missing reasons.
+  score completeness, coverage and missing reasons. Compare mixed signals on
+  the same assessed factor set while retaining per-signal relevance for weak-signal decisions.
 - Record commit SHA, working-tree state, budgets, host type, evidence hash, call
   accounting and token split per real run; mark dirty checkouts as diagnostics.
 - Replay frozen evidence ledgers side by side with the previous citation-id-only

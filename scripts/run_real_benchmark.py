@@ -265,6 +265,10 @@ def run_case(case, args, state):
     events_path = target / "host.events.jsonl"
     usage_log = target / "host.usage.jsonl"
     env = host_env()
+    if not args.native_sources and "host_stdio" in args.host_adapter:
+        # The normal Skill uses the existing Codex subscription and public
+        # tools. Do not pass provider credentials into either child process.
+        env = {key: value for key, value in env.items() if key in PUBLIC_ENV}
     # Isolate the native GitHub credential helper on baseline versions without
     # --public-sources-only. Codex retains its existing, separate host login.
     gh_config = target / "empty-gh-config"

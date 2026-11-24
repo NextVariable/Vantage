@@ -308,3 +308,17 @@ class TestSynthesizeFacts:
         result = synthesize_facts(signals, model, ev, research_context=ctx)
         assert len(result.validated) == 1
         assert len(result.rejected) == 1
+
+
+def test_equivalent_insight_ids_are_deduplicated_before_verifier():
+    model = FakeInsightModel(fact_scripts=[
+        FakeFactScript(signal_ids=("sig_a",), statement="One candidate shipped two releases.",
+                       evidence_ids=("ev_1",), confidence=0.9),
+        FakeFactScript(signal_ids=("sig_a",), statement="Two releases shipped this month.",
+                       evidence_ids=("ev_1",), confidence=0.9),
+    ])
+    result = synthesize_facts([_ps()], model, {
+        "ev_1": {"snippet": "One candidate shipped two releases this month."},
+    })
+    assert len(result.validated) == len(result.supports) == 1
+    assert result.validated[0].statement == "One candidate shipped two releases."

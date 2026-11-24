@@ -53,10 +53,10 @@ python3 -m venv .venv
 
 ### 状态与可信度
 
-- `status`：`SUCCESS` 表示核心研究与简报已完成；`PARTIAL` 表示有可用输出但有阶段降级；`NO_EVIDENCE` 表示没有可用证据；`FAILED` 表示执行失败。`SUCCESS` 不等于覆盖完整或质量合格。
+- `status`：`SUCCESS` 表示必要执行阶段已完成且有可用简报；`PARTIAL` 表示有可用输出但有阶段降级；`NO_EVIDENCE` 表示没有可用证据；`FAILED` 表示执行失败。`SUCCESS` 不等于覆盖完整或质量合格。
 - `delivery_level`：`full_brief`、`evidence_backed_brief`、`evidence_only_report` 或 `no_evidence`，表示交付层级，不替代 `status`。
 - `research_quality`：独立的覆盖规则结论（`ADEQUATE`、`LIMITED` 或 `NOT_ASSESSED`），不能由简报成功反推。
-- 每条 FACT 附带证据支持状态：`supported`（引文可在所引来源中逐字定位）、`verified`（另经独立语义校验）、`partial`（只能支持部分陈述）、`vendor_only`（仅有厂商材料支持）或 `unverified`（无法确认）。合法但无关的引用、拼接引文和厂商自称的“独立测试”都会被拒绝，不会被标为已验证事实。
+- JSON 同时提供 `execution_status` 和兼容字段 `status`。每条事实性发现附带证据支持状态：`supported`（引文可在所引来源中逐字定位）、`verified`（另经宿主语义支持校验）、`partial`（只能支持部分陈述）、`vendor_only`（仅有厂商材料支持）或 `unverified`（无法确认）。合法但无关的引用、拼接引文和厂商自称的“独立测试”都会被拒绝，不会被标为已验证事实。
 - 行业、需求与竞争研究是基础能力；机会发现和产品建议只在明确请求时生成。
 
 ## 进一步了解

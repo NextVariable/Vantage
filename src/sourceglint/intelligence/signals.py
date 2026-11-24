@@ -119,11 +119,12 @@ def build_signal(
     *,
     evidence_by_id: Mapping[str, PreparedEvidence],
     cfg: scoring.ScoringConfig | None = None,
+    ranking_unassessed: tuple[str, ...] = (),
 ) -> tuple[dict, SignalDiagnostics]:
     """Build one frozen-schema signal dict + its full diagnostics trail."""
     signal_type = classify_signal_type(features, assessment)
     breakdown = scoring.compute_score(
-        factor_set.factors, cfg=cfg, unassessed=factor_set.unassessed,
+        factor_set.factors, cfg=cfg, unassessed=ranking_unassessed or factor_set.unassessed,
     )
 
     raw_factors = dict(factor_set.factors)

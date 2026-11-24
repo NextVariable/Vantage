@@ -215,8 +215,28 @@ def _build_model_payload(
     evidence_by_id: Mapping[str, Any],
 ) -> dict:
     """Build the minimal payload for the fact synthesis model call."""
-    signals_payload = [ps.to_model_payload() for ps in prepared]
-    return {"signals": signals_payload}
+    from ..excerpts import select_excerpt
+    from .evidence_support import is_vendor_material
+
+    signals = list(prepared)
+    valid_ids = sorted({eid for signal in signals for eid in signal.evidence_ids if eid in evidence_by_id})
+    limit = max(160, min(820, 9_000 // max(1, len(valid_ids))))
+    evidence = []
+    for eid in valid_ids:
+        item = evidence_by_id[eid]
+        body = str(item.get("content") or item.get("snippet") or item.get("title") or "")
+        evidence.append({
+            "evidence_id": eid,
+            "excerpt": select_excerpt(body, str(item.get("query") or item.get("title") or ""), limit),
+            "published_at": item.get("published_at"),
+            "source_type": item.get("source_type"),
+            "publisher": "vendor" if is_vendor_material(item) else "unclassified",
+        })
+    signals_payload = [signal.to_model_payload() for signal in signals]
+    for row in signals_payload:
+        row.pop("supporting_evidence_summaries", None)
+        row.pop("counter_evidence_summaries", None)
+    return {"signals": signals_payload, "evidence": evidence}
 
 
 def synthesize_facts(
@@ -315,6 +335,7 @@ def _parse_fact_response(
     validated: list[FactDraft] = []
     rejected: list[FactDraft] = []
     insight_ids: list[str] = []
+    seen_ids: set[str] = set()
     supports: list[FactSupport] = []
     warnings: list[str] = []
 
@@ -368,14 +389,16 @@ def _parse_fact_response(
                 f"{'; '.join(violations)}"
             )
         else:
+            ins_id = derive_insight_id(
+                type=FACT, signal_ids=draft.signal_ids, evidence_ids=draft.evidence_ids,
+            )
+            # Match structural dedup's existing first-wins behavior before
+            # semantic verification can attach a different statement's verdict.
+            if ins_id in seen_ids:
+                continue
+            seen_ids.add(ins_id)
             validated.append(draft)
             supports.append(support)
-            # Derive deterministic insight_id
-            ins_id = derive_insight_id(
-                type=FACT,
-                signal_ids=draft.signal_ids,
-                evidence_ids=draft.evidence_ids,
-            )
             insight_ids.append(ins_id)
 
     status = "success"

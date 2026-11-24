@@ -316,3 +316,30 @@ def test_bad_signal_id_pattern_is_a_violation():
         "signal_type": "single_source",
     }
     assert signals.validate_signal_contract(signal)
+
+
+def test_mixed_relevance_uses_common_scores_but_per_signal_weakness():
+    from dataclasses import replace
+
+    evidence = _ev("ev_frozen", quality=0.7)
+    index = _all(evidence)
+    cluster = _cluster((evidence.evidence_id,))
+    features = derive_features(cluster, index)
+    assessment = _assessment(cluster)
+    original = replace(derive_factors(cluster, features, index, NOW), unassessed=("decision_relevance",))
+    measured = replace(original, decision_relevance=0.0, unassessed=())
+    common = ("decision_relevance",)
+
+    unknown_signal, unknown = signals.build_signal(
+        cluster, features, assessment, original, evidence_by_id=index,
+        ranking_unassessed=common,
+    )
+    measured_signal, assessed = signals.build_signal(
+        cluster, features, assessment, measured, evidence_by_id=index,
+        ranking_unassessed=common,
+    )
+    assert unknown_signal["score"] == measured_signal["score"]
+    assert unknown.unassessed_factors == common
+    assert assessed.unassessed_factors == ()
+    assert unknown.score_coverage == assessed.score_coverage == 0.65
+    assert unknown.weak_signal == assessed.weak_signal

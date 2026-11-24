@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "id": "industry-coding-releases",
+      "focus": "industry",
+      "mode": "trend",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "In the last 30 days, which AI coding-agent releases or technical changes matter for development teams? Give concrete shipping changes from original announcements and report whether independent testing was found."
+    },
+    {
+      "id": "demand-meeting-assistants-jp",
+      "focus": "demand",
+      "mode": "voc",
+      "market": "jp",
+      "language": "ja",
+      "days": 60,
+      "question": "最近60日間、日本語のAI議事録・会議文字起こしアシスタントを実際に使った人はどんな問題を報告していますか。修正・見直し・共有の負担、複数の利用者に繰り返す課題と反例を区別し、独立した一次体験を優先してください。"
+    },
+    {
+      "id": "competition-cursor-copilot",
+      "focus": "competition",
+      "mode": "competitor",
+      "market": "global",
+      "language": "en",
+      "days": 30,
+      "question": "How did Cursor AI editor and GitHub Copilot change in the past 30 days in features, positioning and user feedback? Compare official changelogs with firsthand use. Report important missing comparisons separately."
+    },
+    {
+      "id": "opportunity-meeting-workflows",
+      "focus": "opportunity",
+      "mode": "voc",
+      "market": "global",
+      "language": "en",
+      "days": 60,
+      "question": "Based on firsthand accounts from the last 60 days, can any product opportunity for reviewing or exporting AI meeting transcripts be supported? Separate user-reported friction from vendors' feature claims. Include the target user, substitutes, risk and a disconfirming result, or explicitly abstain."
+    }
+  ]
+}

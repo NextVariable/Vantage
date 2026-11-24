@@ -27,7 +27,7 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from sourceglint.insights.evidence_support import (  # noqa: E402
-    MIN_EXCERPT_CHARS, evidence_text, is_vendor_material, verify_fact_support,
+    MIN_EXCERPT_CHARS, is_vendor_material, verify_fact_support,
 )
 
 LABEL = "frozen replay over historical evidence — engineering regression, not a new web-research result"
@@ -57,7 +57,7 @@ def _sha256(path: Path) -> str | None:
 
 
 def _first_sentence(row: dict) -> str:
-    text = evidence_text(row).replace("\n", " ")
+    text = str(row.get("content") or row.get("snippet") or row.get("title") or "")
     for piece in text.replace("。", ".").replace("！", ".").replace("？", ".").split("."):
         piece = piece.strip()
         if len(piece) >= MIN_EXCERPT_CHARS:

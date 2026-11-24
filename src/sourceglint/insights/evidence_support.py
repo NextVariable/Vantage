@@ -212,7 +212,6 @@ def _claim_support(
     if ev is None:
         return ClaimSupport(claim, evidence_id, excerpt, "missing",
                             ("evidence id is not in the ledger",), independent)
-    source = normalize(evidence_text(ev))
     quote = normalize(excerpt)
     if not quote:
         return ClaimSupport(claim, evidence_id, excerpt, "unverifiable",
@@ -220,7 +219,7 @@ def _claim_support(
     if len(quote) < MIN_EXCERPT_CHARS:
         return ClaimSupport(claim, evidence_id, excerpt, "unverifiable",
                             ("excerpt is too short to locate",), independent)
-    if quote not in source:
+    if not any(quote in normalize(str(ev.get(key) or "")) for key in ("content", "snippet", "title")):
         # Catches paraphrased quotes and two unrelated passages pasted together.
         return ClaimSupport(claim, evidence_id, excerpt, "unverifiable",
                             ("excerpt does not occur verbatim in the cited evidence",),
@@ -282,7 +281,13 @@ def verify_fact_support(
             text = evidence_text(ev)
             if not text:
                 continue
-            excerpt = _best_excerpt(statement, text)
+            passages = [
+                _best_excerpt(statement, str(ev.get(key) or ""))
+                for key in ("content", "snippet", "title")
+            ]
+            excerpt = max(passages, key=lambda quote: (
+                len(quote) >= MIN_EXCERPT_CHARS, overlap_ratio(statement, quote)
+            ))
             support = _claim_support(statement, eid, excerpt, evidence_by_id)
             if support.verdict in {"direct", "partial"}:
                 support = ClaimSupport(
@@ -360,7 +365,7 @@ def verify_fact_support(
         reasons.append("some claims use a different script and need semantic verification")
         return FactSupport("partial", tuple(supports), tuple(reasons), origins)
 
-    if all(s.verdict == "partial" for s in supports):
+    if any(s.verdict == "partial" for s in supports):
         return FactSupport("partial", tuple(supports), reasons, origins)
     corroboration_claim = any(
         hint in (statement or "").lower()

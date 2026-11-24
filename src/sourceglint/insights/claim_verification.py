@@ -59,7 +59,8 @@ def verify_claims(
             model_status="invalid_output",
         )
     limit = len(rows)
-    verdicts: list[dict] = []
+    verdicts: dict[int, dict] = {}
+    duplicates: set[int] = set()
     for row in raw:
         if not isinstance(row, Mapping):
             continue
@@ -70,14 +71,18 @@ def verify_claims(
         verdict = str(row.get("verdict") or "")
         if index < 0 or index >= limit or verdict not in _VERDICTS:
             continue
-        verdicts.append({
+        if index in verdicts:
+            duplicates.add(index)
+        verdicts[index] = {
             "claim_index": index,
             "verdict": verdict,
             "rationale": str(row.get("rationale") or ""),
-        })
-    status = "success" if verdicts else "invalid_output"
+        }
+    for index in duplicates:
+        verdicts.pop(index)
+    status = "success" if len(verdicts) == limit else "partial" if verdicts else "invalid_output"
     return ClaimVerificationResult(
-        verdicts=tuple(verdicts),
-        warnings=() if verdicts else ("claim_support_verification: no usable verdicts",),
+        verdicts=tuple(verdicts.values()),
+        warnings=() if status == "success" else ("claim_support_verification: missing or ambiguous verdicts",),
         model_status=status,
     )

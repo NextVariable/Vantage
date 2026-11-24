@@ -78,8 +78,8 @@ A valid-looking but unrelated evidence id is rejected, as are paraphrased or
 stitched quotes. Vendor announcements only support "the vendor states X"; they
 never prove an independent test. The result reports each fact as `supported`,
 `verified`, `partial`, `vendor_only` or `unverified`. Only `verified` had the
-separate semantic check; present anything else as quoted or unconfirmed
-evidence, not as an independently verified fact.
+separate host claim-support check. Label other findings as quoted, attributed or
+unconfirmed evidence. A separate firsthand source is required to claim independent real-world testing.
 
 `SUCCESS` means a usable brief and the requested stages completed. It does not certify completeness,
 representativeness, or research quality. Show missing aspects and small-sample

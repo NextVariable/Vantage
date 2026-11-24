@@ -295,3 +295,12 @@ def test_claim_must_cover_exactly_the_displayed_citations():
     result = verify_fact_support(excerpt, ("ev1", "ev2"), [claim(excerpt, "ev1", excerpt)],
                                  {"ev1": ev("ev1", excerpt), "ev2": ev("ev2", "Unrelated")})
     assert result.rejected
+
+
+def test_quote_cannot_join_a_title_to_the_body():
+    title = "Stable release shipped"
+    text = "with a new experimental local API."
+    stitched = f"{title} {text}"
+    evidence = {"ev1": {**ev("ev1", text), "title": title}}
+    result = verify_fact_support(stitched, ("ev1",), [claim(stitched, "ev1", stitched)], evidence)
+    assert result.rejected
