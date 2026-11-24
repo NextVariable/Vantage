@@ -180,10 +180,20 @@ def _select_insight_layer(
     kept = ranked[:cap]
 
     if insight_type == "FACT":
+        labels = {
+            "supported": "Cited finding (semantic check pending)",
+            "vendor_only": "Vendor statement",
+            "partial": "Partially supported",
+            "unverified": "Unverified statement",
+            "conflicting": "Conflicting evidence",
+        }
         selected = [
             SelectedFact(
                 insight_id=str(ins.get("insight_id", "")),
-                statement=str(ins.get("statement", "")),
+                statement=(
+                    f"{label}: {ins.get('statement', '')}"
+                    if (label := labels.get(diag.get("support_status"))) else str(ins.get("statement", ""))
+                ),
                 confidence=_float(ins.get("confidence")),
                 support=_support_strength(ins, diag),
                 evidence_ids=_resolve_evidence(ins, signals),

@@ -87,7 +87,8 @@ def is_vendor_material(ev: Mapping[str, Any] | None) -> bool:
     metadata = ev.get("raw_metadata")
     if isinstance(metadata, Mapping) and bool(metadata.get("official")):
         return True
-    if str(ev.get("source") or "") == "official_web":
+    source = str(ev.get("source") or "")
+    if source == "official_web" or (source == "github" and ev.get("source_type") == "release"):
         return True
     role = str(ev.get("source_role") or "")
     return role in {"vendor_claim_verified", "vendor_claim_unverified"}
@@ -255,6 +256,12 @@ def verify_fact_support(
         row for row in claims
         if isinstance(row, Mapping) and str(row.get("evidence_id") or "")
     ]
+    if claims and (len(explicit) != len(claims)
+                   or {str(row["evidence_id"]) for row in explicit} != set(evidence_ids)
+                   or any(normalize(str(row.get("claim") or "")) != normalize(statement) for row in explicit)):
+        return FactSupport("unverified", (), (
+            "each citation must map the displayed assertion to its own excerpt",
+        ), rejected=True)
     if explicit:
         for row in explicit:
             supports.append(_claim_support(
@@ -395,7 +402,7 @@ def apply_semantic_verdicts(
             claims.append(ClaimSupport(claim.claim, claim.evidence_id, claim.excerpt,
                                        "conflicting", (*claim.reasons, "semantic verifier reports conflicting evidence"),
                                        claim.independent))
-        elif verdict in {"unrelated", "unverifiable", ""}:
+        elif verdict in {"unrelated", "unverifiable", "partial", ""}:
             unverified = True
             claims.append(ClaimSupport(claim.claim, claim.evidence_id, claim.excerpt,
                                        "unverifiable", (*claim.reasons, "semantic verifier did not confirm support"),

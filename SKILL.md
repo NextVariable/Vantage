@@ -42,7 +42,7 @@ Run from the Skill folder in an interactive terminal:
 
 Pass the query as safely quoted data. Choose a fresh ledger path for each run.
 Keep the session open and handle each `source_request` and `model_request` in
-order using the protocol. The model responses are your own grounded reasoning;
+order. Echo the exact top-level `request_id` on every response. If a newer request arrives after a timeout, abandon the older one. The model responses are your own grounded reasoning;
 never use canned answers. Search the relevant routed targets, not the entire
 catalog. Record targets actually searched and their outcomes. Return empty
 results or an honest error when no usable dated evidence is available. Answer the
@@ -81,7 +81,7 @@ never prove an independent test. The result reports each fact as `supported`,
 separate semantic check; present anything else as quoted or unconfirmed
 evidence, not as an independently verified fact.
 
-`SUCCESS` means a brief was produced. It does not certify completeness,
+`SUCCESS` means a usable brief and the requested stages completed. It does not certify completeness,
 representativeness, or research quality. Show missing aspects and small-sample
 limits even when the pipeline succeeds. `NO_EVIDENCE` is not a market conclusion.
 Give the user the evidence ledger when they want to reuse the research with an AI.

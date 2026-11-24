@@ -11,7 +11,7 @@ For each claim you receive:
 - `claim`: one atomic assertion
 - `excerpt`: a verbatim quote taken from the cited evidence
 - `source_role`: `vendor` when the publisher is the vendor itself, otherwise
-  `independent`
+  `unclassified` when independence and firsthand status are not established
 
 ## Verdicts
 

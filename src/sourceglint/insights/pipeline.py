@@ -113,13 +113,13 @@ def run_insight_pipeline(
         row_index: list[tuple[str, int]] = []
         for iid, support in support_by_id.items():
             for local, claim in enumerate(support.claims):
-                if claim.verdict not in {"direct", "partial"}:
+                if claim.verdict not in {"direct", "partial", "needs_semantic"}:
                     continue
                 claim_rows.append({
                     "claim_index": len(claim_rows),
                     "claim": claim.claim,
                     "excerpt": claim.excerpt,
-                    "source_role": "independent" if claim.independent else "vendor",
+                    "source_role": "unclassified" if claim.independent else "vendor",
                 })
                 row_index.append((iid, local))
         if not claim_rows:
@@ -137,22 +137,37 @@ def run_insight_pipeline(
                 for verdict in verification.verdicts:
                     index = int(verdict["claim_index"])
                     if 0 <= index < len(row_index):
-                        insight_id, _ = row_index[index]
-                        grouped.setdefault(insight_id, []).append(verdict)
+                        insight_id, local_index = row_index[index]
+                        grouped.setdefault(insight_id, []).append({**verdict, "claim_index": local_index})
                 for iid, verdicts in grouped.items():
                     support_by_id[iid] = apply_semantic_verdicts(
                         support_by_id[iid], verdicts
                     )
+                unsupported = {
+                    iid for iid, verdicts in grouped.items()
+                    if any(v["verdict"] in {"conflicting", "unrelated"} for v in verdicts)
+                }
+                retained = [
+                    (draft, iid) for draft, iid in zip(fact_result.validated, fact_result.insight_ids, strict=True)
+                    if iid not in unsupported
+                ]
                 fact_result = replace(
                     fact_result,
-                    supports=tuple(support_by_id.get(iid, FactSupport("unverified"))
-                                   for iid in fact_result.insight_ids),
+                    validated=tuple(draft for draft, _ in retained),
+                    insight_ids=tuple(iid for _, iid in retained),
+                    supports=tuple(support_by_id[iid] for _, iid in retained),
                 )
+                if unsupported:
+                    budget.mark_stage(_FACT_STAGE, "degraded", "semantic verifier rejected unsupported claims")
+                    warnings.append(f"claim support: rejected {len(unsupported)} conflicting or unrelated fact(s)")
                 budget.mark_stage(
                     _CLAIM_STAGE,
                     "ok" if verification.model_status == "success" else "degraded",
                     "" if verification.model_status == "success" else "semantic verification unavailable",
                 )
+
+    if not fact_result.validated:
+        return InsightPipelineResult(warnings=tuple(warnings), model_status={_FACT_STAGE: "partial"})
 
     # 3. Synthesize inferences
     inference_skip = ""

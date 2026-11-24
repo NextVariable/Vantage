@@ -56,7 +56,6 @@ class _StreamState:
     """Negotiated capabilities for one stdin stream."""
 
     capability: str = "unknown"  # unknown | legacy | correlated
-    abandoned: set[str] = field(default_factory=set)
     sequence: int = 0
 
 
@@ -92,7 +91,7 @@ class _LineReader:
 
     def __init__(self, stream: TextIO) -> None:
         self.stream = stream
-        self.queue: "Queue[Any]" = Queue()
+        self.queue: "Queue[Any]" = Queue(maxsize=16)
         self.thread = Thread(target=self._pump, daemon=True)
         self.thread.start()
 
@@ -128,6 +127,9 @@ class _LineReader:
                     return
                 while b"\n" in buffer:
                     raw, _, buffer = buffer.partition(b"\n")
+                    if len(raw) > _MAX_HOST_LINE_BYTES:
+                        self.queue.put(ValueError("host JSON frame exceeds size limit"))
+                        return
                     self.queue.put(raw.decode(self.stream.encoding or "utf-8") + "\n")
             if buffer:
                 self.queue.put(buffer.decode(self.stream.encoding or "utf-8"))
@@ -195,9 +197,6 @@ def _await_reply(stream: TextIO, *, request_id: str) -> _Reply:
                 stream, expire_on_timeout=state.capability != "correlated"
             )
         except TimeoutError as exc:
-            if state.capability == "correlated":
-                # The request is abandoned; its late reply will be skipped.
-                state.abandoned.add(request_id)
             return _Reply(error=str(exc), status=ModelStatus.TIMEOUT)
         except (ValueError, OSError) as exc:
             return _Reply(error=type(exc).__name__, status=ModelStatus.INVALID_OUTPUT)
@@ -224,9 +223,9 @@ def _await_reply(stream: TextIO, *, request_id: str) -> _Reply:
             )
         frame_id = frame.get("request_id")
         if frame_id is not None:
+            if frame_id != request_id:
+                continue  # late or cross-request frame cannot negotiate the protocol
             state.capability = "correlated"
-            if str(frame_id) != request_id:
-                continue  # late or cross-request frame
             return _Reply(line=line)
         if state.capability == "correlated":
             return _Reply(

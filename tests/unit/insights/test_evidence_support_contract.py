@@ -191,7 +191,7 @@ def test_same_language_unrelated_quote_is_still_rejected():
     support = verify_fact_support(
         "该产品完全离线运行，不需要任何网络连接。",
         ("ev1",),
-        [claim("该产品完全离线运行。", "ev1", text)],
+        [claim("该产品完全离线运行，不需要任何网络连接。", "ev1", text)],
         evidence,
     )
     assert support.rejected
@@ -279,3 +279,19 @@ def support_for():
         [claim("OpenCode Plus shipped release v1.2 on 2026-10-01.", "ev1", text)],
         evidence,
     )
+
+
+def test_supported_subclaim_cannot_hide_an_unsupported_displayed_statement():
+    excerpt = "The update changes the color of the browser toolbar."
+    result = verify_fact_support(
+        "The update changes the color of the browser toolbar and guarantees offline operation.",
+        ("ev1",), [claim(excerpt, "ev1", excerpt)], {"ev1": ev("ev1", excerpt)},
+    )
+    assert result.rejected
+
+
+def test_claim_must_cover_exactly_the_displayed_citations():
+    excerpt = "The update changes the color of the browser toolbar."
+    result = verify_fact_support(excerpt, ("ev1", "ev2"), [claim(excerpt, "ev1", excerpt)],
+                                 {"ev1": ev("ev1", excerpt), "ev2": ev("ev2", "Unrelated")})
+    assert result.rejected

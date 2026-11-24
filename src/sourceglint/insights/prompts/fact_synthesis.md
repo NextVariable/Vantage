@@ -65,3 +65,5 @@ supports only "the vendor states/ships X". It never proves that X was
 independently tested or observed by users — write that weaker statement.
 
 Do NOT include action, recommended_actions, or any advisory content.
+
+Use one atomic assertion per FACT. Each claims entry must repeat the exact statement and bind it to one cited evidence ID and its contiguous source excerpt. Every cited ID needs a corresponding entry.

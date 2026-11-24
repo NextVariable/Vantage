@@ -163,7 +163,8 @@ Provide your own analysis, never canned replies. The first request is ready.
 For n=1 upward, read request-n.json as UTF-8. Reply to that frame by writing
 reply-n.tmp and atomically renaming it to reply-n.json. Use a JSON object of
 type model_response with the exact task and schema-compatible payload, or
-source_response for the named source, obeying its response_schema. Source
+source_response for the named source, obeying its response_schema. Echo the
+exact request_id at the top level of every reply. Source
 responses have results (or error) and searched_targets at the top level;
 only model_response has a payload wrapper. Read docs embedded in the frame
 for original links, dates and literal evidence excerpts. Report source access failures. For each
@@ -174,6 +175,8 @@ total; native adapters have their own budget. Use publication dates on original
 pages, not search-result indexing dates. Include URL/date/quotation only when
 visible. Read the whole model input before analyzing; obey its evidence IDs.
 
+If request n+1 already exists while preparing n, abandon n and handle the
+newest pending request. Keep each turn concise and respect remaining_seconds.
 After sending reply n, inspect request n+1 (poll briefly if needed). A DONE
 file means the engine finished. When DONE exists, stop and state the observed
 status. The deliverable is the exchanges, not a separately written report.
@@ -256,7 +259,9 @@ def run_case(case, args, state):
     write_json(target / "run.json", {**state, "case": case, "as_of": args.as_of, "host": args.model,
                                     "registry": json.loads(args.registry.read_bytes()) if args.registry.suffix == ".json"
                                     else args.registry.read_text(encoding="utf-8"), "seconds": args.seconds,
-                                    "legacy": args.legacy})
+                                    "legacy": args.legacy, "host_adapter": args.host_adapter,
+                                    "source_permissions": "public", "max_rounds": args.max_rounds,
+                                    "web_budget": args.web_budget, "research_timeout_seconds": args.seconds - 55})
     events_path = target / "host.events.jsonl"
     usage_log = target / "host.usage.jsonl"
     env = host_env()
@@ -308,12 +313,14 @@ def run_case(case, args, state):
                         cwd=target, stdin=subprocess.DEVNULL, stdout=events, stderr=host_err, env=env,
                     )
                 path = target / f"reply-{number}.json"
-                until = start + args.seconds
+                remaining = request.get("remaining_seconds", request.get("request", {}).get("remaining_seconds"))
+                until = min(start + args.seconds, monotonic() + float(remaining)) if remaining is not None else start + args.seconds
                 while not path.exists() and host.poll() is None and engine.poll() is None and monotonic() < until:
                     sleep(0.25)
                 if not path.exists():
-                    failure = f"missing_host_reply:{number}"
-                    engine.stdin.close()
+                    if host.poll() is not None:
+                        failure = f"host_exited_before_reply:{number}"
+                        engine.stdin.close()
                     continue
                 reply = json.loads(path.read_text(encoding="utf-8"))
                 engine.stdin.write(json.dumps(reply, ensure_ascii=False) + "\n")
