@@ -93,7 +93,7 @@ Derived from the 149-row disposition:
 Catalog and routing totals:
 
 - `config/source_catalog.yaml`: 125 entries, 123 with a domain-scoped host-web
-  route, 24 with a direct-connector route.
+  route, 25 with a direct-connector route (18 of them verified this round).
 - Distinct registered platforms after de-duplicating the App Store public/owner
   split and the `jobs_pages` / `rss_newsletters` aggregators: **122**.
 - Free direct structured platforms: **18**.
