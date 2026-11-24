@@ -47,11 +47,11 @@ Status legend: [ ] pending · [~] in progress · [x] done
 ## Phase G — Docs & verification
 - [x] G1 Update README/README.zh-CN/SKILL/CHANGELOG/access matrix/fallback playbook.
 - [x] G2 Remove local absolute paths, secrets, identity data; privacy test passes.
-- [ ] G3 Full offline pytest; ruff; install check; repository check; security scan.
+- [x] G3 Full offline pytest; ruff; install check; repository check; security scan. (2419 passed/27 skipped; changed-file ruff clean; repo lint has pre-existing failures outside this diff; install smoke PASS; repository check PASS; pip-audit unavailable offline)
 - [x] G4 Representative expanded-profile end-to-end study with frozen model; verify ledger + FACT contract.
-- [ ] G5 Logical commits + push `dev/vantage-1.1-global-sources` (or report network failure).
+- [x] G5 Logical commits + push `dev/vantage-1.1-global-sources` (or report network failure). (4 local commits; push blocked: `Empty reply from server` over HTTPS, retried once with HTTP/1.1)
 
 ## Phase H — Final delivery
-- [ ] H1 16-slot vs new comparison, source counts by status, 149-row disposition.
-- [ ] H2 last30days comparison, coverage delta, 1.0 regressions, tests/CI/security.
-- [ ] H3 `SOURCE_EXPANSION_READY` verdict + latest SHA.
+- [x] H1 16-slot vs new comparison, source counts by status, 149-row disposition.
+- [x] H2 last30days comparison, coverage delta, 1.0 regressions, tests/CI/security.
+- [x] H3 `SOURCE_EXPANSION_READY` verdict + latest SHA.
