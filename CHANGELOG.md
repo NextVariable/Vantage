@@ -2,7 +2,7 @@
 
 Python 3.10 compatibility is exercised by the public CI matrix; recommendation ID construction avoids syntax that requires Python 3.12.
 
-## Unreleased — 1.1 global source expansion
+## 1.1.0.dev1 — unreleased global source expansion
 
 Development branch only; no 1.1 release or tag.
 
@@ -20,9 +20,8 @@ Development branch only; no 1.1 release or tag.
   add a Steam review adapter that refuses HTML redirect gates.
 - Bound Ashby boards at 2 MB and map Greenhouse `first_published` separately
   from `updated_at`.
-- Record 149 research candidates in `docs/source-expansion-1.1.csv` with honest
-  states; register 134 distinct platforms while counting only verified routes as
-  coverage.
+- Record 149 research candidates in `docs/source-expansion-1.1.csv`. Count
+  registrations and verified platform coverage separately.
 - Add `docs/source-authorization.md`, `docs/source-expansion-1.1.md` and
   profile-schema tests. No secret value is read, logged, or committed.
 - Add eighteen further key-free connectors after a live round-trip: PubMed,
@@ -37,9 +36,12 @@ Development branch only; no 1.1 release or tag.
 - Add coarse-date and fallback labelling (`date_precision`, `date_semantics`)
   for registries that only publish a year or a version time; cap detail
   lookups at three per query for NuGet, RubyGems and Docker Hub.
-- Add `docs/host-web-verification-tasks.json`: 65 machine-readable host-search
-  tasks (`status: pending_host`) covering catalog rows with no structured
-  endpoint. None is counted as verified coverage.
+- Add 65 Host tasks in Phase 2 and complete the Phase 3 public probes. Record
+  Host reads, frozen replay and real Vantage delivery separately.
+- Pin the published Beta installation to `v1.0.0b1`, put current examples first
+  and index historical decisions, audits and evaluations in place.
+- Include linked documentation in source distributions and declare the existing
+  MIT license with SPDX package metadata.
 - Extend `docs/source-authorization.md` with credential-free routes, free
   registration entries, approval/owner requirements and paid services, with
   application links and expected data depth.

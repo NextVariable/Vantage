@@ -24,6 +24,12 @@ def main():
         python = bin_dir / ("python.exe" if win else "python")
         check(python, "-m", "pip", "install", wheel, cwd=workspace)
         check(python, "-m", "pip", "check", cwd=workspace)
+        check(
+            python, "-c",
+            "import sys, sourceglint; from importlib.metadata import version;"
+            " assert sourceglint.__version__ == version('sourceglint') == sys.argv[1]",
+            wheel.name.split("-")[1], cwd=workspace,
+        )
         for name in ("vantage", "sourceglint"):
             check(bin_dir / (name + (".exe" if win else "")), "--help", cwd=workspace)
         check(python, ROOT / "scripts" / "check_installed_runtime.py", cwd=workspace)

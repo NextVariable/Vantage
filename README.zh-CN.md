@@ -2,11 +2,16 @@
 
 **按需情报与机会发现 Skill（On-Demand Intelligence & Opportunity Discovery Skill）**
 
-[English](README.md) · [真实样例](docs/examples/2026-10-04/README.md) · [文档导航](docs/README.md)
+[English](README.md) · [真实样例](docs/source-expansion-1.1.md#two-real-vantage-reports) · [文档导航](docs/README.md)
 
 Vantage 面向创业者、产品经理、商业化负责人、咨询顾问和研究人员。你主动提出研究问题，它在可用平台上查找近期的行业变化、用户需求和竞争信号。默认研究最近 30 天，时间窗口可调整。
 
 Skill 会先拆出子问题，检索并检查保留的证据。重要缺口或线索值得核实时，最多追加两轮。最终交付带日期和原始链接的报告，以及可重复使用的证据文件。机会假设和产品或 GTM 建议只在明确请求时输出。
+
+## 版本
+
+- **已发布：Vantage 1.0 Beta 1**，版本 `1.0.0b1`。下方安装命令固定使用已发布标签。 [GitHub 预发布说明](https://github.com/NextVariable/Vantage/releases/tag/v1.0.0b1)
+- **开发中：Vantage 1.1 Global Source Expansion**，本分支 `dev/vantage-1.1-global-sources` 的包版本为 `1.1.0.dev1`。已有公开来源扩展和阶段性验证记录，尚未发布 1.1。 [1.1 验收记录](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
 
 ## 可以研究什么
 
@@ -21,12 +26,12 @@ Skill 会先拆出子问题，检索并检查保留的证据。重要缺口或�
 
 > 用 Vantage 研究最近30天 AI 视频领域的新工具和用户反馈，保留日期、原始链接和反例。
 
-## 安装
+## 安装 1.0 Beta 1
 
 需要 Python 3.10+，以及支持网页搜索、推理和交互式终端的智能体。以 Codex 为例，在尚未占用的技能目录中安装：
 
 ```sh
-git clone --branch release/vantage-1.0-beta --depth 1 \
+git clone --branch v1.0.0b1 --depth 1 \
   https://github.com/NextVariable/Vantage.git ~/.codex/skills/vantage
 cd ~/.codex/skills/vantage
 python3 -m venv .venv
@@ -35,7 +40,14 @@ python3 -m venv .venv
 .venv/bin/vantage doctor
 ```
 
-版本应输出 `1.0.0b1`；若是其他版本，说明仍在旧分支或旧安装上。然后让智能体使用 Vantage。请保留完整仓库，单独复制 `SKILL.md` 无法运行。Windows 请使用 `.venv\Scripts\python.exe`。检查命令确认本地配置是否就绪，来源当下是否可访问则以实际研究为准。
+版本应输出 `1.0.0b1`。检查通过后，让智能体使用 Vantage。请保留完整仓库，单独复制 `SKILL.md` 无法运行。Windows 请使用 `.venv\Scripts\python.exe`。检查命令确认本地配置是否就绪，来源当下是否可访问则以实际研究为准。
+
+### 安装 1.1 开发版
+
+用于开发和验证时，把上面的 `--branch v1.0.0b1` 换成
+`--branch dev/vantage-1.1-global-sources`，目标目录换成
+`~/.codex/skills/vantage-dev`，之后在该目录安装。版本检查应输出
+`1.1.0.dev1`。同一 Codex 环境只启用一份名为 `vantage` 的 Skill。
 
 直接使用 `vantage` 时默认启用自适应研究，最多运行三轮。命令行仍需宿主
 提供结构化模型，例如通过 `--model sourceglint.host_stdio:build_model` 交互。
@@ -47,7 +59,7 @@ python3 -m venv .venv
 
 你会得到带来源的报告，以及保存链接、日期和原文节选的证据文件。报告区分厂商陈述、用户体验与推断，保留反例，并说明未访问到的来源或材料不足的地方。
 
-默认从 GitHub、Reddit、Hacker News、YouTube、Qiita 和智能体网页搜索中选择相关路径，并在可用时补充讨论、评论或字幕。每次检索的来源随问题和可访问性变化。Skill 默认使用公开来源。直接调用 CLI 时可另行配置需凭据的来源，智能体自身的使用额度仍适用。
+1.0 Beta 在 GitHub、Reddit、Hacker News、YouTube、Qiita 和智能体网页搜索之间选择相关路径。1.1 可按研究意图使用 Hybrid 或 Expanded，并在可用时补充讨论、评论或字幕。每次检索的来源随问题和可访问性变化。Skill 默认使用公开来源。直接调用 CLI 时可另行配置需凭据的来源，智能体自身的使用额度仍适用。
 
 检索是有限采样，覆盖受访问权限、限流、语言和主题影响。报告生成成功不代表信息已全部覆盖，也不能直接证明市场需求。目前不支持历史窗口增长比较、实时监控、新闻聚合或定时推送。直接调用旧 CLI 或 Python API 默认维持单轮，可分别用 `--adaptive` 或 `adaptive=True` 启用自适应模式。
 
@@ -59,39 +71,19 @@ python3 -m venv .venv
 - JSON 同时提供 `execution_status` 和兼容字段 `status`。每条事实性发现附带证据支持状态：`supported`（引文可在所引来源中逐字定位）、`verified`（另经宿主语义支持校验）、`partial`（只能支持部分陈述）、`vendor_only`（仅有厂商材料支持）或 `unverified`（无法确认）。合法但无关的引用、拼接引文和厂商自称的“独立测试”都会被拒绝，不会被标为已验证事实。
 - 行业、需求与竞争研究是基础能力；机会发现和产品建议只在明确请求时生成。
 
-### 1.1 全球来源扩展（开发分支）
+### 1.1 来源验证
 
-`dev/vantage-1.1-global-sources` 新增二十八个经过真实联网验证的免凭据直连来源。
-第一阶段新增 Crossref、OpenAlex、PyPI、Crates.io、GitLab、Lever、Greenhouse、
-Ashby、World Bank 与 SEC EDGAR，并修正 Stack Overflow、DEV、Hugging Face、npm
-与 arXiv 的日期语义。第二阶段新增 PubMed、DOAJ、Zenodo、DataCite、Open
-Library、Internet Archive、ClinicalTrials.gov、Maven Central、NuGet、RubyGems、
-Docker Hub、App Store（iTunes Search）、Lemmy、Zenn、note、ITmedia、SSPAI 与
-Makuake。新来源在 `config/sources.yaml` 中默认关闭，只能通过
-`config/sources-expanded.yaml` 按每个来源一次查询的方式启用，因此默认 Skill
-检索的槽位、成本与 1.0 行为保持不变。研究编排、证据台账、FACT 校验与宿主协议
-均未改动。版本仍为 `1.0.0b1`，本分支不是 1.1 正式发布。
+截至 2026-11-24，1.1 的最近结构化联网记录有 **35 个免费直连平台**，另有
+**1 个 CLI 平台**（YouTube 公开视频元数据）。Host 网页探针取得 **24 个
+带日期和原文的来源样本**，其中 PR TIMES 和 G2 已进入真实 Vantage 报告。
+合并并去重后，最新联网口径为 **38 个平台**。授权 API、独立 MCP、
+当前被限流的 arXiv 和未取到评论的 Steam 单列。查看来源访问指南可区分
+目录登记、运行时槽位、冻结回放与真实联网结果。 [来源访问](docs/source-access-matrix.md) · [统计快照](docs/source-live-status.json)
 
-来源目录目前登记 137 条、134 个独立平台，其中 37 个完成结构化直连验证、1 个
-完成真实网页覆盖验证；另有 65 个仅能走宿主检索的条目已写入机器可读验证清单，
-状态为 `pending_host`；其余条目如实标记为 `registered_only`、
-`credential_required`、`approval_required` 或 `unavailable`。详见
-[149 条来源处置记录](docs/source-expansion-1.1.md)、
-[处置 CSV](docs/source-expansion-1.1.csv)、
-[宿主检索验证清单](docs/host-web-verification-tasks.json)与
-[授权指南](docs/source-authorization.md)。
+## 真实研究与文档
 
-## 进一步了解
-
-- [Beta 候选验收与四类真实研究](docs/beta-final-closure.md)
-- [1.1 来源扩展记录](docs/source-expansion-1.1.md)与[授权指南](docs/source-authorization.md)
-- [真实研究样例](docs/examples/2026-10-04/README.md)
-- [来源访问](docs/source-access-matrix.md)与[降级方式](docs/source-fallback-playbook.md)
-- [智能体集成与证据导出](references/host-protocol.md)
-- [1.0 发布验收与真实宿主基准](docs/rc-release-readiness.md)
-- [1.0 开发审计](docs/vantage-1.0.md)
-- [自适应研究基线与回放](docs/adaptive-research.md)
-- [验证记录](docs/validation.md)
-- [仓库目录说明](docs/repository-guide.md)与[参与开发](CONTRIBUTING.md)
+- [1.1 最新真实研究](docs/source-expansion-1.1.md#two-real-vantage-reports)，日本会议纪要产品发布与 Otter 用户反馈。两例的研究质量均为 `LIMITED`。
+- [1.0 Beta 四类真实研究](docs/examples/beta-final-2026-11-24/README.md)，包括竞争情报、需求、行业与机会发现。
+- [文档导航](docs/README.md) · [授权指南](docs/source-authorization.md) · [变更日志](CHANGELOG.md) · [参与开发](CONTRIBUTING.md)
 
 采用 [MIT 许可](LICENSE)。

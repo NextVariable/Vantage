@@ -10,7 +10,9 @@ Machine-readable companion: [source-expansion-1.1.csv](source-expansion-1.1.csv)
 [source-expansion-1.1-additions.csv](source-expansion-1.1-additions.csv)
 (platforms implemented in phase 2 that were not rows in the original matrix).
 
-This record covers two implementation waves on the same branch. Phase 1
+The first sections preserve the two implementation waves on this branch.
+Use [Phase 3](#phase-3-codex-host-acceptance-2026-11-24) and the
+[dated snapshot](source-live-status.json) for the current verification counts. Phase 1
 activated and corrected the 1.0 connectors and added ten structured routes.
 Phase 2 adds eighteen further key-free routes (research registries, package
 registries, an app store, a federated community and Japan/China publisher
@@ -130,7 +132,7 @@ template, markets, languages, modes, evidence roles, expected fields and
 `published_at` and a snippet, then flips the status. Nothing in that file is
 counted as verified coverage.
 
-## Honest totals
+## Phase 2 counting snapshot
 
 Derived from the 149-row disposition:
 

@@ -2,11 +2,16 @@
 
 **On-Demand Intelligence & Opportunity Discovery Skill**
 
-[简体中文](README.zh-CN.md) · [Examples](docs/examples/2026-10-04/README.md) · [Documentation](docs/README.md)
+[简体中文](README.zh-CN.md) · [Examples](docs/source-expansion-1.1.md#two-real-vantage-reports) · [Documentation](docs/README.md)
 
 Vantage helps founders, product managers, commercialization teams, consultants and researchers investigate industry changes, user needs and competitive signals across available platforms. Start by asking a research question. The default window is 30 days and can be adjusted.
 
 The Skill plans subquestions before searching, checks retained evidence against them, and can run up to two targeted rounds for material gaps or corroboration. It deduplicates dated evidence and delivers a cited brief and reusable evidence file. Opportunity hypotheses and product or GTM recommendations are opt-in.
+
+## Versions
+
+- **Published: Vantage 1.0 Beta 1** (`1.0.0b1`). The installation below pins the published tag. [GitHub pre-release](https://github.com/NextVariable/Vantage/releases/tag/v1.0.0b1)
+- **In development: Vantage 1.1 Global Source Expansion**. This branch, `dev/vantage-1.1-global-sources`, installs package version `1.1.0.dev1`. It has dated source validation and remains an unreleased development build. [1.1 acceptance record](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
 
 ## What you can research
 
@@ -21,12 +26,12 @@ After installation, ask your agent:
 
 > Use Vantage to research AI video tools and user feedback from the last 30 days. Keep dates, original links and counterexamples.
 
-## Install
+## Install 1.0 Beta 1
 
 Requires Python 3.10+ and an agent with web search, reasoning and an interactive terminal. For Codex, use an unused Skill directory:
 
 ```sh
-git clone --branch release/vantage-1.0-beta --depth 1 \
+git clone --branch v1.0.0b1 --depth 1 \
   https://github.com/NextVariable/Vantage.git ~/.codex/skills/vantage
 cd ~/.codex/skills/vantage
 python3 -m venv .venv
@@ -35,8 +40,15 @@ python3 -m venv .venv
 .venv/bin/vantage doctor
 ```
 
-The version must print `1.0.0b1`; if it prints another version you are on a
-different branch or an older install. Then ask your agent to use Vantage. Keep the complete repository; `SKILL.md` alone is insufficient. On Windows, use `.venv\Scripts\python.exe`. The doctor command checks local readiness; actual research determines source availability.
+Confirm the version prints `1.0.0b1`. Then ask your agent to use Vantage. Keep the complete repository; `SKILL.md` alone is insufficient. On Windows, use `.venv\Scripts\python.exe`. The doctor command checks local readiness; actual research determines source availability.
+
+### Install the 1.1 development build
+
+For development or validation, replace `--branch v1.0.0b1` with
+`--branch dev/vantage-1.1-global-sources` and use
+`~/.codex/skills/vantage-dev` as the target and working directory. The version
+check should print `1.1.0.dev1`. Enable one copy of the `vantage` Skill in a
+Codex environment at a time.
 
 For direct use, `vantage` defaults to adaptive research with a three-round
 cap. The CLI requires a structured host model, for example
@@ -49,7 +61,7 @@ See [four worked prompts and a recorded run](docs/examples/vantage-1.0.md).
 
 You receive a cited report and an evidence file containing links, dates and source excerpts. Reports distinguish maker claims, user experiences and interpretations, retain counterexamples, and disclose missing sources or thin evidence.
 
-The default Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube, Qiita and agent web search. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. The Skill uses public sources by default. Credentialed routes can be configured for direct CLI use. Host usage limits still apply.
+The Beta Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube, Qiita and agent web search. The 1.1 Skill can choose Hybrid or Expanded by research intent. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. The Skill uses public sources by default. Credentialed routes can be configured for direct CLI use. Host usage limits still apply.
 
 Research is bounded sampling. Coverage depends on access, rate limits, language and topic. A completed report does not establish complete platform coverage or prove market demand. Historical-window growth comparison, continuous monitoring, news aggregation and scheduled delivery are outside this workflow. Raw CLI/API calls keep single-pass retrieval unless invoked with `--adaptive` or `adaptive=True`.
 
@@ -61,42 +73,20 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 - The JSON makes `execution_status` explicit while preserving the legacy `status`. Each factual finding carries an evidence support state: `supported` (the quote occurs verbatim in the cited item), `verified` (additionally passed the separate semantic check), `partial` (only part of the statement is quoted), `vendor_only` (only vendor material supports it) or `unverified` (support could not be established). A valid but unrelated evidence id, a stitched quotation, or a vendor claim of independent testing is rejected — never promoted to a verified fact.
 - Industry, demand and competitive research are the core. Opportunity hypotheses and product recommendations are generated only when explicitly requested.
 
-### 1.1 source expansion (development branch)
+### 1.1 source verification
 
-`dev/vantage-1.1-global-sources` adds twenty-eight live-verified credential-free
-connectors. Phase 1 added Crossref, OpenAlex, PyPI, Crates.io, GitLab, Lever,
-Greenhouse, Ashby, World Bank and SEC EDGAR, and corrected the date semantics of
-the existing Stack Overflow, DEV, Hugging Face, npm and arXiv routes. Phase 2
-added PubMed, DOAJ, Zenodo, DataCite, Open Library, Internet Archive,
-ClinicalTrials.gov, Maven Central, NuGet, RubyGems, Docker Hub, App Store
-(iTunes Search), Lemmy, Zenn, note, ITmedia, SSPAI and Makuake. The new registry
-slots are disabled by default and enabled only through
-`config/sources-expanded.yaml`, one query per source, so a default Skill run
-keeps its 1.0 source mix and cost. Adaptive routing, the evidence ledger, FACT
-checks and the host protocol are unchanged. The version still prints
-`1.0.0b1`; this branch is not a 1.1 release.
+As of 2026-11-24, the latest 1.1 structured checks recorded **35 key-free direct
+platforms** and **one CLI platform** (public YouTube video metadata). Host web
+probes captured **24 dated original samples**. PR TIMES and G2 reached actual
+Vantage reports. The latest deduplicated live count is **38 platforms**.
+Authorized APIs, independent MCP routes, the currently rate-limited arXiv route
+and Steam review failures are tracked separately. See the access guide for
+catalog registrations, runtime slots, and frozen replay results. [Source access](docs/source-access-matrix.md) · [Verification snapshot](docs/source-live-status.json)
 
-The catalog registers 134 distinct platforms across 137 entries. 37 have
-verified direct structured access and 1 has verified web coverage this round;
-65 host-only entries are listed in a machine-readable verification pack as
-`pending_host`, and the rest are honestly marked `registered_only`,
-`credential_required`, `approval_required` or `unavailable`. See the
-[149-row expansion record](docs/source-expansion-1.1.md),
-[its disposition CSV](docs/source-expansion-1.1.csv),
-[the host-search verification pack](docs/host-web-verification-tasks.json) and
-the [authorization guide](docs/source-authorization.md).
+## Research examples and docs
 
-## More
-
-- [Beta candidate acceptance and four research cases](docs/beta-final-closure.md)
-- [1.1 source expansion record](docs/source-expansion-1.1.md) and [authorization guide](docs/source-authorization.md)
-- [Recorded research examples](docs/examples/2026-10-04/README.md)
-- [Source access](docs/source-access-matrix.md) and [fallbacks](docs/source-fallback-playbook.md)
-- [Agent integration and evidence exports](references/host-protocol.md)
-- [1.0 release readiness and live benchmark](docs/rc-release-readiness.md)
-- [1.0 development audit](docs/vantage-1.0.md)
-- [Adaptive research baseline and replay](docs/adaptive-research.md)
-- [Validation records](docs/validation.md)
-- [Repository guide](docs/repository-guide.md) and [contributing](CONTRIBUTING.md)
+- [Latest 1.1 research runs](docs/source-expansion-1.1.md#two-real-vantage-reports) cover Japanese meeting-note product launches and Otter feedback. Both reported `LIMITED` research quality.
+- [Four published Beta examples](docs/examples/beta-final-2026-11-24/README.md) cover industry, demand, competition and opportunity discovery.
+- [Documentation index](docs/README.md) · [Authorization guide](docs/source-authorization.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
 Licensed under [MIT](LICENSE).

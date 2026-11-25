@@ -1,6 +1,8 @@
 # Source coverage and access truth
 
-The product target is broad recent-information discovery, not a claim that every platform exposes a broad public API. `config/source_catalog.yaml` is the complete, machine-readable coverage catalog. `config/sources.yaml` is narrower and lists runtime sources that the engine can actually attempt.
+Vantage routes research to sources that match the question, market, language
+and available permissions. A route declaration, an enabled runtime slot and an
+observed retrieval result describe different things.
 
 ## Retrieval design
 
@@ -39,67 +41,34 @@ biases; provider failures and incomplete coverage must still be disclosed.
 - Kickstarter, Makuake, GREEN FUNDING, CAMPFIRE and similar crowdfunding sources are represented through public project pages/search unless a supported commercial integration is added.
 - Google Search/News are discovery routes. Final evidence must cite the original page.
 
-## 1.1 expansion status
+## 1.1 source counts and records
 
-The 1.1 round added ten verified credential-free connectors (Crossref, OpenAlex,
-PyPI, Crates.io, GitLab, Lever, Greenhouse, Ashby, World Bank, SEC EDGAR) and
-activated five existing ones with corrected date semantics (Stack Overflow, DEV,
-Hugging Face, npm, arXiv). The new slots are disabled in `config/sources.yaml`
-and enabled only through `config/sources-expanded.yaml`, one query per source.
+The latest verification snapshot is dated 2026-11-24. The 1.1 development
+branch inherits the Phase 2 connector checks and the Phase 3 Host checks.
+Actual access can vary by environment, permissions and time.
 
-Phase 2 added eighteen more key-free slots after a real round-trip, also
-disabled by default and enabled through the expanded profile: PubMed, DOAJ,
-Zenodo, DataCite, Open Library, Internet Archive, ClinicalTrials.gov, Maven
-Central, NuGet, RubyGems, Docker Hub, App Store (iTunes Search), Lemmy, Zenn,
-note, ITmedia, SSPAI and Makuake. That brings the registry to 43 connector
-entries and the verified free structured count to 37 (43 minus four
-credential-gated and two routes that did not answer: Steam and Reddit's keyless
-lane). Details, endpoints and date anchors are in
-[the 1.1 expansion record](source-expansion-1.1.md).
+| Measure | Scope and latest recorded result |
+| --- | --- |
+| Catalog entries | 137 route declarations in `config/source_catalog.yaml`, 135 with a Host web route. |
+| Independent catalog platform candidates | 128 after excluding discovery/aggregation entries and merging same-platform routes. See the [counting rules](source-expansion-1.1.md#live-retrieval-and-counting). |
+| Runtime slots | Base registry `config/sources.yaml` lists 46 slots, 16 enabled there. Hybrid enables 6 and Expanded enables 39, including the shared Host slot. These are configurations; a research task selects a subset. |
+| Current key-free direct checks | 35 structured platforms, plus 1 local CLI platform (YouTube public video metadata). |
+| Host web original-page probes | 24 sources with verified dated, attributable excerpts. Two of these, PR TIMES and G2, reached the ledger and report in actual Vantage runs. |
+| Latest deduplicated live count | 38 platforms from direct checks, the CLI check and the two live Host report cases. The 42 automatic-routing and 59 named-Host totals include frozen integration replay. |
+| Historical or restricted | arXiv passed on 2026-10-04 and returned 429 in the latest connector run. Reddit RSS returned 404; public archive fallback remains bounded. Steam returned a redirect without review text. Polymarket's structured endpoint was unreachable in its recorded probe. No fresh authorized or independent MCP route passed. |
 
-Live outcomes that changed a status:
-
-- Steam's review endpoint redirected to the store home page from the probe
-  network; the catalog entry moved from `ready` to `search_fallback`.
-- Polymarket's public API was unreachable; the catalog entry moved to
-  `unavailable` and no connector is exposed.
-- Reddit's keyless RSS returned 404; the route reports a bounded limitation and
-  keeps the archive fallback.
-- YouTube's `yt-dlp` route is environment-dependent; the fallback stays public
-  pages.
-- G2, Capterra and Trustpilot expose dated public review samples in Phase 3.
-  Their owner or commercial API route requires separate approval. The sampled
-  Product Hunt and Kickstarter web surfaces were partial.
-- Google News had a consent redirect in the original-page probe. Host search
-  is a discovery mechanism; retain the original publisher URL.
-
-## Phase 3 public Host acceptance
-
-All 65 original tasks were attempted, plus 13 additional checks. There are
-24 dated original web samples, including G2 and PR TIMES in two real Vantage
-reports. The 24 samples survive STDIO normalization, the ledger and the
-evidence-only report in frozen replay. At the up-to-ten-target budget seven
-are automatically recommendable in at least one profile-supported context.
-The other experiments depend on the named-source Host instruction. Record
-these stages separately and keep the user's permissions and per-run budget.
-
-The latest observed floor is 38 deduplicated platforms: 35 structured,
-YouTube via local CLI, and two live web platforms. Including the routes proven
-with automatic routing and frozen replay gives 42; including explicit named
-Host routes proven in frozen replay gives 59. Neither expanded total is a
-full real-research validation. arXiv remains historical after the latest 429,
-Steam remains a bounded failure, and no independent MCP or credentialed
-retrieval was verified in this round.
-
-[Search, body, comments and engagement matrix](source-host-capabilities.csv) ·
-[Complete per-platform web task results](host-web-verification-tasks.json).
-
-Per-row evidence is in [the 1.1 expansion record](source-expansion-1.1.md) and
-[its CSV](source-expansion-1.1.csv).
+| File | Role |
+| --- | --- |
+| [`source-live-status.json`](source-live-status.json) | Canonical dated aggregate. Top-level connector outcomes and `phase3_host_web` distinguish earlier connector checks from later Host verification. |
+| [`host-web-verification-tasks.json`](host-web-verification-tasks.json) | Original per-platform Host probe evidence, dates, excerpts, failures, routing and delivery stages. |
+| [`source-host-capabilities.csv`](source-host-capabilities.csv) | Display matrix for filters and comparison, combining catalog fields with the dated Host and connector records. |
+| [`source-expansion-1.1.csv`](source-expansion-1.1.csv) and [additions](source-expansion-1.1-additions.csv) | Historical research inventory of 149 candidates and five additional Phase 2 records. Preserve for provenance; use the snapshot for current verified totals. |
+| [Expansion record](source-expansion-1.1.md) and this guide | Human-readable verification context and references. |
+| [Authorization guide](source-authorization.md) | How to request access and run a scoped verification after approval. |
 
 ## Efficiency policy
 
-The Skill does not query every catalog source for every request. The router filters by research mode, market and language, caps host-search targets at ten, prefers local sources for a named market, limits each source family during the first selection pass, and skips sources already covered by direct connectors. A product-feedback question emphasizes communities and review stores; a market-entry question adds local news, crowdfunding, ads and professional sources; a technology-development question emphasizes developer and research ecosystems.
+The Skill does not query every catalog source for every request. The router filters by research mode, market and language, caps host-search targets at ten, prefers local sources for a named market, limits each source family during the first selection pass, and can exclude direct sources when a caller supplies an explicit list of sources already covered. A product-feedback question emphasizes communities and review stores; a market-entry question adds local news, crowdfunding, ads and professional sources; a technology-development question emphasizes developer and research ecosystems.
 
 ## Verification commands
 

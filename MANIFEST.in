@@ -1,10 +1,12 @@
-include LICENSE README.md README.zh-CN.md SKILL.md setup.py
+include LICENSE README.md README.zh-CN.md SKILL.md CHANGELOG.md CONTRIBUTING.md setup.py
 recursive-include config *.yaml
 recursive-include schemas *.json
-recursive-include docs *.md *.json
+recursive-include docs *.md *.json *.csv
+recursive-include docs/examples *.jsonl
 recursive-include scripts *.py *.sh
 recursive-include tests *.py *.json *.jsonl *.yaml *.md
 recursive-include src/sourceglint *.md
 recursive-include references *.md
 recursive-include agents *.yaml
-recursive-include evals *.json
+recursive-include evals *.json *.md
+recursive-include specs *.md

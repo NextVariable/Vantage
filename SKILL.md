@@ -12,6 +12,12 @@ Do not substitute recommendations for the discoveries or experiences requested.
 
 ## Prepare
 
+This checkout targets Vantage `1.1.0.dev1` (development). For the published
+`1.0.0b1` Beta, install Git tag `v1.0.0b1` and use the Skill from that checkout.
+See the [installation guide](README.md#install-10-beta-1). The Python import
+and compatibility launcher are both named `sourceglint`.
+
+
 Locate this Skill's complete repository. It needs Python 3.10+, a host with
 search/fetch and interactive terminal tools, and the host's own reasoning.
 If `.venv` is absent, create it with `python3 -m venv .venv`. Install or refresh
