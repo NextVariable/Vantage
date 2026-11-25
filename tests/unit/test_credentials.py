@@ -23,7 +23,8 @@ def test_store_and_resolve_from_private_file(tmp_path, monkeypatch):
         "name": "X_BEARER_TOKEN", "present": True, "source": "config-file",
     }
     mode = os.stat(credentials.credentials_file()).st_mode & 0o777
-    assert mode == 0o600
+    if os.name == "posix":
+        assert mode == 0o600
 
 
 def test_environment_wins_over_file(tmp_path, monkeypatch):
