@@ -2,8 +2,8 @@
 
 [24 平台、31 条 lane 和逐条引用记录](source-live-2026-11-26.json)覆盖 last30days
 v4.6.0（`64b1f006f800640022ce07f51de5ce56aad34b76`）。本轮实测
-**15/24 个上游平台、28 个去重来源**。其中 9 个上游平台通过公开原生或 CLI
-路径，6 个通过 Host 的公开原文路径。去重总数另含 13 个上游名单之外的来源。
+**17/24 个上游平台、30 个去重来源**。其中 10 个上游平台通过公开原生或 CLI
+路径，7 个通过 Host 的公开原文路径。去重总数另含 13 个上游名单之外的来源。
 免费结构化档案与目录中的历史通过仍可参考，本轮未重跑或没有合格引用的历史记录
 未计入。按 2026-11-26（Asia/Shanghai）记账，机器记录保留 UTC 时间。
 
@@ -17,10 +17,12 @@ v4.6.0（`64b1f006f800640022ce07f51de5ce56aad34b76`）。本轮实测
 | 状态 | 上游平台 | 实测范围或待补条件 |
 | --- | --- | --- |
 | LIVE_VERIFIED | GitHub、Reddit、YouTube、Hacker News | GitHub 公开 issue 与评论，Reddit 帖子和评论，YouTube 字幕及互动元数据，HN 帖子、评论及反馈计数 |
+| LIVE_VERIFIED | TikTok | yt-dlp 通过公开原视频链接取得有日期的说明文及互动计数。关键词搜索、评论正文和字幕待测 |
 | LIVE_VERIFIED | DEV、arXiv、Techmeme、Polymarket、USPTO | 文章摘要、论文摘要、聚合片段、有日期的市场描述与成交量、专利申请及 PDF。Polymarket 用市场开始日期作为锚点 |
 | LIVE_VERIFIED | Bluesky、Telegram、Stocktwits | 公开原帖经 Host 入账。Stocktwits 原始讨论有可见回复，原生接口返回 403。Bluesky 匿名搜索返回 403，Telegram 商业结构化路线没有调用 |
+| LIVE_VERIFIED | LinkedIn | 公开帖正文和原始 HTML 的发布时间入账。批量搜索、评论正文和互动未实测 |
 | LIVE_VERIFIED | Trustpilot、Digg、Amazon | Trustpilot 单条评价正文，Digg 公告正文，Amazon 商品详情及发行日期。商品评分可见，未确认买家评论详情。Digg 结构化搜索请求遭遇 403 验证挑战 |
-| USER_ACTION_REQUIRED | TikTok、Instagram、Threads、Pinterest、LinkedIn、Meta Ad Library | 需要配置 ScrapeCreators 的免费额度授权。LinkedIn 公开正文可读但无法核实发布时间，Meta 列表可见但逐条广告永久链接还不能核验同一原文 |
+| USER_ACTION_REQUIRED | Instagram、Threads、Pinterest、Meta Ad Library | 需要配置 ScrapeCreators 的免费额度授权。Meta 列表可见但逐条广告永久链接还不能核验同一原文 |
 | USER_ACTION_REQUIRED | 小红书 | 未取得可核对发布时间的公开笔记。需要平台允许的只读访问和已明确配置的本地服务 |
 | PAYMENT_DECISION_REQUIRED | X | 公开网页探针没有返回合格原始帖。若决定使用 X API，需授权已有开发者项目的计量额度 |
 | EXTERNAL_BLOCKED | Truth Social | 公开入口可达，但没有取得合格原始帖子或可合法调用的搜索凭据 |

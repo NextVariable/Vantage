@@ -7,10 +7,10 @@
   "totals": {
     "upstream": 24,
     "PAYMENT_DECISION_REQUIRED": 1,
-    "LIVE_VERIFIED": 15,
-    "USER_ACTION_REQUIRED": 7,
+    "LIVE_VERIFIED": 17,
+    "USER_ACTION_REQUIRED": 5,
     "EXTERNAL_BLOCKED": 1,
-    "independent_public_sources": 28
+    "independent_public_sources": 30
   },
   "upstream_platforms": [
     {
@@ -66,12 +66,24 @@
     },
     {
       "platform": "tiktok",
-      "status": "USER_ACTION_REQUIRED",
-      "checked_at": "2026-11-25T16:54:30.891711+00:00",
-      "ledger": false,
-      "citation": false,
-      "reason": "Public probes reached first-party newsroom and ads pages, without a content-video permalink that met the search contract.",
-      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+      "status": "LIVE_VERIFIED",
+      "route": "yt-dlp public video permalink",
+      "depth": "Dated caption and engagement from a public video identified via TikTok Newsroom. Comment count was visible. Keyword discovery, comment bodies and captions/transcripts were not tested on this route.",
+      "checked_at": "2026-11-25T17:06:47.938821+00:00",
+      "query": "TikTok LIVE Food Network",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.tiktok.com/@tiktoklive_us/video/7710025784290757919",
+      "date": "2026-11-19T23:17:56Z",
+      "evidence_id": "ev_vqilvccg4redabssnc57huvnnffa6mmh",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
     },
     {
       "platform": "instagram",
@@ -102,12 +114,22 @@
     },
     {
       "platform": "linkedin",
-      "status": "USER_ACTION_REQUIRED",
-      "checked_at": "2026-11-25T16:54:30.891711+00:00",
-      "ledger": false,
-      "citation": false,
-      "reason": "Public post body was readable. LinkedIn showed a relative time and event dates; neither supplied a trustworthy post publication timestamp.",
-      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+      "status": "LIVE_VERIFIED",
+      "route": "Public original LinkedIn post and JSON-LD → Vantage STDIO",
+      "depth": "Post body and datePublished from the original HTML. Bulk search, comment bodies and interaction counts were not tested.",
+      "checked_at": "2026-11-25T17:07:51.556926+00:00",
+      "query": "LinkedIn InfoMagnus GitHub Copilot adoption webinar",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.linkedin.com/posts/infomagnus_github-microsoft-githubcopilot-activity-7511843365542383616-4n4r",
+      "date": "2026-10-02T17:43:41.645Z",
+      "evidence_id": "ev_axsd3dhixq3xptwuhb6nzxeehcjgpprh",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "post_body",
+        "published_at_from_original_jsonld"
+      ]
     },
     {
       "platform": "telegram",
@@ -799,7 +821,7 @@
     {
       "lane": "tiktok",
       "upstream_code": "tiktok.py",
-      "verification": "USER_ACTION_REQUIRED"
+      "verification": "LIVE_VERIFIED"
     },
     {
       "lane": "instagram",
@@ -829,7 +851,7 @@
     {
       "lane": "grounding",
       "upstream_code": "pipeline.py",
-      "verification": "Live Host → Vantage STDIO: six surfaced origins in this run."
+      "verification": "Live Host → Vantage STDIO: seven surfaced origins in this run."
     },
     {
       "lane": "xiaohongshu",
@@ -894,7 +916,7 @@
     {
       "lane": "linkedin",
       "upstream_code": "linkedin.py",
-      "verification": "USER_ACTION_REQUIRED"
+      "verification": "LIVE_VERIFIED"
     },
     {
       "lane": "corpus",
@@ -940,7 +962,7 @@
   "tool_acceptance": {
     "yt-dlp": {
       "version": "2026.03.17",
-      "accepted": "existing public YouTube search and captions"
+      "accepted": "existing public YouTube search and captions; TikTok public permalink yields dated caption and interaction counts"
     },
     "gh": {
       "version": "2.93.0",
