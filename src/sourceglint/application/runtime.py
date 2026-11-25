@@ -99,10 +99,16 @@ def default_adapter_factory(
         SemanticScholarAdapter,
         StackOverflowAdapter,
     )
-    from ..connectors.authorized_sources import ProductHuntAdapter, XAdapter
+    from ..connectors.authorized_sources import (
+        ProductHuntAdapter,
+        ScrapeCreatorsTikTokAdapter,
+        XAdapter,
+    )
 
-    if not allow_credentials and name in {"bluesky", "x", "product_hunt", "semantic_scholar"}:
+    if not allow_credentials and name in {"bluesky", "x", "product_hunt", "semantic_scholar", "tiktok"}:
         return None
+    if name == "tiktok":
+        return ScrapeCreatorsTikTokAdapter(api_key=_env("SCRAPECREATORS_API_KEY") or None)
     if name == "bluesky":
         return BlueskyAdapter(
             handle=_env("BSKY_HANDLE") or None,
@@ -214,6 +220,9 @@ def default_adapter_factory(
                       language="zh", market="cn", source_type="post"),
         "makuake": dict(source_name="makuake", feed_url="https://www.makuake.com/rss/",
                         language="ja", market="jp", source_type="page"),
+        "techmeme": dict(source_name="techmeme",
+                         feed_url="https://www.techmeme.com/feed.xml",
+                         language="en", market="global", source_type="page"),
     }
     feed_config = feed_configs.get(name)
     if feed_config is not None:

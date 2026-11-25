@@ -10,7 +10,11 @@ from sourceglint.connectors._http import (
     HttpResponse,
     HttpTransientError,
 )
-from sourceglint.connectors.authorized_sources import ProductHuntAdapter, XAdapter
+from sourceglint.connectors.authorized_sources import (
+    ProductHuntAdapter,
+    ScrapeCreatorsTikTokAdapter,
+    XAdapter,
+)
 from sourceglint.pipeline.adapters import (
     AdapterAuthMissing,
     AdapterInvalidResponse,
@@ -151,3 +155,42 @@ def test_product_hunt_rejects_graphql_errors():
     http = StubHttp(responses=[{"errors": [{"message": "not allowed"}]}])
     with pytest.raises(AdapterInvalidResponse):
         ProductHuntAdapter(token="token", http_client=http).retrieve(PLAN, REQUEST)
+
+
+TIKTOK_PAYLOAD = {
+    "search_item_list": [
+        {"aweme_info": {
+            "aweme_id": "7311",
+            "desc": "Testing an AI agent for travel planning",
+            "create_time": 1790000000,
+            "author": {"unique_id": "creator1"},
+            "share_url": "https://www.tiktok.com/@creator1/video/7311?is_from_webapp=1",
+            "statistics": {
+                "play_count": 1000, "digg_count": 50,
+                "comment_count": 7, "share_count": 2,
+            },
+        }},
+        {"aweme_info": {
+            "aweme_id": "7312",
+            "desc": "No timestamp must be dropped rather than fabricated",
+            "author": {"unique_id": "creator2"},
+        }},
+    ]
+}
+
+
+def test_tiktok_requires_a_key():
+    with pytest.raises(AdapterAuthMissing):
+        ScrapeCreatorsTikTokAdapter(api_key=None, http_client=StubHttp()).retrieve(PLAN, REQUEST)
+
+
+def test_tiktok_maps_real_fields_and_drops_undated_items():
+    http = StubHttp(responses=[TIKTOK_PAYLOAD])
+    result = ScrapeCreatorsTikTokAdapter(api_key="sc-key", http_client=http).retrieve(PLAN, REQUEST)
+    assert [item.source_native_id for item in result] == ["7311"]
+    assert result[0].url == "https://www.tiktok.com/@creator1/video/7311"
+    assert result[0].published_at == "2026-09-21T14:13:20Z"
+    assert result[0].engagement == {"views": 1000, "likes": 50, "comments": 7, "shares": 2}
+    call = http.calls[0]
+    assert call["headers"]["x-api-key"] == "sc-key"
+    assert "query=AI+agents" in call["url"] or "query=AI%20agents" in call["url"]

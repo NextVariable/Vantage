@@ -42,6 +42,7 @@ SECTION_HEADINGS: dict[str, str] = {
     "executive": "Executive Summary",
     "facts": "What We Know",
     "inferences": "What It Likely Means",
+    "platforms": "Platform Observations",
     "actions": "Recommended Actions",
     "watchouts": "Watchouts",
     "emerging": "Emerging Signals",

@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .application.api import run_sourceglint
+from .interface.platforms import canonical_platform
 from .application.runtime import default_adapter_factory, default_sources
 from .host_stdio import StdioHostSource
 from .ledger import EvidenceLedger
@@ -71,6 +72,13 @@ def _build_parser(prog: str = "sourceglint") -> argparse.ArgumentParser:
     p.add_argument("--entity", action="append", default=[], dest="entities",
                    help="Named entity (product/company). Repeatable.")
     p.add_argument("--target", default="", help="Primary entity of interest.")
+    p.add_argument("--platform", action="append", default=[], dest="platforms",
+                   help="Restrict retrieval to a platform/source name (repeatable). "
+                        "Natural language ('only Reddit and GitHub') also works.")
+    p.add_argument("--exclude-platform", action="append", default=[], dest="excluded_platforms",
+                   help="Exclude a platform/source from this run (repeatable).")
+    p.add_argument("--exclude-official", action="store_true",
+                   help="Drop owner/vendor-published evidence so only independent observations are analysed.")
     p.add_argument("--baseline", action="store_true",
                    help="Reserved: exits with an error until prior-window retrieval is implemented.")
     p.add_argument("--decision-support", action="store_true",
@@ -203,6 +211,10 @@ def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
             languages=tuple(args.languages),
             entities=tuple(args.entities),
             target=args.target,
+            source_preferences=tuple(canonical_platform(p) for p in args.platforms),
+            platform_scope=bool(args.platforms),
+            excluded_sources=tuple(canonical_platform(p) for p in args.excluded_platforms),
+            exclude_official=args.exclude_official,
             baseline=args.baseline,
             decision_support=args.decision_support,
             adaptive=branded or args.adaptive,

@@ -139,8 +139,10 @@ def test_japanese_platforms_live(adapter):
                      language="zh", market="cn"), "zh", "cn", "https://"),
         (FeedAdapter(source_name="makuake", feed_url="https://www.makuake.com/rss/",
                      language="ja", market="jp", source_type="page"), "ja", "jp", "https://"),
+        (FeedAdapter(source_name="techmeme", feed_url="https://www.techmeme.com/feed.xml",
+                     language="en", source_type="page"), "en", "global", "https://"),
     ],
-    ids=["itmedia", "sspai", "makuake"],
+    ids=["itmedia", "sspai", "makuake", "techmeme"],
 )
 def test_publisher_feeds_live(adapter, language, market, prefix):
     results = adapter.retrieve(

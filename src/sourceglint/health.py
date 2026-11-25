@@ -19,8 +19,8 @@ CONNECTORS = {
     "lemmy", "lever", "makuake", "maven_central", "note", "nuget",
     "open_library", "openalex", "package_registries", "pypi", "pubmed",
     "qiita", "reddit", "rubygems", "sec_edgar", "semantic_scholar", "sspai",
-    "steam", "world_bank", "product_hunt", "stack_overflow", "x", "youtube",
-    "zenodo", "zenn",
+    "steam", "techmeme", "tiktok", "world_bank", "product_hunt",
+    "stack_overflow", "x", "youtube", "zenodo", "zenn",
 }
 
 

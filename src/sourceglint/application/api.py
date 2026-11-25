@@ -87,6 +87,39 @@ def _to_iso(value: datetime | str) -> datetime:
     return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
+def _apply_platform_scope(
+    source_list: list[Mapping[str, Any]],
+    include: Sequence[str],
+    exclude: Sequence[str],
+) -> list[Mapping[str, Any]]:
+    """Hard include/exclude for explicit platform requests.
+
+    Soft mentions ("focus on X, Reddit and GitHub") remain planner
+    preferences. Only "only" / "exclude" phrasing reaches this filter, so the
+    default routing policy is untouched.
+    """
+    names = {str(item.get("name") or "") for item in source_list}
+    include_set = {str(x) for x in include if x}
+    exclude_set = {str(x) for x in exclude if x}
+    if not include_set and not exclude_set:
+        return source_list
+    if include_set:
+        matched = include_set & names
+        if not matched:
+            raise ValueError(
+                "requested platforms are not registered in this build: "
+                + ", ".join(sorted(include_set))
+            )
+    scoped = [
+        item for item in source_list
+        if str(item.get("name") or "") not in exclude_set
+        and (not include_set or str(item.get("name") or "") in include_set)
+    ]
+    if not scoped:
+        raise ValueError("platform scope removed every registered source")
+    return scoped
+
+
 def run_sourceglint(
     query: str,
     *,
@@ -100,6 +133,9 @@ def run_sourceglint(
     baseline: bool = False,
     decision_support: bool = False,
     source_preferences: Sequence[str] = (),
+    platform_scope: bool = False,
+    excluded_sources: Sequence[str] = (),
+    exclude_official: bool = False,
     decision_context: str = "",
     # --- runtime injection (host-neutral) --------------------------------
     model: Any = None,
@@ -153,6 +189,8 @@ def run_sourceglint(
         target=target,
         baseline=baseline,
         source_preferences=tuple(source_preferences),
+        excluded_sources=tuple(excluded_sources),
+        exclude_official=exclude_official,
         decision_context=decision_context,
     )
     parsed = parse_request(request)
@@ -170,6 +208,14 @@ def run_sourceglint(
         raise ValueError("as_of is required; the host must supply the run timestamp")
     as_of_dt = _to_iso(as_of)
     source_list = list(sources) if sources is not None else default_sources()
+    hard_include = tuple(source_preferences) if platform_scope else (
+        parsed.source_preferences if parsed.platform_only else ()
+    )
+    source_list = _apply_platform_scope(
+        source_list,
+        hard_include,
+        parsed.excluded_sources,
+    )
     factory = adapter_factory or default_adapter_factory
     if raw_output:
         from ..artifacts import recording_factory

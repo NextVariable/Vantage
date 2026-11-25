@@ -21,12 +21,12 @@ Semantic clarity (Closeout §5):
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import Counter
 from typing import Iterable, Mapping
 
 from .degradation import SourceStatus, SourceStatusReport
-from ..provenance import original_platform
+from ..provenance import known_platform, original_platform
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,8 @@ class CoverageReport:
     gaps: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     original_platforms: tuple[str, ...] = ()
+    platform_counts: Mapping[str, int] = field(default_factory=dict)
+    syndicated_copy_count: int = 0
     searched_targets: tuple[str, ...] = ()
     unavailable_targets: tuple[str, ...] = ()
     unanswered_parts: tuple[str, ...] = ()
@@ -95,6 +97,8 @@ class CoverageReport:
             "gaps": list(self.gaps),
             "warnings": list(self.warnings),
             "original_platforms": list(self.original_platforms),
+            "platform_counts": dict(self.platform_counts),
+            "syndicated_copy_count": self.syndicated_copy_count,
             "searched_targets": list(self.searched_targets),
             "unavailable_targets": list(self.unavailable_targets),
             "unanswered_parts": list(self.unanswered_parts),
@@ -128,6 +132,33 @@ def _distinct_preserve_first(items: Iterable[str]) -> tuple[str, ...]:
             seen.add(x)
             out.append(x)
     return tuple(out)
+
+
+def _normalise_fingerprint(value: object) -> str:
+    import re
+
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", " ", str(value or "").casefold()).strip()
+
+
+def _syndicated_copy_count(kept: Iterable[Mapping[str, object]]) -> int:
+    """Count cross-platform copies of the same title + opening text.
+
+    This is deliberately conservative: a fingerprint needs a title of at least
+    20 characters, and only groups that appear on two or more distinct
+    platforms count. Copies are disclosed, never promoted to independent
+    corroboration.
+    """
+    groups: dict[tuple[str, str], set[str]] = {}
+    for item in kept:
+        title = _normalise_fingerprint(item.get("title"))
+        if len(title) < 20:
+            continue
+        body = _normalise_fingerprint(str(item.get("snippet") or "")[:200])
+        key = (title, body[:120])
+        platform = known_platform(str(item.get("url") or ""))
+        if platform:
+            groups.setdefault(key, set()).add(platform)
+    return sum(len(platforms) - 1 for platforms in groups.values() if len(platforms) > 1)
 
 
 def _partition_sources(
@@ -207,8 +238,17 @@ def build_coverage_report(
         gaps.append("no evidence collected from any source")
 
     platforms = tuple(sorted({original_platform(str(e.get("url") or "")) for e in kept}))
+    platform_counts = Counter(
+        p for p in (known_platform(str(e.get("url") or "")) for e in kept) if p
+    )
+    syndicated = _syndicated_copy_count(kept)
     if len(platforms) == 1:
         gaps.append(f"All retained evidence is from {platforms[0]}; no independent cross-platform corroboration.")
+    if syndicated:
+        gaps.append(
+            f"{syndicated} item(s) repeat identical content across platforms; "
+            "syndicated copies are not counted as independent corroboration."
+        )
     if kept and len(kept) < 3:
         gaps.append("Fewer than three retained items; this is a small sample, not a representative pattern.")
     observations = list(host_observations)
@@ -262,6 +302,8 @@ def build_coverage_report(
         gaps=_distinct_preserve_first(gaps),
         warnings=tuple(warnings),
         original_platforms=platforms,
+        platform_counts=dict(sorted(platform_counts.items())),
+        syndicated_copy_count=syndicated,
         searched_targets=_distinct_preserve_first(searched),
         unavailable_targets=_distinct_preserve_first(unavailable),
         unanswered_parts=_distinct_preserve_first(unanswered),

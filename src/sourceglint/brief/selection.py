@@ -491,6 +491,16 @@ def _coverage_lines(coverage: Any) -> list[str]:
     platforms = c.get("original_platforms") or []
     if platforms:
         lines.append("Original platforms: " + ", ".join(sorted(platforms)))
+    counts = c.get("platform_counts") or {}
+    if counts:
+        lines.append(
+            "Platform item counts: "
+            + ", ".join(f"{name} {int(count)}" for name, count in sorted(counts.items()))
+        )
+    if c.get("syndicated_copy_count"):
+        lines.append(
+            f"Syndicated copies: {int(c['syndicated_copy_count'])} (not independent corroboration)."
+        )
     searched = c.get("searched_targets") or []
     if searched:
         lines.append("Host targets actually searched: " + ", ".join(sorted(searched)))

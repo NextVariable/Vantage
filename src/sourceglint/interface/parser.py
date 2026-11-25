@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from .platforms import exclude_official, split_platform_intent
 from .request import (
     DEFAULT_DAYS,
     MARKET_LANGUAGES,
@@ -445,6 +446,13 @@ def parse_request(request: SkillRequest) -> ParsedRequest:
         languages = tuple(dict.fromkeys(base))
 
     reason = _clarification_reason(text, mode, market, entities)
+    requested, excluded, platform_only = split_platform_intent(text)
+    preferences = tuple(dict.fromkeys(
+        tuple(request.source_preferences) + tuple(requested)
+    ))
+    excluded_sources = tuple(dict.fromkeys(
+        tuple(request.excluded_sources) + tuple(excluded)
+    ))
     parsed = ParsedRequest(
         query=text,
         mode=mode,
@@ -455,7 +463,10 @@ def parse_request(request: SkillRequest) -> ParsedRequest:
         entities=entities,
         target=target,
         baseline=request.baseline,
-        source_preferences=request.source_preferences,
+        source_preferences=preferences,
+        excluded_sources=excluded_sources,
+        platform_only=platform_only and bool(requested),
+        exclude_official=request.exclude_official or exclude_official(text),
         decision_context=request.decision_context,
         query_language=qlang,
         needs_clarification=bool(reason),

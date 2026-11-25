@@ -42,9 +42,8 @@ def test_single_platform_and_unanswered_aspects_are_visible_in_coverage():
 
 def test_public_citation_preserves_original_platform_and_publication_date():
     citation = _ref({"ev1": {"source": "host_web_search", "url": "https://www.reddit.com/r/a/comments/1", "published_at": "2026-10-01T00:00:00Z"}}, "ev1")
-    assert "[Reddit]" in citation
+    assert "Reddit via host_web_search" in citation
     assert "2026-10-01" in citation
-    assert "host_web_search" not in citation
 
 
 def test_synthesis_reserve_scales_with_complexity_and_stays_bounded():

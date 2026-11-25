@@ -687,3 +687,33 @@
   languages: [ja]
   cache_ttl: 900
   max_queries_per_run: 1
+
+- name: techmeme
+  # Techmeme curated tech-news feed; local topic filtering (no query API).
+  enabled: false
+  type: secondary
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 56
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 600
+  max_queries_per_run: 1
+
+- name: tiktok
+  # TikTok keyword search via ScrapeCreators (paid third-party API).
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY]
+  priority: 60
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1

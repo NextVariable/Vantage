@@ -277,4 +277,104 @@ class ProductHuntAdapter:
         return output
 
 
-__all__ = ["ProductHuntAdapter", "XAdapter"]
+@dataclass(frozen=True)
+class ScrapeCreatorsTikTokAdapter:
+    """TikTok keyword search through the ScrapeCreators API.
+
+    This is a paid third-party service (a small free credit allowance exists).
+    It is implemented because the upstream reference routes the same way; it is
+    NOT counted as live-verified here when no key is present. The adapter keeps
+    only fields the API actually returns and never fabricates a date.
+    """
+
+    api_key: str | None = None
+    http_client: HttpClient | None = None
+    max_per_query: int = 20
+    source_name: str = "tiktok"
+    endpoint: str = "https://api.scrapecreators.com/v1/tiktok/search/keyword"
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key:
+            raise AdapterAuthMissing(self.source_name, "SCRAPECREATORS_API_KEY is required")
+        query = _query(request, self.source_name)
+        limit = _limit(request, self.max_per_query)
+        url = f"{self.endpoint}?{urlencode({'query': query, 'sort_by': 'relevance'})}"
+        try:
+            response = self.http_client.request(
+                url,
+                headers={"x-api-key": self.api_key, "Content-Type": "application/json"},
+            )
+        except HttpTransientError as exc:
+            if exc.status in (401, 403):
+                raise AdapterAuthMissing(self.source_name, "ScrapeCreators key rejected") from exc
+            if exc.status == 429:
+                raise AdapterRateLimited(self.source_name, "ScrapeCreators rate limit") from exc
+            raise AdapterUnavailable(self.source_name, f"ScrapeCreators transient {exc.status}") from exc
+        except HttpTimeoutError as exc:
+            raise AdapterTimeout(self.source_name, str(exc)) from exc
+        try:
+            payload = response.json()
+        except Exception as exc:
+            raise AdapterInvalidResponse(self.source_name, "ScrapeCreators body was not JSON") from exc
+        if not isinstance(payload, Mapping):
+            raise AdapterInvalidResponse(self.source_name, "ScrapeCreators payload was not an object")
+        entries = payload.get("search_item_list") or payload.get("data") or []
+        if not isinstance(entries, list):
+            raise AdapterInvalidResponse(self.source_name, "ScrapeCreators items were not a list")
+        output: list[RawSourceResult] = []
+        for entry in entries:
+            item = entry.get("aweme_info", entry) if isinstance(entry, Mapping) else None
+            if not isinstance(item, Mapping):
+                continue
+            video_id = str(item.get("aweme_id") or "")
+            text = str(item.get("desc") or "").strip()
+            created = item.get("create_time")
+            try:
+                published = datetime.fromtimestamp(int(created), tz=timezone.utc)
+            except (TypeError, ValueError, OSError):
+                published = None
+            author_raw = item.get("author")
+            author = (
+                str(author_raw.get("unique_id") or "")
+                if isinstance(author_raw, Mapping)
+                else str(author_raw or "")
+            )
+            if not video_id or not text or published is None or not author:
+                continue
+            share = str(item.get("share_url") or "").split("?")[0]
+            stats = item.get("statistics") if isinstance(item.get("statistics"), Mapping) else {}
+            output.append(RawSourceResult(
+                source=self.source_name,
+                source_type="video",
+                source_native_id=video_id,
+                url=share or f"https://www.tiktok.com/@{author}/video/{video_id}",
+                title=text[:120],
+                text=text,
+                author=author,
+                published_at=_iso(published),
+                market=str(request.get("market") or "global"),
+                language=str(request.get("query_language") or "en"),
+                query=query,
+                query_language=str(request.get("query_language") or "en"),
+                engagement={
+                    "views": _count(stats.get("play_count")),
+                    "likes": _count(stats.get("digg_count")),
+                    "comments": _count(stats.get("comment_count")),
+                    "shares": _count(stats.get("share_count")),
+                },
+                raw_metadata={"route": "scrapecreators_keyword", "provider": "scrapecreators"},
+            ))
+            if len(output) >= limit:
+                break
+        return output
+
+
+__all__ = ["ProductHuntAdapter", "ScrapeCreatorsTikTokAdapter", "XAdapter"]

@@ -17,7 +17,7 @@ import re
 from typing import Iterable, Mapping
 
 from .. import rendering
-from ..provenance import original_platform
+from ..provenance import known_platform, platform_label
 from .dtos import (
     BriefContext,
     SelectedBrief,
@@ -66,7 +66,7 @@ def _ref(lookup: Mapping[str, object], eid: str, *, with_id: bool = True) -> str
     if rec is None:
         return f"`{eid}`"
     url = _rec_field(rec, "url")
-    label = original_platform(url) if _rec_field(rec, "source") == "host_web_search" else (_rec_field(rec, "source") or "source")
+    label = platform_label(url, _rec_field(rec, "source"))
     date = _rec_field(rec, "published_at")[:10]
     suffix = f" · {date}" if date else ""
     ident = f" `{eid}`" if with_id else ""
@@ -175,8 +175,25 @@ def executive(sel: SelectedBrief) -> str:
 # -------- FACT / INFERENCE sections (§8, §11) --------
 
 
+def _platforms_for(eids: Iterable[str], lookup: Mapping[str, object]) -> list[str]:
+    """Original platforms behind a citation set, never retrieval routes."""
+    seen: set[str] = set()
+    for eid in eids:
+        rec = lookup.get(eid)
+        if rec is None:
+            continue
+        platform = known_platform(_rec_field(rec, "url"))
+        if not platform:
+            continue
+        seen.add(platform)
+    return sorted(seen)
+
+
 def _insight_bullet(statement: str, confidence: float, eids: tuple[str, ...], lookup) -> str:
     meta = f"confidence: {confidence:.2f}"
+    platforms = _platforms_for(eids, lookup)
+    if len(platforms) >= 2:
+        meta += f" · cross-platform: {', '.join(platforms)}"
     cite = refs(lookup, eids)
     if cite:
         meta += f" — {cite}"
@@ -195,6 +212,40 @@ def inferences(sel: SelectedBrief, lookup: Mapping[str, object]) -> str:
         return ""
     body = "\n".join(_insight_bullet(i.statement, i.confidence, i.evidence_ids, lookup) for i in sel.inferences)
     return _heading(2, H["inferences"]) + body + "\n\n"
+
+
+# -------- Platform observations (§ platform-aware report) --------
+
+
+def platform_observations(sel: SelectedBrief, lookup: Mapping[str, object]) -> str:
+    """Group CITED evidence by original platform.
+
+    Supplementary by design: it only renders when at least two platforms
+    actually contributed cited evidence, and it never pads a platform with
+    uncited items. Titles and dates come from the ledger; no claims are
+    generated here.
+    """
+    groups: dict[str, list[str]] = {}
+    for eid in _referenced_evidence(sel):
+        rec = lookup.get(eid)
+        if rec is None:
+            continue
+        platform = known_platform(_rec_field(rec, "url"))
+        if not platform:
+            continue
+        groups.setdefault(platform, []).append(eid)
+    if len(groups) < 2:
+        return ""
+    lines: list[str] = []
+    for platform, eids in sorted(groups.items(), key=lambda pair: (-len(pair[1]), pair[0]))[:6]:
+        items: list[str] = []
+        for eid in eids[:2]:
+            rec = lookup.get(eid)
+            title = _untrusted_inline(_rec_field(rec, "title")) or "untitled"
+            items.append(f"{title} — {_ref(lookup, eid, with_id=False)}")
+        lines.append(f"- **{platform}** — {len(eids)} cited item(s): " + "; ".join(items))
+    body = "\n".join(lines)
+    return _heading(2, H["platforms"]) + body + "\n\n"
 
 
 # -------- Recommended Actions (§11, §15, §29) --------

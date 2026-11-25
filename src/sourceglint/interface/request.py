@@ -59,6 +59,8 @@ class SkillRequest:
     target: str = ""  # primary entity of interest (e.g. a competitor)
     baseline: bool = False  # include prior-window baseline evidence
     source_preferences: tuple[str, ...] = ()
+    excluded_sources: tuple[str, ...] = ()
+    exclude_official: bool = False
     decision_context: str = ""
     start_date: str = ""
     end_date: str = ""
@@ -108,6 +110,9 @@ class ParsedRequest:
     target: str = ""
     baseline: bool = False
     source_preferences: tuple[str, ...] = ()
+    excluded_sources: tuple[str, ...] = ()
+    platform_only: bool = False
+    exclude_official: bool = False
     decision_context: str = ""
     query_language: str = "en"  # 'en' | 'zh' | 'ja' (query surface language)
     needs_clarification: bool = False
@@ -136,6 +141,8 @@ class ParsedRequest:
             plan["decision_context"] = self.decision_context
         if self.source_preferences:
             plan["source_priorities"] = list(self.source_preferences)
+        if self.exclude_official:
+            plan["exclude_official"] = True
         return plan
 
     @property
@@ -159,6 +166,9 @@ def _replace(req: ParsedRequest, **kw: Any) -> ParsedRequest:
         target=req.target,
         baseline=req.baseline,
         source_preferences=req.source_preferences,
+        excluded_sources=req.excluded_sources,
+        platform_only=req.platform_only,
+        exclude_official=req.exclude_official,
         decision_context=req.decision_context,
         query_language=req.query_language,
         needs_clarification=kw.get("needs_clarification", req.needs_clarification),

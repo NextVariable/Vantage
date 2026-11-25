@@ -202,6 +202,10 @@
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true,
       "description": "Ordered source names from sources.yaml. Absent = registry default order."
+    },
+    "exclude_official": {
+      "type": "boolean",
+      "description": "Drop owner/vendor-published evidence (official_web or host pages flagged official) so only independent first-hand observations are analysed. Absent = include everything."
     }
   }
 }

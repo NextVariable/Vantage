@@ -192,6 +192,7 @@ class ResearchPipeline:
         retained: list[dict] = []
         dropped_by_time = 0
         normalization_drops = 0
+        official_dropped = 0
         blocked: set[str] = set()
         rounds = adaptive.budget.rounds if adaptive else 1
         for round_number in range(1, rounds + 1):
@@ -217,6 +218,13 @@ class ResearchPipeline:
 
             # Normalize each raw record once. Both passes share the window and
             # the final deduplication, so duplicate evidence counts only once.
+            if plan.get("exclude_official"):
+                before = len(batch)
+                batch = [
+                    row for row in batch
+                    if row.source != "official_web" and not bool(row.raw_metadata.get("official"))
+                ]
+                official_dropped += before - len(batch)
             batch_normalized, rejected = self._normalize(batch, warnings)
             normalization_drops += rejected
             normalized.extend(batch_normalized)
@@ -273,6 +281,8 @@ class ResearchPipeline:
 
         if normalization_drops:
             warnings.append(f"normalization_dropped={normalization_drops}")
+        if official_dropped:
+            warnings.append(f"official_evidence_excluded={official_dropped}")
         if dropped_by_time:
             warnings.extend((f"time_filter_dropped={dropped_by_time}",
                              f"time_filter_normalized_before_drop={len(normalized)}"))
