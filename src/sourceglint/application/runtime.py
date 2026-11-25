@@ -105,10 +105,51 @@ def default_adapter_factory(
         XAdapter,
     )
 
-    if not allow_credentials and name in {"bluesky", "x", "product_hunt", "semantic_scholar", "tiktok"}:
+    if not allow_credentials and name in {
+        "bluesky", "x", "product_hunt", "semantic_scholar", "tiktok",
+        "instagram", "threads", "pinterest", "linkedin", "truthsocial",
+        "meta_ad_library", "xiaohongshu",
+    }:
         return None
     if name == "tiktok":
         return ScrapeCreatorsTikTokAdapter(api_key=_env("SCRAPECREATORS_API_KEY") or None)
+    if name in {"instagram", "threads", "pinterest", "linkedin"}:
+        from ..connectors.parity_sources import ScrapeCreatorsPlatformAdapter
+
+        endpoint = {
+            "instagram": "https://api.scrapecreators.com/v2/instagram/reels/search",
+            "threads": "https://api.scrapecreators.com/v1/threads/search",
+            "pinterest": "https://api.scrapecreators.com/v1/pinterest/search",
+            "linkedin": "https://api.scrapecreators.com/v1/linkedin/search/posts",
+        }[name]
+        return ScrapeCreatorsPlatformAdapter(
+            platform=name, endpoint=endpoint,
+            api_key=_env("SCRAPECREATORS_API_KEY") or None,
+        )
+    if name == "truthsocial":
+        from ..connectors.parity_sources import TruthSocialAdapter
+
+        return TruthSocialAdapter(token=_env("TRUTHSOCIAL_TOKEN") or None)
+    if name == "meta_ad_library":
+        from ..connectors.parity_sources import MetaAdLibraryAdapter
+
+        return MetaAdLibraryAdapter(token=_env("META_ACCESS_TOKEN") or None)
+    if name == "stocktwits":
+        from ..connectors.parity_sources import StockTwitsAdapter
+
+        return StockTwitsAdapter()
+    if name == "polymarket":
+        from ..connectors.parity_sources import PolymarketAdapter
+
+        return PolymarketAdapter()
+    if name == "digg":
+        from ..connectors.parity_sources import DiggCliAdapter
+
+        return DiggCliAdapter()
+    if name == "xiaohongshu":
+        from ..connectors.parity_sources import XiaohongshuMcpAdapter
+
+        return XiaohongshuMcpAdapter(base_url=_env("XHS_MCP_URL") or None)
     if name == "bluesky":
         return BlueskyAdapter(
             handle=_env("BSKY_HANDLE") or None,

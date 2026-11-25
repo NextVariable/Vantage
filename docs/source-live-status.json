@@ -145,7 +145,10 @@
       "techmeme"
     ],
     "connector_implemented_unverified": {
-      "tiktok": "ScrapeCreators adapter implemented; SCRAPECREATORS_API_KEY unset, offline contract test only"
+      "reddit": "public RSS 404 / shreddit reset from this network",
+      "stocktwits": "public symbol stream returned 403; ticker required",
+      "polymarket": "gamma public-search timed out from this network",
+      "digg": "digg-pp-cli binary absent; reported as MISSING_TOOL"
     },
     "online_probe_failures": {
       "reddit_shreddit": "connection reset from this network",
@@ -163,14 +166,28 @@
     "upstream_parity": {
       "audited_lanes": 31,
       "deduplicated_platforms": 24,
-      "aligned_implemented": 10,
-      "verified_direct_or_host_page": 7
+      "aligned_implemented": 20,
+      "verified_direct_or_host_page": 7,
+      "verified_direct_live": 6,
+      "verified_frozen_replay": 1,
+      "implemented_credential_required": 10,
+      "implemented_unverified": 4,
+      "host_only_not_implemented": 3
     },
     "latest_deduplicated_platforms_engine_direct_or_live_web": 39,
     "latest_deduplicated_platforms_with_named_host_replay_or_direct": 59,
     "notes": [
       "Techmeme was verified with a real feed item; TikTok is not counted without a key.",
       "The 149-row inventory remains historical and is not rewritten by this block."
-    ]
+    ],
+    "connector_implemented_credential_required": {
+      "instagram": "ScrapeCreators reels search; SCRAPECREATORS_API_KEY unset; offline contract test only",
+      "threads": "ScrapeCreators keyword search; SCRAPECREATORS_API_KEY unset; offline contract test only",
+      "pinterest": "ScrapeCreators search; SCRAPECREATORS_API_KEY unset; offline contract test only",
+      "linkedin": "ScrapeCreators posts search; SCRAPECREATORS_API_KEY unset; offline contract test only",
+      "truthsocial": "Mastodon-compatible search; TRUTHSOCIAL_TOKEN unset; offline contract test only",
+      "meta_ad_library": "Graph ads_archive; META_ACCESS_TOKEN and identity verification required",
+      "xiaohongshu": "user-authorized local MCP service; XHS_MCP_URL unset; refuses when not logged in"
+    }
   }
 }

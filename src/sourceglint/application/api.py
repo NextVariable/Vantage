@@ -20,6 +20,11 @@ from typing import Any, Mapping, Sequence
 
 from ..deadline import deadline_scope
 from ..interface.parser import parse_request
+from ..interface.platforms import (
+    canonical_platform,
+    platform_domains,
+    registry_source_for,
+)
 from ..interface.request import MODES, SkillRequest
 from ..interface.result import SkillResult, Status
 from ..ledger import EvidenceLedger
@@ -87,37 +92,103 @@ def _to_iso(value: datetime | str) -> datetime:
     return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
-def _apply_platform_scope(
+def _resolve_platform_scope(
     source_list: list[Mapping[str, Any]],
     include: Sequence[str],
     exclude: Sequence[str],
-) -> list[Mapping[str, Any]]:
-    """Hard include/exclude for explicit platform requests.
+) -> tuple[list[Mapping[str, Any]], dict[str, list[str]]]:
+    """Resolve a hard platform scope into registry sources plus a plan scope.
 
-    Soft mentions ("focus on X, Reddit and GitHub") remain planner
-    preferences. Only "only" / "exclude" phrasing reaches this filter, so the
-    default routing policy is untouched.
+    Direct platforms filter the registry. Platforms that only have a Host web
+    route switch the run to ``host_web_search`` and carry an explicit target
+    allowlist, so an unknown domain can never be presented as the requested
+    platform. A requested platform with no legal route raises instead of being
+    silently replaced.
     """
     names = {str(item.get("name") or "") for item in source_list}
-    include_set = {str(x) for x in include if x}
-    exclude_set = {str(x) for x in exclude if x}
-    if not include_set and not exclude_set:
-        return source_list
-    if include_set:
-        matched = include_set & names
-        if not matched:
-            raise ValueError(
-                "requested platforms are not registered in this build: "
-                + ", ".join(sorted(include_set))
-            )
-    scoped = [
-        item for item in source_list
-        if str(item.get("name") or "") not in exclude_set
-        and (not include_set or str(item.get("name") or "") in include_set)
+    include_tokens = [canonical_platform(str(x)) for x in include if x]
+    exclude_tokens = [canonical_platform(str(x)) for x in exclude if x]
+    if not include_tokens and not exclude_tokens:
+        return source_list, {}
+
+    enabled = {
+        str(item.get("name") or "")
+        for item in source_list
+        if item.get("enabled", True)
+    }
+    include_direct: list[str] = []
+    include_host: list[str] = []
+    include_domains: list[str] = []
+    unavailable: list[str] = []
+    disabled: list[str] = []
+    for token in include_tokens:
+        source = registry_source_for(token, names)
+        if source:
+            if source not in enabled:
+                disabled.append(token)
+            include_direct.append(source)
+            continue
+        domains = platform_domains(token)
+        if domains:
+            include_host.append(token)
+            include_domains.extend(domains)
+        else:
+            unavailable.append(token)
+    if unavailable:
+        raise ValueError(
+            "requested platforms are not registered and have no Host route: "
+            + ", ".join(sorted(unavailable))
+        )
+    if disabled:
+        raise ValueError(
+            "requested platforms exist but are disabled in this registry profile: "
+            + ", ".join(sorted(disabled))
+            + " (enable the source or use a profile that includes it)"
+        )
+    if include_host and "host_web_search" not in enabled:
+        raise ValueError(
+            "requested platforms need Host Web Search, which is not enabled in this run: "
+            + ", ".join(sorted(include_host))
+        )
+
+    exclude_direct: list[str] = []
+    exclude_labels: list[str] = []
+    exclude_domains: list[str] = []
+    for token in exclude_tokens:
+        source = registry_source_for(token, names)
+        if source:
+            exclude_direct.append(source)
+        domains = platform_domains(token)
+        if domains:
+            exclude_labels.append(token)
+            exclude_domains.extend(domains)
+        elif not source:
+            exclude_labels.append(token)
+
+    selected_direct = [
+        name for name in include_direct if name not in set(exclude_direct)
     ]
+    if include_tokens:
+        keep = set(selected_direct)
+        if include_host:
+            keep.add("host_web_search")
+        scoped = [item for item in source_list if str(item.get("name")) in keep]
+    else:
+        scoped = [
+            item for item in source_list
+            if str(item.get("name")) not in set(exclude_direct)
+        ]
     if not scoped:
         raise ValueError("platform scope removed every registered source")
-    return scoped
+
+    scope = {
+        "include_platforms": sorted(include_host),
+        "include_domains": sorted(set(include_domains)),
+        "exclude_platforms": sorted(set(exclude_labels)),
+        "exclude_domains": sorted(set(exclude_domains)),
+        "requested": sorted(include_tokens),
+    }
+    return scoped, scope
 
 
 def run_sourceglint(
@@ -211,7 +282,7 @@ def run_sourceglint(
     hard_include = tuple(source_preferences) if platform_scope else (
         parsed.source_preferences if parsed.platform_only else ()
     )
-    source_list = _apply_platform_scope(
+    source_list, platform_scope_plan = _resolve_platform_scope(
         source_list,
         hard_include,
         parsed.excluded_sources,
@@ -234,6 +305,8 @@ def run_sourceglint(
 
     from ..pipeline.adaptive import AdaptiveResearch, ResearchBudget
     plan = parsed.to_plan()
+    if platform_scope_plan:
+        plan["platform_scope"] = platform_scope_plan
     if "start" in plan["time_window"]:
         cutoff = as_of_dt.replace(tzinfo=timezone.utc) if as_of_dt.tzinfo is None else as_of_dt.astimezone(timezone.utc)
         if _to_iso(plan["time_window"]["start"]) > cutoff:

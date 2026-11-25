@@ -26,10 +26,13 @@ comes from `skills/last30days/scripts/lib/*.py` and the dispatch table in
 - **platform** — a deduplicated publishing surface. Search engines, paid answer
   engines, local libraries and cross-platform ATS lanes are not platforms.
 - **status** — `verified_direct`, `implemented_credential_required`,
-  `implemented_unverified`, `host_only`, `unavailable`, `non_platform`.
+  `implemented_user_authorized`, `implemented_unverified`, `host_only`,
+  `unavailable`, `non_platform`.
 - Counting rule: a lane is never counted twice, and configuration alone never
   counts as coverage. `host_only` means the platform is reachable only through
   a host web search, and nothing has been proven in this build environment.
+  `implemented_*` means adapter code and an offline contract test exist; it is
+  not a live-availability claim.
 
 Machine-readable matrix: [last30days-parity.csv](last30days-parity.csv)
 (31 lanes).
@@ -40,45 +43,65 @@ Machine-readable matrix: [last30days-parity.csv](last30days-parity.csv)
 | --- | --- |
 | Upstream lanes audited | 31 |
 | Deduplicated upstream platforms | 24 |
-| Aligned with a Vantage connector (free, gated or unverified) | 10 / 24 (42%) |
+| Aligned with a Vantage connector (free, gated or unverified) | 20 / 24 (83%) |
 | Verified by a real round-trip (direct or frozen Host page) | 7 / 24 (29%) |
-| Upstream platforms still host-only without verification | 12 |
-| Upstream platforms unreachable from this network | 1 (Polymarket) |
+| — verified direct live | 6 (YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme) |
+| — verified from a frozen original page | 1 (Trustpilot) |
+| Aligned but credential- or authorization-gated | 10 |
+| Aligned but unverified without credentials (keyless/CLI) | 4 |
+| Upstream platforms still host-only | 4 (Trustpilot, Amazon, Telegram, Patents) |
 | Vantage verified direct platforms not present upstream | 32 |
 | Deduplicated platforms with a direct or live-web route | 39 |
 | Deduplicated platforms including named Host replays | 59 |
 
 Aligned and verified upstream platforms: YouTube, Hacker News, GitHub, arXiv,
-DEV, Techmeme (direct) and Trustpilot (frozen original page through Host
-search). Aligned but credential-gated or unverified: X, Reddit, Bluesky,
-TikTok. The three ATS boards (Lever, Greenhouse, Ashby) implement the upstream
-`jobs` lane as three independent platforms and are separately live-verified.
+DEV, Techmeme (direct live) and Trustpilot (frozen original page through Host
+search). The three ATS boards (Lever, Greenhouse, Ashby) implement the upstream
+`jobs` lane as three independent platforms, are separately live-verified, and
+are not counted in the 24-platform figure because `jobs` is a cross-platform
+lane.
 
-Still host-only or blocked: Instagram, Threads, Pinterest, LinkedIn,
-Xiaohongshu, Truth Social, Telegram, Digg, Amazon, Meta Ad Library, StockTwits,
-Patents. Reasons are in the CSV and in the authorization guide.
+Credential- or authorization-gated connectors implemented this round:
+Instagram, Threads, Pinterest, LinkedIn (ScrapeCreators key), Truth Social
+(account token), Meta Ad Library (approved token) and Xiaohongshu
+(user-authorized local MCP service). Keyless connectors implemented but not
+verified from this network: StockTwits (403), Polymarket (timeout) and Digg
+(CLI absent). Reddit stays connector-implemented and unverified.
+
+Still host-only: Trustpilot (frozen page replay only), Amazon (no free
+product/review API), Telegram (needs a paid key and channel scope) and Patents
+(legacy PatentsView retired; USPTO ODP requires a key). Reasons are in the CSV
+and in the authorization guide.
+
+## Status breakdown
+
+| Bucket | Count | Platforms |
+| --- | --- | --- |
+| Real live round-trip (direct) | 6 | YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme |
+| Frozen replay (original page) | 1 | Trustpilot |
+| Implemented, needs credentials | 10 | X, TikTok, Bluesky, Instagram, Threads, Pinterest, LinkedIn, Truth Social, Meta Ad Library, Xiaohongshu |
+| Implemented, unverified without credentials | 4 | Reddit, StockTwits, Polymarket, Digg |
+| Not implemented, host-only | 3 | Amazon, Telegram, Patents |
 
 ## What changed in this round
 
-- **Techmeme** — public `techmeme.com/feed.xml` parsed through the shared feed
-  adapter. Real items with links and `pubDate` were returned on 2026-11-25.
-  Only the current feed window is searchable; it is not an archive search.
-- **TikTok** — ScrapeCreators keyword adapter implemented behind
-  `SCRAPECREATORS_API_KEY` (paid, small free credit allowance). No key means it
-  is reported as `MISSING_CREDENTIALS`, never as verified. Offline contract test
-  uses the upstream field shape; no live claim is made.
-- **Platform attribution** — citations now print the original platform and the
-  retrieval route when they differ (`Reddit via host_web_search`). All citations
-  for mapped domains use the platform label.
-- **Platform observations** — the brief gains a supplementary section grouped by
-  original platform, only when at least two platforms contributed cited
-  evidence. It never pads empty platforms.
-- **Platform routing** — explicit "only Reddit and GitHub" / "exclude X" and
-  `--platform` / `--exclude-platform` produce a hard source scope; ordinary
-  mentions ("focus on X, Reddit and GitHub") stay soft planner preferences.
-- **Official-evidence exclusion** — "排除官方宣传 / exclude official" drops
-  `official_web` and host pages flagged official before normalization and
-  records `official_evidence_excluded=N`.
+- **Ten parity adapters** — Instagram, Threads, Pinterest, LinkedIn (one
+  shared ScrapeCreators adapter with per-platform mapping), Truth Social,
+  Meta Ad Library, StockTwits, Polymarket, Digg and Xiaohongshu. Each has an
+  offline contract test; none is counted as live without a real round-trip.
+- **Hard platform scope in two layers** — the registry/plan layer selects
+  only the requested sources (or adds `host_web_search` with a domain
+  allowlist for host-only platforms), and the pipeline drops any host row that
+  belongs to an excluded platform. `platform_scope_dropped=N` records the
+  count.
+- **Unknown domains are not platforms** — unmapped hosts render as
+  `Web page (host)` and never group into a platform observation.
+- **Official exclusion** — "排除官方宣传 / exclude official" now also drops
+  `*_official` sources and rows flagged `vendor`, `press_release` or
+  `self_published`, not only `official_web`.
+- **Only/exclude parsing** — the nearest cue within 30 characters decides the
+  direction, so "排除官方宣传，只分析 X" no longer over-restricts the
+  exclusion set.
 - **Syndication disclosure** — identical title + opening text on two platforms
   is reported as a syndicated copy and is not treated as independent
   corroboration.
@@ -92,6 +115,16 @@ Patents. Reasons are in the CSV and in the authorization guide.
   or fixtures.
 - Paid or approval-only routes are code-gated by environment-variable name and
   are never activated by default.
+
+## Acceptance run
+
+[platform-aware-real-run.md](examples/platform-aware-real-run.md) is one real
+multi-platform run: a DeepSeek reasoning model injected through the host-neutral
+interface, live retrieval from GitHub, Hacker News, DEV, arXiv, Techmeme and
+YouTube, and cited evidence from three platforms. It is model research, not the
+scripted rendering sample. The older
+[platform-aware-sample.md](examples/platform-aware-sample.md) stays as a
+rendering regression only.
 
 ## Reproduce
 

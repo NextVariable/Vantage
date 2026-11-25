@@ -63,3 +63,45 @@ def test_zero_budget_selects_nothing():
         language="en",
         budget=0,
     ) == []
+
+
+def test_allowed_names_restrict_host_targets_to_the_requested_platform():
+    targets = select_host_search_targets(
+        load_source_catalog(),
+        mode="voc",
+        market="global",
+        language="en",
+        budget=8,
+        allowed_names=("threads",),
+        allowed_domains=("threads.net",),
+    )
+    assert [target.name for target in targets] == ["threads"]
+
+
+def test_allowed_domains_keep_only_matching_platforms():
+    targets = select_host_search_targets(
+        load_source_catalog(),
+        mode="voc",
+        market="global",
+        language="en",
+        budget=10,
+        allowed_domains=("linkedin.com",),
+    )
+    assert targets
+    assert {target.name for target in targets} == {"linkedin"}
+
+
+def test_excluded_names_and_domains_remove_platforms_from_host_targets():
+    catalog = load_source_catalog()
+    targets = select_host_search_targets(
+        catalog,
+        mode="general",
+        market="global",
+        language="en",
+        budget=12,
+        excluded_names=("reddit",),
+        excluded_domains=("news.ycombinator.com",),
+    )
+    names = {target.name for target in targets}
+    assert "reddit" not in names
+    assert "hacker_news" not in names

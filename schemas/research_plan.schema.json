@@ -206,6 +206,18 @@
     "exclude_official": {
       "type": "boolean",
       "description": "Drop owner/vendor-published evidence (official_web or host pages flagged official) so only independent first-hand observations are analysed. Absent = include everything."
+    },
+    "platform_scope": {
+      "type": "object",
+      "description": "Hard platform scope derived from an explicit 'only' request. Host platforms carry a domain allowlist so unrelated pages cannot satisfy the request.",
+      "properties": {
+        "include_platforms": { "type": "array", "items": { "type": "string" } },
+        "include_domains": { "type": "array", "items": { "type": "string" } },
+        "exclude_platforms": { "type": "array", "items": { "type": "string" } },
+        "exclude_domains": { "type": "array", "items": { "type": "string" } },
+        "requested": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
     }
   }
 }

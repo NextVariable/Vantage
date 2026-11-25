@@ -207,31 +207,48 @@ Each entry states the exact gate to clear before a connector can be claimed.
 | Channel | Application / entry | Gate | What Vantage can return after approval | Current state |
 | --- | --- | --- | --- | --- |
 | TikTok (ScrapeCreators) | <https://scrapecreators.com/> → sign up → API key | Paid plan; a small free credit allowance is normally offered | Keyword search, video description, author, publish time, views/likes/comments/shares; optional transcript costs extra credits | Adapter implemented; `SCRAPECREATORS_API_KEY` unset, so `MISSING_CREDENTIALS` |
-| Instagram | Meta app review + Instagram Graph API, or the same ScrapeCreators key for reels search | App review, professional account, scoped permissions; ScrapeCreators is paid | Reels/posts metadata and comments within the approved surface | Host search only |
-| Threads | Meta Threads API, or ScrapeCreators | App review/scopes or paid key | Keyword posts and engagement | Host search only |
-| Pinterest | ScrapeCreators (no free public search API) | Paid key | Keyword pins, engagement; upstream payload has no reliable publish date | Host search only |
-| LinkedIn | <https://developer.linkedin.com/product-catalog> | Partner/product approval; no public search API | Organization/member posts within approved scopes | Host search only |
+| Instagram | Meta app review + Instagram Graph API, or the same ScrapeCreators key for reels search | App review, professional account, scoped permissions; ScrapeCreators is paid | Reels/posts metadata and comments within the approved surface | Adapter implemented (`third_party_api`); `SCRAPECREATORS_API_KEY` unset |
+| Threads | Meta Threads API, or ScrapeCreators | App review/scopes or paid key | Keyword posts and engagement | Adapter implemented; `SCRAPECREATORS_API_KEY` unset |
+| Pinterest | ScrapeCreators (no free public search API) | Paid key | Keyword pins, engagement; undated items are dropped rather than fabricated | Adapter implemented; `SCRAPECREATORS_API_KEY` unset |
+| LinkedIn | <https://developer.linkedin.com/product-catalog> or ScrapeCreators | Partner/product approval; no public search API | Organization/member posts within approved scopes | Adapter implemented (`third_party_api`); key unset |
 | X | <https://developer.x.com/en/portal/dashboard> | Paid API tier | Recent/full-archive search, engagement | Connector present; `X_BEARER_TOKEN` unset |
 | Reddit | <https://www.reddit.com/prefs/apps> (script app) | Free OAuth registration | Dated posts and accessible comments | Connector present; OAuth env vars unset, keyless route failed |
 | Bluesky | <https://bsky.app/settings/app-passwords> | Free app password | Search posts and engagement | Connector present; `BSKY_HANDLE`/`BSKY_APP_PASSWORD` unset |
-| Truth Social | <https://truthsocial.com> account → developer/API token, or public pages | Account bearer token; Vantage will not import browser sessions | Public statuses and engagement | Host search only |
-| Telegram | <https://my.telegram.org> or a user-authorized MCP/bot | `api_id`/`api_hash` and channel permission | Public channel posts | Host search only |
-| Digg | `digg-pp-cli` from the printing-press CLI set | Local binary | Stories and dates | Host search only |
-| StockTwits | <https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json> | None, but a ticker is required; public API returned 403 from this network | Symbol messages and engagement | Host search only |
-| Patents (USPTO) | <https://developer.uspto.gov/api-catalog> Open Data Portal | Free API key; legacy PatentsView endpoint retired | Patent search metadata and dates | Host search only (`patents.google.com` public pages) |
-| Amazon | <https://webservices.amazon.com/paapi5/documentation/> or Bright Data dataset | Affiliate approval + qualifying sales, or paid dataset | Product metadata/pricing; review text depends on the product | Host search only |
-| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity verification and access token | Ads by page and region | Host search only |
+| Truth Social | <https://truthsocial.com> account → developer/API token, or public pages | Account bearer token; Vantage will not import browser sessions | Public statuses and engagement | Adapter implemented; `TRUTHSOCIAL_TOKEN` unset |
+| Telegram | <https://my.telegram.org> or a user-authorized MCP/bot | `api_id`/`api_hash` and channel permission | Public channel posts | Not implemented; host search only |
+| Digg | `digg-pp-cli` from the printing-press CLI set | Local binary | Stories and dates | Adapter implemented; binary absent, reported `MISSING_TOOL` |
+| StockTwits | <https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json> | None, but a ticker is required; public API returned 403 from this network | Symbol messages and engagement | Adapter implemented; not verified |
+| Patents (USPTO) | <https://developer.uspto.gov/api-catalog> Open Data Portal | Free API key; legacy PatentsView endpoint retired | Patent search metadata and dates | Not implemented; host search only (`patents.google.com`) |
+| Amazon | <https://webservices.amazon.com/paapi5/documentation/> or Bright Data dataset | Affiliate approval + qualifying sales, or paid dataset | Product metadata/pricing; review text depends on the product | Not implemented; host search only |
+| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity verification and access token | Ads by page and region | Adapter implemented; `META_ACCESS_TOKEN` unset |
 | Yahoo Finance | Public quote/news endpoints | None for public pages; RSS was rate-limited in the probe | Quotes/news as enrichment, not a search platform | Not a source; artifact only |
 | Perplexity / Deepline | Provider paid API | Paid key | Answer/enrichment, not independent evidence | Not a platform; excluded from counts |
-| Xiaohongshu | A local MCP service plus a user-authorized session, or public pages | Local service and explicit user authorization | Notes, comments, engagement | Host search only |
-| Trustpilot | <https://developers.trustpilot.com/> or `trustpilot-pp-cli` | Business-unit authorization or local CLI | Dated reviews for authorized units | Host search only |
+| Xiaohongshu | A local MCP service plus a user-authorized session, or public pages | Local service and explicit user authorization | Notes, comments, engagement | Adapter implemented (`mcp`); `XHS_MCP_URL` unset, refuses when not logged in |
+| Trustpilot | <https://developers.trustpilot.com/> or `trustpilot-pp-cli` | Business-unit authorization or local CLI | Dated reviews for authorized units | Host-only; one frozen original page replayed through Host search |
 
-To enable the implemented TikTok route:
+### Minimum authorization list
+
+| Category | Channels | Connector done? | Expected depth | Verification command |
+| --- | --- | --- | --- | --- |
+| Free account | Bluesky (app password), Reddit (script app), Truth Social (account token), Xiaohongshu (local MCP login) | Yes | Dated posts, author, some engagement | `sourceglint doctor --json` then one small query |
+| Free API key | Semantic Scholar, PubMed (key optional), USPTO ODP (patents) | Patents: no | Metadata and dates | After key: `RUN_LIVE_TESTS=1 .venv/bin/python -m pytest -q -k patents tests/live` |
+| User-authorized MCP | Xiaohongshu | Yes | Notes and engagement | `XHS_MCP_URL=... sourceglint doctor` |
+| Platform approval | Meta Ad Library (identity verification), LinkedIn partner product, Instagram/Threads Graph API, Trustpilot business unit | Meta/Instagram/Threads/LinkedIn adapters done; Trustpilot not done | Approved-surface posts/ads/reviews | Approval first; then one named-object probe |
+| Paid | ScrapeCreators (Instagram, Threads, Pinterest, LinkedIn, TikTok), X API tier, Amazon/Bright Data, Telegram key | ScrapeCreators and X adapters done; Amazon/Telegram not done | Keyword search with engagement | `SCRAPECREATORS_API_KEY=... sourceglint doctor` |
+| Single vendor, many platforms | ScrapeCreators covers Instagram, Threads, Pinterest, LinkedIn and TikTok with one key | Yes, one shared adapter | Same depth per platform, subject to plan quota | One key enables all five registry entries; verify each platform separately |
+
+No connector is registered, purchased, recharged, or cookie-imported here.
+Everything above is an external authorization decision for the operator.
+
+To enable any implemented gated route:
 
 ```bash
-export SCRAPECREATORS_API_KEY=...        # never commit or paste into chat
-# enable the single registry entry (or use a profile that includes tiktok)
-.venv/bin/sourceglint doctor --json | grep -A2 '"source": "tiktok"'
+export SCRAPECREATORS_API_KEY=...        # TikTok, Instagram, Threads, Pinterest, LinkedIn
+export TRUTHSOCIAL_TOKEN=...             # Truth Social
+export META_ACCESS_TOKEN=...             # Meta Ad Library (identity verification also required)
+export XHS_MCP_URL=http://127.0.0.1:...  # Xiaohongshu local service, must be logged in
+# enable only the relevant registry entry (or use a profile that includes it)
+.venv/bin/sourceglint doctor --json | grep -A2 '"source": "instagram"'
 ```
 
 A configured key is not a verification. Run one small query and check that

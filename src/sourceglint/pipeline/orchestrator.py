@@ -34,6 +34,7 @@ import jsonschema
 
 from ..deadline import deadline_scope, remaining_time
 from ..ledger import EvidenceLedger
+from ..provenance import known_platform
 from ..normalization import (
     EvidenceNormalizationError,
     normalize_raw,
@@ -73,6 +74,48 @@ MIN_ASSESS_SECONDS = 15.0
 def _time_available(minimum: float = MIN_REQUEST_SECONDS) -> bool:
     left = remaining_time()
     return left is None or left > minimum
+
+
+def _host_of(url: str) -> str:
+    from urllib.parse import urlsplit
+
+    return (urlsplit(url).hostname or "").lower().removeprefix("www.")
+
+
+def _domain_matches(host: str, domains: Iterable[str]) -> bool:
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
+def _platform_scope_filter(
+    rows: list[RawSourceResult], scope: Mapping[str, object]
+) -> tuple[list[RawSourceResult], int]:
+    """Constrain host evidence to the requested platforms and drop excluded ones.
+
+    Direct sources are already filtered at the registry; this guard also
+    applies to host pages, including when a platform was excluded but the host
+    still returned one of its pages.
+    """
+    include = {str(x).casefold() for x in scope.get("include_platforms", ()) or ()}
+    include_domains = [str(x).lower() for x in scope.get("include_domains", ()) or ()]
+    exclude = {str(x).casefold() for x in scope.get("exclude_platforms", ()) or ()}
+    exclude_domains = [str(x).lower() for x in scope.get("exclude_domains", ()) or ()]
+    if not include and not exclude and not exclude_domains:
+        return rows, 0
+    kept: list[RawSourceResult] = []
+    dropped = 0
+    for row in rows:
+        host = _host_of(row.url)
+        label = known_platform(row.url)
+        label_key = label.casefold()
+        if label_key in exclude or (host and _domain_matches(host, exclude_domains)):
+            dropped += 1
+            continue
+        if include and row.source == "host_web_search":
+            if label_key not in include and not (host and _domain_matches(host, include_domains)):
+                dropped += 1
+                continue
+        kept.append(row)
+    return kept, dropped
 
 
 @dataclass(frozen=True)
@@ -193,6 +236,7 @@ class ResearchPipeline:
         dropped_by_time = 0
         normalization_drops = 0
         official_dropped = 0
+        platform_scope_dropped = 0
         blocked: set[str] = set()
         rounds = adaptive.budget.rounds if adaptive else 1
         for round_number in range(1, rounds + 1):
@@ -222,9 +266,18 @@ class ResearchPipeline:
                 before = len(batch)
                 batch = [
                     row for row in batch
-                    if row.source != "official_web" and not bool(row.raw_metadata.get("official"))
+                    if row.source != "official_web"
+                    and not row.source.endswith("_official")
+                    and not any(bool(row.raw_metadata.get(flag)) for flag in (
+                        "official", "vendor", "press_release", "self_published",
+                    ))
                 ]
                 official_dropped += before - len(batch)
+            scope_plan = plan.get("platform_scope")
+            if isinstance(scope_plan, Mapping) and scope_plan:
+                before = len(batch)
+                batch, scope_dropped = _platform_scope_filter(batch, scope_plan)
+                platform_scope_dropped += scope_dropped
             batch_normalized, rejected = self._normalize(batch, warnings)
             normalization_drops += rejected
             normalized.extend(batch_normalized)
@@ -283,6 +336,8 @@ class ResearchPipeline:
             warnings.append(f"normalization_dropped={normalization_drops}")
         if official_dropped:
             warnings.append(f"official_evidence_excluded={official_dropped}")
+        if platform_scope_dropped:
+            warnings.append(f"platform_scope_dropped={platform_scope_dropped}")
         if dropped_by_time:
             warnings.extend((f"time_filter_dropped={dropped_by_time}",
                              f"time_filter_normalized_before_drop={len(normalized)}"))

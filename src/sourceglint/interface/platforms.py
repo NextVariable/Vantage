@@ -111,6 +111,12 @@ ALIASES: dict[str, str] = {
 
 _ALL_ALIASES = tuple(sorted(ALIASES, key=len, reverse=True))
 
+_CUE = re.compile(
+    r"(?:\bexclude\b|\bwithout\b|\bavoid\b|\bskip\b|\bnot\s+from\b|"
+    r"\bonly\b|\bjust\b|\bexclusively\b|"
+    r"排除|不要|不使用|不看|剔除|除了|只看|仅看|只要|仅限于|只研究|仅研究)",
+    re.IGNORECASE,
+)
 _EXCLUDE_CUE = re.compile(
     r"(?:\bexclude\b|\bwithout\b|\bavoid\b|\bskip\b|\bnot\s+from\b|"
     r"排除|不要|不使用|不看|剔除|除了)",
@@ -168,12 +174,12 @@ def split_platform_intent(text: str) -> tuple[list[str], list[str], bool]:
     requested: list[str] = []
     excluded: list[str] = []
     for pos, name in _mentions(text):
-        before = text[:pos]
-        clause_start = max(before.rfind("。"), before.rfind(". "), before.rfind(";"), before.rfind("；"))
-        clause = before[clause_start + 1:] if clause_start >= 0 else before
-        # Look back a short span so "排除官方宣传，只分析 X" does not exclude X.
-        window = clause[-40:]
-        if _EXCLUDE_CUE.search(window):
+        # The nearest cue before the mention decides its intent, so
+        # "排除官方宣传，只分析 X" does not accidentally exclude X.
+        window = text[max(0, pos - 30):pos]
+        cues = list(_CUE.finditer(window))
+        nearest = cues[-1] if cues else None
+        if nearest and _EXCLUDE_CUE.fullmatch(nearest.group(0)):
             if name not in excluded:
                 excluded.append(name)
         elif name not in requested:
@@ -184,7 +190,74 @@ def split_platform_intent(text: str) -> tuple[list[str], list[str], bool]:
 
 def canonical_platform(name: str) -> str:
     """Resolve a user-supplied platform token to its registry name."""
-    return ALIASES.get(name.strip().casefold(), name.strip())
+    value = name.strip()
+    return ALIASES.get(value.casefold(), ALIASES.get(value, value))
+
+
+# Canonical platform -> (registry source name or None, domains for Host scoping)
+PLATFORM_TARGETS: dict[str, tuple[str | None, tuple[str, ...]]] = {
+    "x": ("x", ("x.com", "twitter.com")),
+    "reddit": ("reddit", ("reddit.com",)),
+    "youtube": ("youtube", ("youtube.com", "youtu.be")),
+    "hacker_news": ("hacker_news", ("news.ycombinator.com",)),
+    "github": ("github", ("github.com",)),
+    "gitlab": ("gitlab", ("gitlab.com",)),
+    "bluesky": ("bluesky", ("bsky.app",)),
+    "tiktok": ("tiktok", ("tiktok.com",)),
+    "product_hunt": ("product_hunt", ("producthunt.com",)),
+    "devto": ("devto", ("dev.to",)),
+    "stack_overflow": ("stack_overflow", ("stackoverflow.com",)),
+    "hugging_face": ("hugging_face", ("huggingface.co",)),
+    "qiita": ("qiita", ("qiita.com",)),
+    "arxiv": ("arxiv", ("arxiv.org",)),
+    "techmeme": ("techmeme", ("techmeme.com",)),
+    "steam": ("steam", ("steampowered.com", "steamcommunity.com")),
+    "polymarket": ("polymarket", ("polymarket.com",)),
+    "instagram": (None, ("instagram.com",)),
+    "threads": (None, ("threads.net", "threads.com")),
+    "pinterest": (None, ("pinterest.com",)),
+    "linkedin": (None, ("linkedin.com",)),
+    "telegram": (None, ("t.me", "telegram.me")),
+    "truth social": (None, ("truthsocial.com",)),
+    "digg": (None, ("digg.com",)),
+    "stocktwits": (None, ("stocktwits.com",)),
+    "trustpilot": (None, ("trustpilot.com",)),
+    "amazon": (None, ("amazon.com",)),
+    "meta ad library": (None, ("facebook.com",)),
+    "xiaohongshu": (None, ("xiaohongshu.com", "xhslink.com")),
+    "patents": (None, ("patents.google.com",)),
+    "yahoo finance": (None, ("finance.yahoo.com",)),
+    "zhihu": (None, ("zhihu.com",)),
+    "bilibili": (None, ("bilibili.com",)),
+    "weibo": (None, ("weibo.com",)),
+    "jike": (None, ("okjike.com",)),
+    "wechat": (None, ("mp.weixin.qq.com",)),
+    "douyin": (None, ("douyin.com",)),
+    "36kr": (None, ("36kr.com",)),
+    "huxiu": (None, ("huxiu.com",)),
+    "pr times": (None, ("prtimes.jp",)),
+}
+
+
+def platform_domains(platform: str) -> tuple[str, ...]:
+    canonical = canonical_platform(platform)
+    entry = PLATFORM_TARGETS.get(canonical.casefold())
+    return entry[1] if entry else ()
+
+
+def registry_source_for(platform: str, available: set[str]) -> str | None:
+    canonical = canonical_platform(platform)
+    key = canonical.casefold().replace("-", "_").replace(" ", "_")
+    for name in available:
+        if name.casefold().replace("-", "_").replace(" ", "_") == key:
+            return name
+    entry = PLATFORM_TARGETS.get(key)
+    candidate = entry[0] if entry else None
+    if candidate and candidate in available:
+        return candidate
+    if canonical in available:
+        return canonical
+    return None
 
 
 def exclude_official(text: str) -> bool:
@@ -192,6 +265,7 @@ def exclude_official(text: str) -> bool:
 
 
 __all__ = [
-    "ALIASES", "canonical_platform", "detect_platforms",
-    "split_platform_intent", "exclude_official",
+    "ALIASES", "PLATFORM_TARGETS", "canonical_platform", "detect_platforms",
+    "platform_domains", "registry_source_for", "split_platform_intent",
+    "exclude_official",
 ]

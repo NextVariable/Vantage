@@ -61,6 +61,22 @@ Development branch only; no 1.1 release or tag.
   as non-independent corroboration, and add platform item counts to coverage.
 - Add catalog records for the remaining upstream platforms (Truth Social,
   Pinterest, Digg, StockTwits, Yahoo Finance) with honest availability.
+- Add ten parity adapters: Instagram, Threads, Pinterest and LinkedIn share one
+  ScrapeCreators adapter; Truth Social, Meta Ad Library, StockTwits, Polymarket,
+  Digg and Xiaohongshu have dedicated adapters. All are disabled by default and
+  counted as implemented, not live. Offline contract tests cover field mapping,
+  missing-date rejection and credential refusal.
+- Constrain host evidence to the same hard platform scope as the registry:
+  excluded platforms are dropped after retrieval (`platform_scope_dropped=N`),
+  and host-only platforms pass an explicit domain allowlist. Unknown domains no
+  longer group as a platform or cite a generic Host label.
+- Expand official-evidence exclusion to `*_official` sources and rows flagged
+  `vendor`, `press_release` or `self_published`, and resolve "only" / "exclude"
+  cues by nearest occurrence so a mixed instruction cannot over-restrict.
+- Update `docs/last30days-parity.md` to 20/24 implemented, 7/24 verified, with
+  separate live, frozen-replay and authorization-gated buckets; extend
+  `docs/source-authorization.md` with a minimal authorization list and exact
+  verification commands.
 - Extend `docs/source-authorization.md` with credential-free routes, free
   registration entries, approval/owner requirements, paid services and a
   last30days parity channel table with application links and data depth.

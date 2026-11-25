@@ -14,13 +14,15 @@ from .source_catalog import load_source_catalog
 
 CONNECTORS = {
     "app_store", "arxiv", "ashby", "bluesky", "clinicaltrials", "crates_io",
-    "crossref", "datacite", "devto", "docker_hub", "doaj", "github", "gitlab",
-    "greenhouse", "hacker_news", "hugging_face", "internet_archive", "itmedia",
-    "lemmy", "lever", "makuake", "maven_central", "note", "nuget",
-    "open_library", "openalex", "package_registries", "pypi", "pubmed",
-    "qiita", "reddit", "rubygems", "sec_edgar", "semantic_scholar", "sspai",
-    "steam", "techmeme", "tiktok", "world_bank", "product_hunt",
-    "stack_overflow", "x", "youtube", "zenodo", "zenn",
+    "crossref", "datacite", "devto", "digg", "docker_hub", "doaj", "github",
+    "gitlab", "greenhouse", "hacker_news", "hugging_face", "instagram",
+    "internet_archive", "itmedia", "lemmy", "lever", "linkedin", "makuake",
+    "maven_central", "meta_ad_library", "note", "nuget", "open_library",
+    "openalex", "package_registries", "pinterest", "polymarket", "pypi",
+    "pubmed", "qiita", "reddit", "rubygems", "sec_edgar", "semantic_scholar",
+    "sspai", "steam", "stocktwits", "techmeme", "threads", "tiktok",
+    "truthsocial", "world_bank", "product_hunt", "stack_overflow", "x",
+    "xiaohongshu", "youtube", "zenodo", "zenn",
 }
 
 
@@ -32,7 +34,7 @@ def build_report() -> dict:
     for entry in registry:
         name = entry["name"]
         missing = [key for key in entry.get("credentials", []) if not os.environ.get(key)]
-        tool = "yt-dlp" if name == "youtube" else None
+        tool = "yt-dlp" if name == "youtube" else "digg-pp-cli" if name == "digg" else None
         tool_ready = bool(shutil.which(tool)) if tool else None
         if not entry.get("enabled"):
             state = "DISABLED"

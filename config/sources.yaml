@@ -402,8 +402,8 @@
   max_queries_per_run: 1
 
 - name: polymarket
-  # Candidate only: the public endpoint was unreachable during the 1.1 probe,
-  # so no connector is exposed and this entry stays disabled.
+  # Gamma public-search adapter implemented; endpoint still timed out in the
+  # 2026-11-25 probe, so it is not counted as verified.
   enabled: false
   type: secondary
   cost: free
@@ -715,5 +715,140 @@
   rate_limit: { rpm: 20 }
   markets: [global]
   languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: instagram
+  # ScrapeCreators reels search (paid third-party API).
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY]
+  priority: 61
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: threads
+  # ScrapeCreators Threads search (paid third-party API).
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY]
+  priority: 61
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: pinterest
+  # ScrapeCreators Pinterest search (paid third-party API).
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY]
+  priority: 58
+  capabilities: [search]
+  rate_limit: { rpm: 20 }
+  markets: [global, us]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: linkedin
+  # ScrapeCreators LinkedIn posts search (paid third-party API).
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY]
+  priority: 63
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: truthsocial
+  # Mastodon-compatible search with a user-supplied bearer token.
+  enabled: false
+  type: community
+  cost: free
+  auth_required: true
+  credentials: [TRUTHSOCIAL_TOKEN]
+  priority: 50
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [us]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: meta_ad_library
+  # Meta Ad Library API (identity verification + access token).
+  enabled: false
+  type: secondary
+  cost: free
+  auth_required: true
+  credentials: [META_ACCESS_TOKEN]
+  priority: 55
+  capabilities: [search]
+  rate_limit: { rpm: 10 }
+  markets: [us, global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: stocktwits
+  # Public per-symbol stream; no credential, requires a ticker.
+  enabled: false
+  type: community
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 52
+  capabilities: [search, comments]
+  rate_limit: { rpm: 20 }
+  markets: [us]
+  languages: [en]
+  cache_ttl: 600
+  max_queries_per_run: 1
+
+- name: digg
+  # Optional local digg-pp-cli; reported missing when the binary is absent.
+  enabled: false
+  type: secondary
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 48
+  capabilities: [search]
+  rate_limit: { rpm: 10 }
+  markets: [us, global]
+  languages: [en]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: xiaohongshu
+  # User-authorized local MCP service (XHS_MCP_URL), loopback only.
+  enabled: false
+  type: community
+  cost: free
+  auth_required: true
+  credentials: [XHS_MCP_URL]
+  priority: 66
+  capabilities: [search, comments]
+  rate_limit: { rpm: 10 }
+  markets: [cn]
+  languages: [zh]
   cache_ttl: 900
   max_queries_per_run: 1

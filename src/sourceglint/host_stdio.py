@@ -410,12 +410,18 @@ class StdioHostSource:
                     select_host_search_targets,
                 )
 
+                scope = plan.get("platform_scope")
+                scope = scope if isinstance(scope, dict) else {}
                 targets = select_host_search_targets(
                     load_source_catalog(),
                     mode=str(plan.get("mode") or "general"),
                     market=str(plan.get("market") or "global"),
                     language=str(request.get("query_language") or "en"),
                     budget=int(request.get("host_target_budget", 10)),
+                    allowed_names=scope.get("include_platforms") or (),
+                    allowed_domains=scope.get("include_domains") or (),
+                    excluded_names=scope.get("exclude_platforms") or (),
+                    excluded_domains=scope.get("exclude_domains") or (),
                 )
                 message["targets"] = [t.to_host_request() for t in targets]
             except Exception as exc:

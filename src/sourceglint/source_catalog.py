@@ -105,6 +105,10 @@ def select_host_search_targets(
     language: str,
     budget: int = 10,
     covered_direct_sources: Sequence[str] = (),
+    allowed_names: Sequence[str] = (),
+    allowed_domains: Sequence[str] = (),
+    excluded_names: Sequence[str] = (),
+    excluded_domains: Sequence[str] = (),
 ) -> list[SourceTarget]:
     """Select a diverse, bounded set of public-web targets for one run.
 
@@ -116,10 +120,31 @@ def select_host_search_targets(
     if budget <= 0:
         return []
 
+    allowed_name_set = {str(x).casefold().replace("-", "_") for x in allowed_names}
+    excluded_name_set = {str(x).casefold().replace("-", "_") for x in excluded_names}
+    allowed_domain_list = [str(x).lower() for x in allowed_domains]
+    excluded_domain_list = [str(x).lower() for x in excluded_domains]
+
+    def _matches_domain(target: SourceTarget, domains: Sequence[str]) -> bool:
+        for domain in target.domains:
+            host = domain.lower()
+            for wanted in domains:
+                if host == wanted or host.endswith("." + wanted):
+                    return True
+        return False
+
     candidates: list[SourceTarget] = []
     for target in catalog:
         if "host_web_search" not in target.routes:
             continue
+        name_key = target.name.casefold().replace("-", "_")
+        if name_key in excluded_name_set:
+            continue
+        if _matches_domain(target, excluded_domain_list):
+            continue
+        if allowed_name_set or allowed_domain_list:
+            if name_key not in allowed_name_set and not _matches_domain(target, allowed_domain_list):
+                continue
         if target.name in covered_direct_sources:
             continue
         if target.availability == "unavailable":

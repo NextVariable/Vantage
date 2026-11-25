@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sourceglint.application.api import _apply_platform_scope
+from sourceglint.application.api import _resolve_platform_scope
 from sourceglint.interface.parser import parse_query
 from sourceglint.interface.platforms import split_platform_intent
 from sourceglint.provenance import known_platform, platform_label
@@ -54,17 +54,52 @@ def test_split_platform_intent_reports_only_flag():
 
 
 def test_hard_scope_filters_registry_and_exclusion_wins():
-    scoped = _apply_platform_scope(SOURCES, ("reddit", "github"), ("github",))
+    scoped, scope = _resolve_platform_scope(SOURCES, ("Reddit", "GitHub"), ("github",))
     assert [s["name"] for s in scoped] == ["reddit"]
+    assert scope["exclude_platforms"] == ["github"]
+
+
+def test_hard_scope_on_host_only_platform_enables_host_and_domains():
+    scoped, scope = _resolve_platform_scope(SOURCES, ("LinkedIn",), ())
+    assert [s["name"] for s in scoped] == ["host_web_search"]
+    assert scope["include_platforms"] == ["LinkedIn"]
+    assert "linkedin.com" in scope["include_domains"]
+
+
+def test_host_only_scope_errors_when_host_is_disabled():
+    try:
+        _resolve_platform_scope([{"name": "reddit"}], ("LinkedIn",), ())
+    except ValueError as exc:
+        assert "Host Web Search" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected ValueError when host search is unavailable")
+
+
+def test_excluding_a_platform_keeps_host_scope_domains():
+    scoped, scope = _resolve_platform_scope(SOURCES, (), ("X",))
+    assert "x" not in [s["name"] for s in scoped]
+    assert scope["exclude_platforms"] == ["x"]
+    assert "x.com" in scope["exclude_domains"]
 
 
 def test_hard_scope_errors_when_platform_is_unregistered():
     try:
-        _apply_platform_scope(SOURCES, ("TikTok",), ())
+        _resolve_platform_scope(SOURCES, ("UnknownSite",), ())
     except ValueError as exc:
-        assert "TikTok" in str(exc)
+        assert "UnknownSite" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected ValueError for an unregistered platform")
+
+
+def test_hard_scope_errors_when_requested_direct_platform_is_disabled():
+    sources = [{"name": "reddit"}, {"name": "instagram", "enabled": False}]
+    try:
+        _resolve_platform_scope(sources, ("Instagram",), ())
+    except ValueError as exc:
+        message = str(exc).casefold()
+        assert "disabled" in message and "instagram" in message
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected ValueError for a disabled requested platform")
 
 
 def test_platform_attribution_keeps_route_and_original_platform():
@@ -74,4 +109,9 @@ def test_platform_attribution_keeps_route_and_original_platform():
         "Reddit via host_web_search"
     )
     assert platform_label("https://www.reddit.com/r/a/comments/1", "reddit") == "Reddit"
-    assert platform_label("https://unknown.example/a", "official_web") == "official_web"
+    assert platform_label("https://unknown.example/a", "host_web_search") == (
+        "Web page (unknown.example)"
+    )
+    assert platform_label("https://unknown.example/a", "official_web") == (
+        "Web page (unknown.example)"
+    )

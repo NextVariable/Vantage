@@ -106,7 +106,10 @@ def platform_label(url: str, route: str) -> str:
     platform = known_platform(url)
     route_name = (route or "").strip()
     if not platform:
-        return route_name or "Unidentified platform"
+        host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
+        if host and route_name in {"host_web_search", "official_web"}:
+            return f"Web page ({host})"
+        return route_name or host or "Unidentified platform"
     if not route_name:
         return platform
     route_key = route_name.lower().replace("-", "_")
