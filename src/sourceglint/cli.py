@@ -95,6 +95,8 @@ def _build_parser(prog: str = "sourceglint") -> argparse.ArgumentParser:
                    help="Ask the host agent to handle host_web_search and official_web via JSON lines.")
     p.add_argument("--public-sources-only", action="store_true",
                    help="Use free, public routes without connector credentials or GitHub CLI authentication.")
+    p.add_argument("--paid-source-calls", type=int, default=0,
+                   help="Explicit maximum metered source HTTP attempts for this run (default: 0).")
     p.add_argument("--registry", default=None, metavar="YAML",
                    help="source registry YAML (default config/sources.yaml).")
     p.add_argument("--as-of", default=None, metavar="ISO",
@@ -183,6 +185,8 @@ def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
     from .interface.parser import requests_opportunities
 
     try:
+        if args.paid_source_calls < 0 or (args.public_sources_only and args.paid_source_calls):
+            raise ValueError("paid source attempts require an explicit nonnegative budget outside public-only mode")
         sources = _load_registry(args.registry)
         model = _load_model(args.model)
         if args.public_sources_only:
@@ -223,6 +227,7 @@ def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
             adaptive=branded or args.adaptive,
             research_rounds=args.max_rounds or (3 if branded else 2),
             research_timeout_seconds=args.research_timeout,
+            paid_source_calls=args.paid_source_calls,
             opportunities=args.opportunities or (branded and not args.no_opportunities and requests_opportunities(args.query)),
             model=model,
             adapter_factory=adapter_factory,

@@ -18,7 +18,7 @@ implemented connectors and potential platform routes.
   `approval_required`. A declared public-web fallback is usable only when the
   original item can be verified.
 - Do not paste a key into a prompt, issue, commit, or config file. Set it in the
-  environment, or let the wizard store it in the Keychain.
+  environment or enter it through the wizard’s hidden prompt to save it in the private local file. Existing Keychain entries can still be read.
 - Reddit, X, Bluesky and similar platforms forbid cookie scraping and
   logged-in automation. Only the documented OAuth/API path is implemented.
 
@@ -289,7 +289,8 @@ Budget and fallback controls:
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `VANTAGE_PAID_FALLBACK_CALLS` | `10` | Hard cap on paid route calls per platform adapter instance. `0` disables spending. |
+| `--paid-source-calls N` / API `paid_source_calls=N` | `0` | Shared per-run limit on metered HTTP attempts, including failures and retries. Only opt in after the user authorizes the provider and credit use. |
+| `VANTAGE_PAID_FALLBACK_CALLS` | `10` | Additional legacy ceiling per fallback adapter; it does not grant metered access. |
 | `VANTAGE_DISABLE_PAID_FALLBACK` | unset | `1`/`true` makes the engine use only free routes even when a key exists. |
 | `VANTAGE_AUTO_ENABLE_KEYED` | `1` | `0` stops credentials from activating disabled registry entries. |
 

@@ -10,7 +10,7 @@ from sourceglint import credentials
 @pytest.fixture(autouse=True)
 def _no_keychain(monkeypatch):
     monkeypatch.setattr(credentials, "_keychain_get", lambda name: "")
-    monkeypatch.setattr(credentials, "_keychain_set", lambda name, value: False)
+    monkeypatch.setattr(credentials, "_keychain_has", lambda name: False)
 
 
 def test_store_and_resolve_from_private_file(tmp_path, monkeypatch):
@@ -50,16 +50,22 @@ def test_delete_removes_file_value(tmp_path, monkeypatch):
     assert credentials.resolve("BSKY_HANDLE") == ""
 
 
-def test_keychain_store_removes_a_shadowing_file_value(tmp_path, monkeypatch):
+def test_atomic_write_keeps_previous_credentials_on_failure(tmp_path, monkeypatch):
     monkeypatch.setenv("VANTAGE_CONFIG_DIR", str(tmp_path))
-    credentials.store("BSKY_HANDLE", "old-file-value", prefer_keychain=False)
-    store: dict[str, str] = {}
-    monkeypatch.setattr(credentials, "_keychain_set", lambda name, value: store.setdefault(name, value) is not None)
-    monkeypatch.setattr(credentials, "_keychain_get", lambda name: store.get(name, ""))
-    layer = credentials.store("BSKY_HANDLE", "new-keychain-value", prefer_keychain=True)
-    assert layer == "keychain"
-    assert credentials.resolve("BSKY_HANDLE") == "new-keychain-value"
-    assert "BSKY_HANDLE" not in credentials.credentials_file().read_text()
+    assert credentials.store("BSKY_HANDLE", "previous") == "config-file"
+
+    def fail_replace(source, target):
+        if os.name == "posix":
+            assert source.stat().st_mode & 0o777 == 0o600
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(credentials.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="replace failed"):
+        credentials.store("BSKY_HANDLE", "new")
+    assert credentials.resolve("BSKY_HANDLE") == "previous"
+    assert list(tmp_path.iterdir()) == [credentials.credentials_file()]
+    with pytest.raises(ValueError):
+        credentials.store("BSKY_HANDLE", "line\nX_BEARER_TOKEN=other")
 
 
 def test_export_environment_never_overrides_process_values(tmp_path, monkeypatch):

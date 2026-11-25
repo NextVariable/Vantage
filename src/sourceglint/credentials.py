@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import os
 import shutil
-import stat
 import subprocess
 import sys
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 from typing import Mapping
 
@@ -118,21 +118,16 @@ def _keychain_get(name: str) -> str:
     return result.stdout.strip()
 
 
-def _keychain_set(name: str, value: str) -> bool:
+def _keychain_has(name: str) -> bool:
     if sys.platform != "darwin" or not shutil.which("security"):
         return False
-    account = os.environ.get("USER") or os.environ.get("USERNAME") or "vantage"
     try:
-        result = run_command(
-            [
-                "security", "add-generic-password", "-a", account,
-                "-s", _keychain_service(name), "-w", value, "-U",
-            ],
-            timeout=10,
-        )
+        return run_command(
+            ["security", "find-generic-password", "-s", _keychain_service(name)],
+            timeout=5,
+        ).returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
-    return result.returncode == 0
 
 
 def resolve(name: str) -> str:
@@ -160,28 +155,18 @@ def presence(name: str) -> dict[str, object]:
         return {"name": name, "present": True, "source": "environment"}
     if _read_file().get(name):
         return {"name": name, "present": True, "source": "config-file"}
-    if _keychain_get(name):
+    if _keychain_has(name):
         return {"name": name, "present": True, "source": "keychain"}
     return {"name": name, "present": False, "source": ""}
 
 
 def store(name: str, value: str, *, prefer_keychain: bool = True) -> str:
-    """Persist a credential. Returns the layer used: keychain | config-file.
-
-    Raises ``ValueError`` for an unknown name or an empty value.
-    """
+    """Write to the private file; existing Keychain entries remain readable."""
     if not _valid_name(name):
         raise ValueError(f"unsupported credential name: {name}")
     value = value.strip()
-    if not value:
-        raise ValueError("empty credential value")
-    if prefer_keychain and _keychain_set(name, value):
-        # A stale file value would shadow the new Keychain item, so remove it.
-        existing = _read_file()
-        if name in existing:
-            existing.pop(name, None)
-            _write_file(existing)
-        return "keychain"
+    if not value or any(c in value for c in "\r\n\x00"):
+        raise ValueError("credential must be nonempty and on one line")
     existing = _read_file()
     existing[name] = value
     _write_file(existing)
@@ -190,18 +175,26 @@ def store(name: str, value: str, *, prefer_keychain: bool = True) -> str:
 
 def _write_file(values: dict[str, str]) -> None:
     path = credentials_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     lines = [
         "# Vantage credentials (private, 0600). Values are never printed.",
         "# Environment variables take precedence over this file.",
     ]
     for key in sorted(values):
         lines.append(f"{key}={values[key]}")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    pending = None
     try:
-        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:
-        pass
+        with NamedTemporaryFile(
+            dir=path.parent, prefix=".credentials-", delete=False, mode="w", encoding="utf-8",
+        ) as temporary:
+            pending = Path(temporary.name)
+            temporary.write("\n".join(lines) + "\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(pending, path)
+    finally:
+        if pending is not None:
+            pending.unlink(missing_ok=True)
 
 
 def delete(name: str) -> list[str]:
@@ -214,8 +207,7 @@ def delete(name: str) -> list[str]:
     if name in existing:
         existing.pop(name, None)
         if existing:
-            lines = [f"{key}={existing[key]}" for key in sorted(existing)]
-            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            _write_file(existing)
         else:
             try:
                 path.unlink()

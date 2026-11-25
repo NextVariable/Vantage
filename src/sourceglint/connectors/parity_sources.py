@@ -366,9 +366,11 @@ class MetaAdLibraryAdapter:
             "ad_reached_countries": json.dumps([market if len(market) == 2 else "US"]),
             "fields": "id,page_name,ad_creative_body,ad_delivery_start_time,ad_snapshot_url",
             "limit": _limit(request, 10),
-            "access_token": self.token,
         })
-        payload = _get_json(self.http_client, url, source=self.source_name)
+        payload = _get_json(
+            self.http_client, url, source=self.source_name,
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
         data = payload.get("data") if isinstance(payload, Mapping) else None
         output: list[RawSourceResult] = []
         for ad in data or []:
@@ -382,7 +384,7 @@ class MetaAdLibraryAdapter:
                 continue
             output.append(RawSourceResult(
                 source=self.source_name, source_type="page", source_native_id=native_id,
-                url=str(ad.get("ad_snapshot_url") or f"https://www.facebook.com/ads/library/?id={native_id}"),
+                url=f"https://www.facebook.com/ads/library/?{urlencode({'id': native_id})}",
                 title=body[:120], text=body, author=page, published_at=published,
                 market=market, language="en", query=query, query_language="en",
                 engagement={},
@@ -467,7 +469,10 @@ class PolymarketAdapter:
 
     def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
         query = _query(request, self.source_name)
-        url = "https://gamma-api.polymarket.com/public-search?" + urlencode({"q": query, "limit": _limit(request)})
+        limit = _limit(request)
+        url = "https://gamma-api.polymarket.com/public-search?" + urlencode({
+            "q": query, "limit_per_type": limit, "search_tags": "false", "search_profiles": "false",
+        })
         payload = _get_json(self.http_client, url, source=self.source_name)
         events = payload.get("events") if isinstance(payload, Mapping) else payload
         output: list[RawSourceResult] = []
@@ -482,13 +487,16 @@ class PolymarketAdapter:
                 continue
             output.append(RawSourceResult(
                 source=self.source_name, source_type="page", source_native_id=native_id,
-                url=f"https://polymarket.com/event/{slug}", title=title[:120], text=title,
+                url=f"https://polymarket.com/event/{slug}", title=title[:120],
+                text=_strip_html(event.get("description")) or title,
                 author="Polymarket", published_at=start, market="global", language="en",
                 query=query, query_language="en",
                 engagement={"volume": _count(event.get("volume"))},
                 raw_metadata={"route": "polymarket_gamma", "date_semantics": "market_start",
                               "date_precision": precision},
             ))
+            if len(output) >= limit:
+                break
         return output
 
 
@@ -593,20 +601,25 @@ class DiggCliAdapter:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise AdapterInvalidResponse(self.source_name, "digg JSON was invalid") from exc
-        items = payload.get("stories") if isinstance(payload, Mapping) else payload
+        if isinstance(payload, Mapping):
+            items = payload.get("results", payload.get("stories"))
+        else:
+            items = payload
+        if not isinstance(items, list):
+            raise AdapterInvalidResponse(self.source_name, "digg JSON did not contain a results array")
         output: list[RawSourceResult] = []
-        for story in items or []:
+        for story in items:
             if not isinstance(story, Mapping):
                 continue
             title = str(story.get("title") or "").strip()
             url = str(story.get("url") or "").strip()
-            native_id = str(story.get("uuid") or story.get("id") or url)
+            native_id = str(story.get("clusterId") or story.get("uuid") or story.get("id") or url)
             published = _iso(story.get("publishedAt") or story.get("published_at"))
             if not title or not url or not published:
                 continue
             output.append(RawSourceResult(
                 source=self.source_name, source_type="page", source_native_id=native_id,
-                url=url, title=title[:120], text=str(story.get("description") or title),
+                url=url, title=title[:120], text=str(story.get("tldr") or story.get("description") or title),
                 author=str(story.get("publisher") or ""), published_at=published,
                 market="us", language="en", query=query, query_language="en",
                 engagement={"digg_score": _count(story.get("diggScore"))},
@@ -1252,23 +1265,9 @@ class AmazonBrightDataAdapter:
     def _run(self, args: list[str], timeout: float) -> dict[str, object]:
         if self.runner is not None:
             return self.runner(args)  # type: ignore[operator]
-        binary = shutil.which(self.cli)
-        if not binary:
-            raise AdapterUnavailable(self.source_name, f"{self.cli} is not installed")
-        try:
-            completed = run_command(
-                [binary, *args], timeout=timeout,
-                env=_tool_env({"BRIGHTDATA_API_KEY": self.api_key or ""}),
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise AdapterTimeout(self.source_name, f"{self.cli} timed out") from exc
-        if completed.returncode != 0:
-            raise AdapterUnavailable(self.source_name, f"{self.cli} exited {completed.returncode}")
-        try:
-            payload = json.loads(completed.stdout or "{}")
-        except json.JSONDecodeError as exc:
-            raise AdapterInvalidResponse(self.source_name, f"{self.cli} output was not JSON") from exc
-        return payload if isinstance(payload, Mapping) else {}
+        raise AdapterUnavailable(
+            self.source_name, "Bright Data CLI has no enforceable per-request budget",
+        )
 
     def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
         if not self.api_key and not shutil.which(self.cli):

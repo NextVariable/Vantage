@@ -67,7 +67,7 @@ def _auto_enable(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if row.get("enabled"):
             output.append(row)
             continue
-        if needed and all(credentials.has(item) for item in needed):
+        if needed and all(credentials.presence(item)["present"] for item in needed):
             row["enabled"] = True
         elif tools and all(shutil.which(item) for item in tools) and not needed:
             row["enabled"] = True
@@ -139,8 +139,8 @@ def default_adapter_factory(
     )
 
     if not allow_credentials and name in {
-        "bluesky", "x", "product_hunt", "semantic_scholar", "tiktok",
-        "instagram", "threads", "pinterest", "linkedin", "truthsocial",
+        "bluesky", "x", "product_hunt", "semantic_scholar",
+        "threads", "pinterest", "linkedin", "truthsocial",
         "meta_ad_library", "xiaohongshu", "telegram", "amazon",
     }:
         return None
@@ -148,7 +148,7 @@ def default_adapter_factory(
         from ..connectors.fallback import FallbackAdapter, Route
         from ..connectors.parity_sources import PublicLinkYtDlpAdapter
 
-        key = _env("SCRAPECREATORS_API_KEY") or None
+        key = (_env("SCRAPECREATORS_API_KEY") or None) if allow_credentials else None
         routes = [Route("public_link_ytdlp", PublicLinkYtDlpAdapter(platform="tiktok"))]
         if key:
             routes.append(Route(
@@ -163,7 +163,7 @@ def default_adapter_factory(
             ScrapeCreatorsPlatformAdapter,
         )
 
-        key = _env("SCRAPECREATORS_API_KEY") or None
+        key = (_env("SCRAPECREATORS_API_KEY") or None) if allow_credentials else None
         endpoint = {
             "instagram": "https://api.scrapecreators.com/v2/instagram/reels/search",
             "threads": "https://api.scrapecreators.com/v1/threads/search",
@@ -208,7 +208,7 @@ def default_adapter_factory(
         )
 
         token = _env("META_ACCESS_TOKEN") or None
-        key = _env("SCRAPECREATORS_API_KEY") or None
+        key = (_env("SCRAPECREATORS_API_KEY") or None) if allow_credentials else None
         routes = [Route("meta_ads_archive", MetaAdLibraryAdapter(token=token))]
         if key:
             routes.append(Route(
@@ -231,7 +231,8 @@ def default_adapter_factory(
     if name == "xiaohongshu":
         from ..connectors.parity_sources import XiaohongshuMcpAdapter
 
-        return XiaohongshuMcpAdapter(base_url=_env("XHS_MCP_URL") or None)
+        base_url = _env("XHS_MCP_URL")
+        return XiaohongshuMcpAdapter(base_url=base_url) if base_url else None
     if name == "bluesky":
         return BlueskyAdapter(
             handle=_env("BSKY_HANDLE") or None,
@@ -308,8 +309,9 @@ def default_adapter_factory(
     if name == "product_hunt":
         return ProductHuntAdapter(token=_env("PRODUCT_HUNT_TOKEN") or None)
     if name == "openalex":
+        from ..connectors._paid import paid_available
         return OpenAlexAdapter(
-            api_key=(_env("OPENALEX_API_KEY") or None) if allow_credentials else None,
+            api_key=(_env("OPENALEX_API_KEY") or None) if allow_credentials and paid_available() else None,
         )
     if name == "crossref":
         return CrossrefAdapter()

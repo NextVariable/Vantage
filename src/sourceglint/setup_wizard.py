@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import getpass
 import json
-import os
 import platform
 import shutil
 import sys
@@ -59,15 +58,15 @@ OPTIONAL_KEYS = (
     ("REDDIT_CLIENT_SECRET", "Reddit OAuth client secret", "Optional: the keyless public route works without it."),
     ("META_ACCESS_TOKEN", "Meta Ad Library access token", "Requires identity verification on Meta's side."),
     ("TELEGRAM_SOURCES", "Telegram channel list", "Comma-separated public channel handles for the ScrapeCreators route."),
-    ("BRIGHTDATA_API_KEY", "Bright Data API key", "Optional paid dataset route for Amazon; the CLI must also be installed."),
+    ("BRIGHTDATA_API_KEY", "Bright Data API key", "Legacy Amazon route; disabled until requests can be safely metered."),
 )
 
 LOCAL_CLIS = (
     # (binary, purpose, install hint)
     ("yt-dlp", "YouTube metadata and captions (free)", "pipx install yt-dlp"),
     ("gh", "GitHub CLI; its existing login is reused as a token", "brew install gh"),
-    ("digg-pp-cli", "Digg stories (free)", "npm i -g digg-pp-cli"),
-    ("trustpilot-pp-cli", "Trustpilot cached company records (free)", "npm i -g trustpilot-pp-cli"),
+    ("digg-pp-cli", "Digg stories (free)", "See the upstream Printing Press library catalog"),
+    ("trustpilot-pp-cli", "Trustpilot cached company records (free)", "See the upstream Printing Press library catalog"),
     ("brightdata", "Amazon product/review datasets (paid)", "npm i -g @brightdata/cli"),
     ("node", "Required by the npm-based CLIs", "brew install node"),
     ("npx", "Alternative runner for those CLIs", "comes with Node.js"),
@@ -210,20 +209,21 @@ def detect_local_services() -> list[dict[str, object]]:
         "present": github_auth,
         "note": "Reused as a read-only token; no new account or scope is requested.",
     })
-    xhs_url = os.environ.get("XHS_MCP_URL") or "http://localhost:18060"
+    xhs_url = credentials.resolve("XHS_MCP_URL")
     logged_in = False
-    try:
-        client = StdlibHttpClient(default_timeout=1.5, max_attempts=1)
-        response = client.request(f"{xhs_url.rstrip('/')}/api/v1/login/status", timeout=1.5)
-        payload = response.json()
-        data = payload.get("data") if isinstance(payload, Mapping) else None
-        logged_in = bool(isinstance(data, Mapping) and data.get("is_logged_in"))
-    except (HttpTimeoutError, HttpTransientError, OSError, ValueError):
-        logged_in = False
+    if xhs_url:
+        try:
+            client = StdlibHttpClient(default_timeout=1.5, max_attempts=1)
+            response = client.request(f"{xhs_url.rstrip('/')}/api/v1/login/status", timeout=1.5)
+            payload = response.json()
+            data = payload.get("data") if isinstance(payload, Mapping) else None
+            logged_in = bool(isinstance(data, Mapping) and data.get("is_logged_in"))
+        except (HttpPermanentError, HttpTimeoutError, HttpTransientError, OSError, ValueError):
+            pass
     results.append({
         "service": "Xiaohongshu local MCP",
         "present": logged_in,
-        "note": f"Probed {xhs_url} (read-only login status).",
+        "note": "Checked the login status of the configured service." if xhs_url else "No authorized service configured.",
     })
     return results
 
@@ -427,7 +427,7 @@ def _print_report(report: SetupReport) -> None:
 def _prompt_and_store(report: SetupReport, *, free_only: bool, prefer_keychain: bool) -> None:
     print("\nOptional credentials (press Enter to skip each one; nothing is purchased).")
     for name, label, note in OPTIONAL_KEYS:
-        if credentials.has(name):
+        if credentials.presence(name)["present"]:
             continue
         if free_only and name in {"SCRAPECREATORS_API_KEY", "BRIGHTDATA_API_KEY", "META_ACCESS_TOKEN"}:
             continue
@@ -446,13 +446,13 @@ def _prompt_and_store(report: SetupReport, *, free_only: bool, prefer_keychain: 
         report.wrote.append(f"{name} ({layer})")
 
     # GitHub: reuse the existing CLI login rather than asking for a token.
-    if not credentials.has("GITHUB_TOKEN") and shutil.which("gh"):
+    if not credentials.presence("GITHUB_TOKEN")["present"] and shutil.which("gh"):
         try:
             from .connectors._command import run_command
 
-            completed = run_command(["gh", "auth", "token", "--hostname", "github.com"], timeout=5)
-            if completed.returncode == 0 and completed.stdout.strip():
-                report.notes.append("GitHub CLI login detected; Vantage reuses it read-only without storing the token.")
+            completed = run_command(["gh", "auth", "status", "--hostname", "github.com"], timeout=5)
+            if completed.returncode == 0:
+                report.notes.append("GitHub CLI login detected; Vantage can reuse it for read-only requests.")
         except Exception:  # pragma: no cover - defensive
             pass
 

@@ -24,6 +24,7 @@ from dataclasses import dataclass, field, replace
 from typing import Mapping
 
 from ..ids import canonicalize_url
+from ._paid import paid_available
 from ..pipeline.adapters import AdapterError, RawSourceResult
 
 
@@ -84,12 +85,14 @@ class FallbackAdapter:
         self.route_history = []
         for route in self.routes:
             if route.paid:
-                if not self.paid_enabled:
+                if not self.paid_enabled or not paid_available():
                     self._note(f"route {route.name} skipped: paid fallback disabled")
                     continue
                 if self._paid_calls >= self.paid_call_budget:
                     self._note(f"route {route.name} skipped: paid call budget reached")
                     continue
+            if route.paid:
+                self._paid_calls += 1
             try:
                 out = list(route.adapter.retrieve(plan=plan, request=request))  # type: ignore[attr-defined]
             except AdapterError as exc:
@@ -99,8 +102,6 @@ class FallbackAdapter:
                 })
                 self._note(f"route {route.name} failed: {type(exc).__name__}")
                 continue
-            if route.paid:
-                self._paid_calls += 1
             kept = 0
             for item in out:
                 key = _native_key(item)

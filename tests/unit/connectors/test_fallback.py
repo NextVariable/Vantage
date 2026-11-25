@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pytest
+from sourceglint.connectors._paid import paid_scope
 
 from sourceglint.connectors.fallback import FallbackAdapter, Route
 from sourceglint.pipeline.adapters import AdapterTimeout, RawSourceResult
@@ -34,7 +34,8 @@ def test_free_route_success_does_not_call_paid_route():
     adapter = FallbackAdapter("reddit", (
         Route("public", free), Route("paid", paid, paid=True),
     ), paid_call_budget=5)
-    items = adapter.retrieve({}, {})
+    with paid_scope(1):
+        items = adapter.retrieve({}, {})
     assert [item.source_native_id for item in items] == ["t3_abc"]
     assert items[0].raw_metadata["access_route"] == "public"
     assert paid.calls == 0
@@ -46,7 +47,8 @@ def test_empty_free_route_falls_back_to_paid_once():
     adapter = FallbackAdapter("reddit", (
         Route("public", free), Route("paid", paid, paid=True),
     ), paid_call_budget=5)
-    items = adapter.retrieve({}, {})
+    with paid_scope(1):
+        items = adapter.retrieve({}, {})
     assert len(items) == 1
     assert paid.calls == 1
     assert items[0].raw_metadata["access_route"] == "paid"
@@ -69,7 +71,8 @@ def test_failed_free_route_preserves_nothing_but_records_state():
     adapter = FallbackAdapter("reddit", (
         Route("public", free), Route("paid", paid, paid=True),
     ))
-    items = adapter.retrieve({}, {})
+    with paid_scope(1):
+        items = adapter.retrieve({}, {})
     assert len(items) == 1
     assert any("route public failed" in note for note in adapter.limitations)
 
@@ -80,7 +83,8 @@ def test_same_native_id_from_two_routes_is_counted_once():
     adapter = FallbackAdapter("reddit", (
         Route("public", free), Route("paid", paid, paid=True),
     ), minimum_results=2)
-    items = adapter.retrieve({}, {})
+    with paid_scope(1):
+        items = adapter.retrieve({}, {})
     assert len(items) == 1
     assert paid.calls == 1  # the fallback ran, but the duplicate was collapsed
 
@@ -91,6 +95,7 @@ def test_paid_call_budget_is_enforced():
     adapter = FallbackAdapter("reddit", (
         Route("public", free), Route("paid", paid, paid=True),
     ), paid_call_budget=0)
-    assert adapter.retrieve({}, {}) == []
+    with paid_scope(1):
+        assert adapter.retrieve({}, {}) == []
     assert paid.calls == 0
     assert any("budget" in note for note in adapter.limitations)

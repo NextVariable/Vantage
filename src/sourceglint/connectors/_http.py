@@ -11,17 +11,26 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, runtime_checkable
 
 from ..deadline import limit_timeout, remaining_time
+from ._paid import charge_attempt
 
 
 DEFAULT_USER_AGENT = "sourceglint/0.2.0"
 DEFAULT_TIMEOUT_SECONDS = 15.0
 DEFAULT_MAX_ATTEMPTS = 3  # 1 initial + 2 retries
 DEFAULT_BACKOFF_SECONDS = 0.5  # bounded; tests inject a 0 to skip sleeps
+
+
+_METERED = {"api.scrapecreators.com", "api.x.com", "api.twitter.com", "api.brightdata.com"}
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 # ---------- exception taxonomy ------------------------------------------
@@ -160,7 +169,7 @@ class StdlibHttpClient:
             try:
                 attempt_timeout = limit_timeout(bound_timeout)
             except TimeoutError as exc:
-                raise HttpTimeoutError(url, bound_timeout) from exc
+                raise HttpTimeoutError(urlsplit(url)._replace(query="", fragment="").geturl(), bound_timeout) from exc
             try:
                 return self._request_once(
                     url,
@@ -221,14 +230,24 @@ class StdlibHttpClient:
             data=body,
             method=method.upper(),
         )
+        parsed = urlsplit(url)
+        query_keys = {key.lower() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+        sensitive = query_keys & {"api_key", "access_token", "apikey", "client_secret"}
+        protected = bool(sensitive or any(key.lower() in {"authorization", "x-api-key"} for key in merged))
+        host = parsed.hostname
+        metered = host in _METERED or (host == "api.openalex.org" and "api_key" in sensitive)
+        safe_url = parsed._replace(query="", fragment="").geturl() if sensitive else url
+        opener = urllib.request.build_opener(_NoRedirect()).open if protected or metered else urllib.request.urlopen
+        if metered:
+            charge_attempt(host or "metered source")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with opener(req, timeout=timeout) as resp:
                 status = int(getattr(resp, "status", 200) or 200)
                 body = resp.read(max_bytes + 1) if max_bytes is not None else resp.read()
                 if max_bytes is not None and len(body) > max_bytes:
                     # Oversized bodies are refused as a permanent error so a
                     # connector can report a bounded-access limitation.
-                    raise HttpPermanentError(status=413, url=url)
+                    raise HttpPermanentError(status=413, url=safe_url)
                 # Map urllib's http.client.HTTPMessage to a plain dict.
                 hdrs: dict[str, str] = {
                     k.lower(): v for k, v in resp.headers.items()
@@ -237,7 +256,7 @@ class StdlibHttpClient:
                     status=status,
                     headers=hdrs,
                     body=body,
-                    url=url,
+                    url=safe_url,
                 )
         except urllib.error.HTTPError as exc:
             status = int(exc.code)
@@ -249,19 +268,19 @@ class StdlibHttpClient:
             if status == 429 or 500 <= status < 600 or (status == 403 and _looks_rate_limited(exc, body_preview)):
                 raise HttpTransientError(
                     status=status,
-                    url=url,
-                    body_preview=body_preview,
-                ) from exc
-            raise HttpPermanentError(status=status, url=url) from exc
+                    url=safe_url,
+                    body_preview="" if protected else body_preview,
+                ) from None
+            raise HttpPermanentError(status=status, url=safe_url) from None
         except urllib.error.URLError as exc:
             reason = str(getattr(exc, "reason", exc))
             if "timed out" in reason.lower() or "timeout" in reason.lower():
-                raise HttpTimeoutError(url=url, timeout=timeout) from exc
+                raise HttpTimeoutError(url=safe_url, timeout=timeout) from None
             raise HttpTransientError(
-                status=None, url=url, body_preview=reason
-            ) from exc
-        except socket.timeout as exc:
-            raise HttpTimeoutError(url=url, timeout=timeout) from exc
+                status=None, url=safe_url, body_preview="" if protected else reason
+            ) from None
+        except socket.timeout:
+            raise HttpTimeoutError(url=safe_url, timeout=timeout) from None
 
 
 # ---------- Re-exports --------------------------------------------------

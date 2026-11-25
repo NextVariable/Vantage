@@ -154,11 +154,12 @@ def test_stocktwits_requires_a_ticker_and_maps_messages():
 def test_polymarket_marks_market_start_semantics():
     http = StubHttp([{"events": [{
         "id": "e1", "title": "Will agents ship by 2027?", "slug": "agents-2027",
-        "startDate": "2026-10-01", "volume": 1200,
+        "startDate": "2026-10-01", "volume": 1200, "description": "Resolution rules and deadline.",
     }]}])
     items = PolymarketAdapter(http_client=http).retrieve({}, REQUEST)
     assert items[0].raw_metadata["date_semantics"] == "market_start"
     assert items[0].url == "https://polymarket.com/event/agents-2027"
+    assert items[0].text == "Resolution rules and deadline."
 
 
 def test_xiaohongshu_refuses_when_service_is_not_logged_in():
@@ -175,14 +176,16 @@ def test_digg_missing_binary_is_reported_not_faked(monkeypatch):
     assert "not installed" in str(exc.value)
 
 
-def test_digg_maps_cli_json_through_an_injected_runner():
-    payload = json.dumps({"stories": [{
-        "uuid": "d1", "title": "A story", "url": "https://example.com/a",
+def test_digg_maps_current_cli_search_envelope():
+    payload = json.dumps({"meta": {"count": 1}, "results": [{
+        "clusterId": "d1", "title": "A story", "url": "https://digg.com/tech/a",
+        "tldr": "Published summary from the Digg story cluster.",
         "publishedAt": "2026-11-16T08:00:00Z", "diggScore": 42,
     }]})
     items = DiggCliAdapter(runner=lambda args: payload).retrieve({}, REQUEST)
     assert items[0].source_native_id == "d1"
     assert items[0].engagement["digg_score"] == 42
+    assert items[0].text == "Published summary from the Digg story cluster."
 
 
 # ---------------------------------------------------------------------------

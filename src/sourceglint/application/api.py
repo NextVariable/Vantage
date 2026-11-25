@@ -223,6 +223,7 @@ def run_sourceglint(
     end_date: str = "",
     research_rounds: int = 2,
     research_timeout_seconds: float = 90,
+    paid_source_calls: int = 0,
 ) -> SkillResult:
     """Run the canonical sourceglint pipeline for one request.
 
@@ -351,7 +352,9 @@ def run_sourceglint(
 
     # 3) Run the full engine.
     orchestrate_started = monotonic()
-    with deadline_scope(run_deadline):
+    from ..connectors._paid import paid_scope
+
+    with deadline_scope(run_deadline), paid_scope(paid_source_calls) as paid_attempts:
         outcome = orchestrate(
             parsed,
             plan=plan,
@@ -367,6 +370,7 @@ def run_sourceglint(
     package_started = monotonic()
     diagnostics: dict[str, Any] = {
         "evidence_count": outcome.evidence_count,
+        "paid_source_attempts": {"limit": paid_attempts.limit, "used": paid_attempts.used},
         "signal_count": outcome.signal_count,
         "insight_count": outcome.insight_count,
         "recommendation_count": outcome.recommendation_count,

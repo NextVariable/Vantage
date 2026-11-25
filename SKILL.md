@@ -25,7 +25,7 @@ with `.venv/bin/python -m pip install -e .` if the `vantage` command is missing.
 Run `.venv/bin/python -m sourceglint doctor` to inspect optional direct-source
 requirements. An offline readiness check does not verify current live access.
 Run `.venv/bin/vantage setup` once to detect existing keys and tools, list the
-free sources, store an optional key in the Keychain (values are never printed)
+free sources, store an optional key in a private local file (values are never printed)
 and, with `--probe`, perform a bounded live check. `--skip` changes nothing;
 `--free-only` hides paid suggestions. The wizard never buys, registers, imports
 cookies or widens account scopes.
@@ -66,7 +66,8 @@ what they want in natural language.
 A platform may have several legal routes. Vantage always tries the free route
 first (public Reddit, `yt-dlp` YouTube and explicit public TikTok/Instagram
 links, Digg/Trustpilot CLIs, anonymous USPTO search) and only then an
-authorized provider when its key is configured and the paid-call cap allows.
+authorized provider only when its key is configured and an explicit per-run
+`--paid-source-calls N` attempt budget allows. The default budget is zero.
 A failed route never discards evidence already collected, and the same item
 reached through two routes is counted once. The report keeps the original
 platform (for example USPTO or Reddit) and the retrieval route it actually used.
