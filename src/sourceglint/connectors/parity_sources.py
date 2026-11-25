@@ -549,11 +549,10 @@ class XiaohongshuMcpAdapter:
             native_id = str(feed.get("id") or note.get("noteId") or "")
             title = str(note.get("displayTitle") or note.get("title") or "").strip()
             text = str(note.get("desc") or note.get("displayDesc") or title).strip()
-            token = str(feed.get("xsecToken") or note.get("xsecToken") or "")
             published = _iso(note.get("time"))
             if not native_id or not text or not published:
                 continue
-            url = f"https://www.xiaohongshu.com/explore/{native_id}" + (f"?xsec_token={token}" if token else "")
+            url = f"https://www.xiaohongshu.com/explore/{native_id}"
             output.append(RawSourceResult(
                 source=self.source_name, source_type="post", source_native_id=native_id,
                 url=url, title=(title or text)[:120], text=text, author="",
@@ -586,7 +585,7 @@ class DiggCliAdapter:
         if not binary:
             raise AdapterUnavailable(self.source_name, f"{self.cli} is not installed")
         try:
-            completed = run_command([binary, *args], timeout=30)
+            completed = run_command([binary, *args], timeout=30, env=_tool_env())
         except subprocess.TimeoutExpired as exc:
             raise AdapterTimeout(self.source_name, f"{self.cli} timed out") from exc
         if completed.returncode != 0:
@@ -1124,6 +1123,7 @@ def _tool_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
     allow = {
         "PATH", "HOME", "USERPROFILE", "LANG", "LC_ALL", "LC_CTYPE", "TZ",
         "TMPDIR", "TEMP", "TMP", "SSL_CERT_FILE", "SSL_CERT_DIR", "NO_COLOR",
+        "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
         "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
     }
     env = {key: value for key, value in os.environ.items() if key in allow}
@@ -1144,9 +1144,8 @@ _DOMAIN_RE = re.compile(r"\b[a-z0-9][a-z0-9.-]*\.(?:com|io|co|net|org|ai|app|dev
 class TrustpilotCliAdapter:
     """Trustpilot through ``trustpilot-pp-cli`` when its session is replayable.
 
-    Only local reads are allowed by default. If the CLI has no fresh WAF
-    session, the adapter reports how to create one (``trustpilot-pp-cli auth
-    login``) instead of launching a browser inside a research run.
+    The runtime requires explicit authorization to reuse a local session.
+    This adapter does not initiate login or launch a browser.
     """
 
     cli: str = "trustpilot-pp-cli"
@@ -1203,8 +1202,7 @@ class TrustpilotCliAdapter:
         status = self._run(["auth", "status", "--agent"], timeout=10)
         if not self._session_fresh(status, str(request.get("retrieved_at") or "")):
             self.limitations.append(
-                "Trustpilot session is missing or stale; run `trustpilot-pp-cli auth login`, "
-                "then rerun within three minutes"
+                "Trustpilot has no fresh authorized CLI session; use an original public review or an approved API"
             )
             return []
         payload = self._run(["info", "--agent", "--", domain], timeout=75)

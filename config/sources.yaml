@@ -871,8 +871,8 @@
   max_queries_per_run: 1
 
 - name: trustpilot
-  # Local trustpilot-pp-cli cache/session reads. The adapter never launches a
-  # browser; without a fresh session it reports the login command instead.
+  # Reusing an existing Trustpilot CLI session requires explicit local opt-in.
+  # The adapter never starts a browser or initiates login.
   enabled: false
   tools: [trustpilot-pp-cli]
   type: secondary

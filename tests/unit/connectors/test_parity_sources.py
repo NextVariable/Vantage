@@ -169,6 +169,17 @@ def test_xiaohongshu_refuses_when_service_is_not_logged_in():
         adapter.retrieve({}, {"query": "AI 产品", "query_language": "zh"})
 
 
+def test_xiaohongshu_keeps_the_permalink_free_of_access_tokens():
+    http = StubHttp([{"data": {"is_logged_in": True}}, {"data": {"feeds": [{
+        "id": "public-note", "xsecToken": "private-link-token", "noteCard": {
+            "displayTitle": "测试", "desc": "测试正文", "time": "2026-11-20T10:00:00Z",
+        },
+    }]}}])
+    adapter = XiaohongshuMcpAdapter(base_url="http://127.0.0.1:18060", http_client=http)
+    items = adapter.retrieve({}, {"query": "AI 产品", "query_language": "zh"})
+    assert items[0].url == "https://www.xiaohongshu.com/explore/public-note"
+
+
 def test_digg_missing_binary_is_reported_not_faked(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
     with pytest.raises(Exception) as exc:
@@ -277,7 +288,7 @@ def test_trustpilot_without_a_fresh_session_never_launches_a_browser():
     items = adapter.retrieve({}, {**REQUEST, "query": "acme.com", "retrieved_at": "2026-11-25T00:00:00Z"})
     assert items == []
     assert calls == [["auth", "status", "--agent"]]
-    assert any("trustpilot-pp-cli auth login" in note for note in adapter.limitations)
+    assert any("no fresh authorized CLI session" in note for note in adapter.limitations)
 
 
 def test_trustpilot_needs_a_domain_for_the_local_route():

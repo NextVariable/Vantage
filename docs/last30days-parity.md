@@ -1,5 +1,8 @@
 # last30days source parity (Vantage 1.1, 2026-11-25)
 
+> The [2026-11-26 live acceptance](source-live-2026-11-26.md) supersedes the
+> historical totals below. The frozen Trustpilot replay is excluded from that live count.
+
 This record compares every research lane implemented by the upstream
 `mvanhorn/last30days-skill` project with Vantage's actual routes. It is a
 code-level audit, not a README comparison.

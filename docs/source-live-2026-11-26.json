@@ -1,0 +1,965 @@
+{
+  "checked_local_date": "2026-11-26",
+  "upstream_release": "v4.6.0",
+  "upstream_commit": "64b1f006f800640022ce07f51de5ce56aad34b76",
+  "tested_engine_commit": "6b7c5152545339cd06cc72909b994568a8f20ac2",
+  "methodology": "Public queries and network results from this session only; Vantage evidence-only execution preserved dated content, evidence IDs and report citations. Host rows use same-session original-page excerpts passed via the production STDIO contract. Native connector snapshots use bounded single-source configurations. Counts are scoped to verified examples, not a default routing or completeness guarantee.",
+  "totals": {
+    "upstream": 24,
+    "PAYMENT_DECISION_REQUIRED": 1,
+    "LIVE_VERIFIED": 15,
+    "USER_ACTION_REQUIRED": 7,
+    "EXTERNAL_BLOCKED": 1,
+    "independent_public_sources": 28
+  },
+  "upstream_platforms": [
+    {
+      "platform": "x",
+      "status": "PAYMENT_DECISION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public search found no usable dated original status for this query. X API is metered and no X bearer token is configured.",
+      "user_action": "Decide whether to use X API credits and authorize an existing developer project. No payment is needed for this test run."
+    },
+    {
+      "platform": "reddit",
+      "status": "LIVE_VERIFIED",
+      "route": "public Reddit and bounded public archive fallback",
+      "depth": "Post and comment body, visible interaction counts; repeat results varied.",
+      "checked_at": "2026-11-25T16:56:38.431041+00:00",
+      "query": "LocalLLaMA inference",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1vyq2v4/megathread_qwen38flashnext_release_day/p6k0c3r",
+      "date": "2026-08-29T05:03:40Z",
+      "evidence_id": "ev_g7ul5j62zgzx5yzvbgkkbiqgdcmncp3h",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": true,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "youtube",
+      "status": "LIVE_VERIFIED",
+      "route": "yt-dlp and public caption tracks",
+      "depth": "Video metadata, captions and available engagement; comment text not established.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "AI coding agents adoption",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.youtube.com/watch?v=bllo3uCyVxs",
+      "date": "2026-11-11T08:00:05Z",
+      "evidence_id": "ev_vpbry4nefslc5dcnq2mkyaaoyrxjtycs",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": true,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "tiktok",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public probes reached first-party newsroom and ads pages, without a content-video permalink that met the search contract.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+    },
+    {
+      "platform": "instagram",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public probe did not retrieve a dated Instagram post/reel with usable content.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+    },
+    {
+      "platform": "threads",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public index did not supply a dated original thread. Both public Threads domains are routed.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+    },
+    {
+      "platform": "pinterest",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Pinterest’s public business documents were reachable, but an original pin with verified publication time was not.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+    },
+    {
+      "platform": "linkedin",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public post body was readable. LinkedIn showed a relative time and event dates; neither supplied a trustworthy post publication timestamp.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests."
+    },
+    {
+      "platform": "telegram",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host and public channel HTML → Vantage STDIO",
+      "depth": "Public post and HTML timestamp; no private channels. Provider route still needs a key and public-channel list.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "Telegram group welcome messages",
+      "ledger": true,
+      "citation": true,
+      "url": "https://t.me/telegram/455",
+      "date": "2026-08-26T19:11:05+00:00",
+      "evidence_id": "ev_prxzngplvo2r2vpvnocerqweau3i5k6h",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "post_body"
+      ]
+    },
+    {
+      "platform": "bluesky",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host original post → Vantage STDIO",
+      "depth": "Original public post body; anonymous AppView search returned 403. Authenticated structured search was not attempted.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "Bluesky Discover feed opt out",
+      "ledger": true,
+      "citation": true,
+      "url": "https://bsky.app/profile/bsky.app/post/3mu3jzayuys2k",
+      "date": "2026-08-27T19:03:45.173Z",
+      "evidence_id": "ev_ez7sey5gpnqhd46kpmt4fqd7p36xzhlq",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "post_body"
+      ]
+    },
+    {
+      "platform": "truthsocial",
+      "status": "EXTERNAL_BLOCKED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public discovery surfaced the portal and external reporting instead of a verifiable original post. There was no authorized token or licensed feed. The Mastodon-compatible route is not a published self-serve API.",
+      "user_action": "Only use a previously authorized lawful access route or a directly verifiable original post. Do not retrieve browser credentials."
+    },
+    {
+      "platform": "github",
+      "status": "LIVE_VERIFIED",
+      "route": "GitHub API with existing read-only CLI login",
+      "depth": "Issues and discussion/comment text and engagement. The anonymous run also returned 403.",
+      "checked_at": "2026-11-25T16:56:38.431041+00:00",
+      "query": "Microsoft VS Code pull requests agent mode",
+      "ledger": true,
+      "citation": true,
+      "url": "https://github.com/agentskills/agentskills/issues/15",
+      "date": "2025-12-19T14:18:58Z",
+      "evidence_id": "ev_kaelgxajpu5mw3ssv42giafm5poilh3z",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": true,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "hacker_news",
+      "status": "LIVE_VERIFIED",
+      "route": "HN Algolia and Firebase",
+      "depth": "Story and comment text with points/comment metadata.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "SQLite",
+      "ledger": true,
+      "citation": true,
+      "url": "https://news.ycombinator.com/item?id=46435308",
+      "date": "2025-12-30T17:01:59Z",
+      "evidence_id": "ev_7r6kkxfnwb72t4ddna6ygsx55tb2gzmo",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": true,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "devto",
+      "status": "LIVE_VERIFIED",
+      "route": "DEV public API",
+      "depth": "Article description and interaction metadata; no comment bodies verified.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "python",
+      "ledger": true,
+      "citation": true,
+      "url": "https://dev.to/m4rri4nne/detecting-flaky-tests-and-finding-their-root-causes-with-strands-agents-and-gemini-4kan",
+      "date": "2026-11-10T22:52:28Z",
+      "evidence_id": "ev_a6v2hnavadizst5uo4d3dcw6pmup6zh4",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "arxiv",
+      "status": "LIVE_VERIFIED",
+      "route": "arXiv Atom",
+      "depth": "Published abstracts. No comment, caption, or engagement surface was tested.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "large language model",
+      "ledger": true,
+      "citation": true,
+      "url": "https://arxiv.org/abs/2611.33111v1",
+      "date": "2026-11-24T18:41:59Z",
+      "evidence_id": "ev_fm7wuf4sgknbj5ippmr4ygrvfnjnq4gw",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "techmeme",
+      "status": "LIVE_VERIFIED",
+      "route": "Techmeme public feed",
+      "depth": "Dated editorial aggregation excerpt; confirm underlying claims with the linked publisher.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "AI",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.techmeme.com/261125/p21",
+      "date": "2026-11-25T13:23:06Z",
+      "evidence_id": "ev_jxz7p424s7nuu25p66gqo2ipme4v7eki",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "polymarket",
+      "status": "LIVE_VERIFIED",
+      "route": "Gamma public-search",
+      "depth": "Dated market description and volume. The timestamp is market start; market prices do not verify outcomes.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "Bitcoin",
+      "ledger": true,
+      "citation": true,
+      "url": "https://polymarket.com/event/bitcoin-above-on-november-25-2026",
+      "date": "2026-11-18T17:00:16Z",
+      "evidence_id": "ev_7h7bmpidmfwn2iixrguld7sfixjja47w",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "stocktwits",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host original discussion → Vantage STDIO",
+      "depth": "Original post, replies visible on the page; reply bodies and metrics not transported. Symbol-stream API returned 403.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "NVDA earnings Stocktwits discussion",
+      "ledger": true,
+      "citation": true,
+      "url": "https://stocktwits.com/discussions/nvda-q3-27-earnings-results-recap-669399064/669399064",
+      "date": "2026-11-17T00:00:00Z",
+      "evidence_id": "ev_44gpfa56s6iemikdjml442ckhuq4piik",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "post_body",
+        "visible_replies"
+      ]
+    },
+    {
+      "platform": "digg",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host original announcement → Vantage STDIO",
+      "depth": "Public announcement only; use the separate CLI result to assess cluster-search depth.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "Digg voting feature release",
+      "ledger": true,
+      "citation": true,
+      "url": "https://digg.com/blog/digg-button-is-back",
+      "date": "2026-09-22T00:00:00Z",
+      "evidence_id": "ev_tgcvhhxieeqnrsypvnmpln4nulwx65mg",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "announcement_body"
+      ]
+    },
+    {
+      "platform": "trustpilot",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host original consumer-review page → Vantage STDIO",
+      "depth": "Individual review body and visible star rating; no cached session, API or bulk/company search used.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "Notion course workspace user review",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.trustpilot.com/review/notion.so",
+      "date": "2026-11-16T00:00:00Z",
+      "evidence_id": "ev_oeccazxqgzet3sv5lw2k4uruqo5c7tzg",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "review_body",
+        "rating"
+      ]
+    },
+    {
+      "platform": "amazon",
+      "status": "LIVE_VERIFIED",
+      "route": "Codex Host original product page → Vantage STDIO",
+      "depth": "Product details and release date; visible aggregate rating. Individual review bodies and Bright Data search not verified.",
+      "checked_at": "2026-11-25T16:58:53.720528+00:00",
+      "query": "Amazon The Odyssey limited 4K release",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.amazon.com/dp/B0HJBGJMR9",
+      "date": "2026-11-17T00:00:00Z",
+      "evidence_id": "ev_ds6x5mvmvs7m3fj22q2shx56e45ddk5e",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": [
+        "product_content",
+        "visible_aggregate_rating",
+        "product_release_date"
+      ]
+    },
+    {
+      "platform": "meta_ad_library",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public Ad Library listing exposed text, start dates and library IDs. The tested individual permalink did not expose the same original item reliably.",
+      "user_action": "Configure SCRAPECREATORS_API_KEY locally and authorize use of its free balance before making a bounded number of requests. Alternatively use an already-approved Meta Ads Archive token."
+    },
+    {
+      "platform": "patents",
+      "status": "LIVE_VERIFIED",
+      "route": "USPTO anonymous public search session",
+      "depth": "Dated application and original PDF; sample date has calendar-day precision.",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "meeting assistant",
+      "ledger": true,
+      "citation": true,
+      "url": "https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/20260249002",
+      "date": "2026-08-27T00:00:00Z",
+      "evidence_id": "ev_bjaewytc56dqzzxbuv2rfsgh6p5r7a3l",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "xiaohongshu",
+      "status": "USER_ACTION_REQUIRED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "ledger": false,
+      "citation": false,
+      "reason": "Public probes found discovery/landing pages without a verifiable dated original note. No explicitly configured, authorized XHS_MCP_URL was present.",
+      "user_action": "Authorize a platform-permitted read-only integration and add its approved local endpoint as XHS_MCP_URL. Vantage does not acquire browser cookies."
+    }
+  ],
+  "other_independent_sources": [
+    {
+      "platform": "Hugging Face",
+      "route": "hugging_face",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "text generation",
+      "ledger": true,
+      "citation": true,
+      "url": "https://huggingface.co/PrasannaKonduru/gita-text-generation-gpt2",
+      "date": "2026-11-15T09:32:35Z",
+      "evidence_id": "ev_jrmqqyz44y6wrdu63etewfjv6vuakv4c",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "Qiita",
+      "route": "qiita",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "Python",
+      "ledger": true,
+      "citation": true,
+      "url": "https://qiita.com/Solidra/items/2a75a887060fc716833e",
+      "date": "2026-11-25T16:28:36Z",
+      "evidence_id": "ev_e4q4ohow2gdyjcpwpseafw5d3vbwcqku",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "PyPI",
+      "route": "pypi",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "requests",
+      "ledger": true,
+      "citation": true,
+      "url": "https://pypi.org/project/requests/2.34.2",
+      "date": "2026-05-14T19:25:26Z",
+      "evidence_id": "ev_zzdtyfeo5zcxcm3p2l34a7z756vvoxju",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "GitLab",
+      "route": "gitlab",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "machine learning",
+      "ledger": true,
+      "citation": true,
+      "url": "https://gitlab.com/azoughlisaid.fst/dataiku-fx-api-analytics-ml",
+      "date": "2026-11-25T10:01:41Z",
+      "evidence_id": "ev_t7gw6wakwy2nwwwoql5i4skvzukhjg5g",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "Lever",
+      "route": "lever",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "engineer",
+      "ledger": true,
+      "citation": true,
+      "url": "https://jobs.lever.co/leverdemo/58db3f8e-b108-47d1-9e6e-87a1712497cd",
+      "date": "2026-09-01T18:45:08Z",
+      "evidence_id": "ev_n4a3ptc4prahndsqva2iw6qrccgubnpl",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "Greenhouse",
+      "route": "greenhouse",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "engineer",
+      "ledger": true,
+      "citation": true,
+      "url": "https://stripe.com/jobs/search?gh_jid=8336697",
+      "date": "2026-11-25T15:44:22Z",
+      "evidence_id": "ev_p4oxolw7vmxwm7gy2wu7cgcbqaxdrocr",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "Ashby",
+      "route": "ashby",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "engineer",
+      "ledger": true,
+      "citation": true,
+      "url": "https://jobs.ashbyhq.com/linear/af8d37e8-624a-4f2c-af53-c599b97192a3",
+      "date": "2026-11-10T18:14:08Z",
+      "evidence_id": "ev_a3qu4252ddayb3ta3sxwttcz7he2fokv",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "Crates.io",
+      "route": "crates_io",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "serde",
+      "ledger": true,
+      "citation": true,
+      "url": "https://crates.io/crates/serde",
+      "date": "2026-07-18T23:05:13Z",
+      "evidence_id": "ev_vqhirtnzgplfx6kk72j2a3uu3szmlbik",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "ClinicalTrials.gov",
+      "route": "clinicaltrials",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "semaglutide",
+      "ledger": true,
+      "citation": true,
+      "url": "https://clinicaltrials.gov/study/NCT07958028",
+      "date": "2026-11-25T00:00:00Z",
+      "evidence_id": "ev_66ro2l5ndq4ckciksnntbs7c65bjaism",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "Zenodo",
+      "route": "zenodo",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "vector database",
+      "ledger": true,
+      "citation": true,
+      "url": "https://doi.org/10.5281/zenodo.24536802",
+      "date": "2026-11-25T00:00:00Z",
+      "evidence_id": "ev_yle46ebtrmfyzxo3oqmxhyvixpc4o3i5",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "ITmedia",
+      "route": "itmedia",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "生成AI",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.itmedia.co.jp/news/article/2611/25/2000003421",
+      "date": "2026-11-25T03:00:00Z",
+      "evidence_id": "ev_syqldixzbw7dw3lors7veacndmaoeyue",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    },
+    {
+      "platform": "NuGet",
+      "route": "nuget",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "vector",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.nuget.org/packages/VectorRAG.Net/1.0.2",
+      "date": "2026-08-23T16:15:25Z",
+      "evidence_id": "ev_5jlmrniwstjlc7usfamw55a7yu2fjmow",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": true
+      }
+    },
+    {
+      "platform": "npm",
+      "route": "package_registries",
+      "status": "LIVE_VERIFIED",
+      "checked_at": "2026-11-25T16:54:30.891711+00:00",
+      "query": "ai agent",
+      "ledger": true,
+      "citation": true,
+      "url": "https://www.npmjs.com/package/@vercel/detect-agent",
+      "date": "2026-10-13T06:08:24Z",
+      "evidence_id": "ev_zrbwxy3vnlxk2zl4e2qgu45aqdkiogph",
+      "execution_status": "PARTIAL",
+      "delivery": "evidence_only_report",
+      "observed": {
+        "body_or_excerpt": true,
+        "comment_body": false,
+        "captions": false,
+        "engagement": false
+      }
+    }
+  ],
+  "other_native_probes": {
+    "stack_overflow": {
+      "attempted": true,
+      "received": 12,
+      "cited_items": 12,
+      "reason": ""
+    },
+    "crossref": {
+      "attempted": true,
+      "received": 3,
+      "cited_items": 3,
+      "reason": ""
+    },
+    "openalex": {
+      "attempted": true,
+      "received": 0,
+      "cited_items": 0,
+      "reason": "AdapterRateLimited: [openalex] upstream rate limit"
+    },
+    "sec_edgar": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "pubmed": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 4,
+      "reason": ""
+    },
+    "doaj": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 4,
+      "reason": ""
+    },
+    "internet_archive": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "datacite": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 4,
+      "reason": ""
+    },
+    "open_library": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "maven_central": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "app_store": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "lemmy": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 3,
+      "reason": ""
+    },
+    "zenn": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 4,
+      "reason": ""
+    },
+    "rubygems": {
+      "attempted": true,
+      "received": 3,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "note": {
+      "attempted": true,
+      "received": 4,
+      "cited_items": 4,
+      "reason": ""
+    },
+    "docker_hub": {
+      "attempted": true,
+      "received": 3,
+      "cited_items": 1,
+      "reason": ""
+    },
+    "sspai": {
+      "attempted": true,
+      "received": 0,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "world_bank": {
+      "attempted": true,
+      "received": 1,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "makuake": {
+      "attempted": true,
+      "received": 1,
+      "cited_items": 0,
+      "reason": ""
+    },
+    "steam": {
+      "attempted": true,
+      "received": 0,
+      "cited_items": 0,
+      "reason": "AdapterUnavailable: [steam] Steam redirected the review endpoint to a non-JSON page (regional or anti-bot gate)"
+    }
+  },
+  "upstream_lanes": [
+    {
+      "lane": "reddit",
+      "upstream_code": "reddit_search.py / reddit_arctic.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "x",
+      "upstream_code": "x_api.py / bird_x.py / xurl_x.py / xai_x.py / grok_x.py / xquik.py",
+      "verification": "PAYMENT_DECISION_REQUIRED"
+    },
+    {
+      "lane": "youtube",
+      "upstream_code": "youtube_yt.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "tiktok",
+      "upstream_code": "tiktok.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "instagram",
+      "upstream_code": "instagram.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "hackernews",
+      "upstream_code": "hackernews.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "bluesky",
+      "upstream_code": "bluesky.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "truthsocial",
+      "upstream_code": "truthsocial.py",
+      "verification": "EXTERNAL_BLOCKED"
+    },
+    {
+      "lane": "polymarket",
+      "upstream_code": "polymarket.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "grounding",
+      "upstream_code": "pipeline.py",
+      "verification": "Live Host → Vantage STDIO: six surfaced origins in this run."
+    },
+    {
+      "lane": "xiaohongshu",
+      "upstream_code": "xiaohongshu_api.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "github",
+      "upstream_code": "github.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "perplexity",
+      "upstream_code": "perplexity.py",
+      "verification": "Paid enrichment; not used. Licensed access decision required, outside the independent-platform total."
+    },
+    {
+      "lane": "threads",
+      "upstream_code": "threads.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "pinterest",
+      "upstream_code": "pinterest.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "digg",
+      "upstream_code": "digg.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "arxiv",
+      "upstream_code": "arxiv.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "techmeme",
+      "upstream_code": "techmeme.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "trustpilot",
+      "upstream_code": "trustpilot.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "amazon",
+      "upstream_code": "amazon.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "meta_ads",
+      "upstream_code": "meta_ads.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "jobs",
+      "upstream_code": "jobs.py",
+      "verification": "Lever, Greenhouse and Ashby each returned public dated job descriptions that entered the ledger and report."
+    },
+    {
+      "lane": "linkedin",
+      "upstream_code": "linkedin.py",
+      "verification": "USER_ACTION_REQUIRED"
+    },
+    {
+      "lane": "corpus",
+      "upstream_code": "corpus.py",
+      "verification": "Local user evidence; no user corpus accessed."
+    },
+    {
+      "lane": "dripstack",
+      "upstream_code": "dripstack.py",
+      "verification": "Paid enrichment; not used. Licensed access decision required, outside the independent-platform total."
+    },
+    {
+      "lane": "telegram",
+      "upstream_code": "telegram.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "devto",
+      "upstream_code": "devto.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "stocktwits",
+      "upstream_code": "stocktwits.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "patents",
+      "upstream_code": "patents.py",
+      "verification": "LIVE_VERIFIED"
+    },
+    {
+      "lane": "yahoo_finance",
+      "upstream_code": "yahoo_finance.py",
+      "verification": "Public earnings calendar was discoverable. No Vantage quote/news retrieval and ledger round-trip was established; the upstream lane is artifact enrichment."
+    },
+    {
+      "lane": "library",
+      "upstream_code": "library.py",
+      "verification": "Local output reuse; no network source."
+    }
+  ],
+  "tool_acceptance": {
+    "yt-dlp": {
+      "version": "2026.03.17",
+      "accepted": "existing public YouTube search and captions"
+    },
+    "gh": {
+      "version": "2.93.0",
+      "accepted": "existing login; read-only GitHub issue and comment retrieval"
+    },
+    "digg-pp-cli": {
+      "version": "2026.11.2",
+      "license": "Apache-2.0",
+      "accepted": "publisher release asset SHA-256 checked; real search returned HTTP 403 challenge. No CLI results entered the ledger."
+    },
+    "trustpilot-pp-cli": {
+      "version": "2026.9.1",
+      "license": "Apache-2.0",
+      "accepted": "publisher release asset SHA-256 and version checked; no authorized CLI session reused. Public review validation used Host web."
+    },
+    "xiaohongshu-mcp": {
+      "version": "v2.7.6",
+      "license": "Apache-2.0",
+      "accepted": "publisher release asset SHA-256 and help command checked; local service and login were not started."
+    }
+  }
+}

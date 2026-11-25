@@ -11,6 +11,7 @@
 
 - [来源访问与统计口径 · Source coverage and counting rules](source-access-matrix.md)
 - [账号、凭据与授权步骤 · Authorization](source-authorization.md) · [失败降级 · Fallbacks](source-fallback-playbook.md)
+- [2026-11-26 渠道联网实测 · Live channel acceptance](source-live-2026-11-26.md)
 - [验收快照 · Dated verification snapshot](source-live-status.json) · [平台探针和原始样本 · Host probe records](host-web-verification-tasks.json)
 
 ## 当前架构与维护 · Current architecture and maintenance

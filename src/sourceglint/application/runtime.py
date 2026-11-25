@@ -187,7 +187,9 @@ def default_adapter_factory(
     if name == "trustpilot":
         from ..connectors.parity_sources import TrustpilotCliAdapter
 
-        return TrustpilotCliAdapter()
+        if allow_credentials and os.environ.get("VANTAGE_TRUSTPILOT_SESSION_AUTHORIZED") == "1":
+            return TrustpilotCliAdapter()
+        return None
     if name == "amazon":
         from ..connectors.parity_sources import AmazonBrightDataAdapter
 

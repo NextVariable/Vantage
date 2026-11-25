@@ -65,9 +65,9 @@ what they want in natural language.
 
 A platform may have several legal routes. Vantage always tries the free route
 first (public Reddit, `yt-dlp` YouTube and explicit public TikTok/Instagram
-links, Digg/Trustpilot CLIs, anonymous USPTO search) and only then an
-authorized provider only when its key is configured and an explicit per-run
-`--paid-source-calls N` attempt budget allows. The default budget is zero.
+links, Digg/Trustpilot CLIs, anonymous USPTO search) before trying an
+authorized provider. That provider requires a configured key and an explicit per-run
+`--paid-source-calls N` attempt budget. The default budget is zero.
 A failed route never discards evidence already collected, and the same item
 reached through two routes is counted once. The report keeps the original
 platform (for example USPTO or Reddit) and the retrieval route it actually used.
