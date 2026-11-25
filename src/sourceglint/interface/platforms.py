@@ -225,7 +225,7 @@ PLATFORM_TARGETS: dict[str, tuple[str | None, tuple[str, ...]]] = {
     "amazon": (None, ("amazon.com",)),
     "meta ad library": (None, ("facebook.com",)),
     "xiaohongshu": (None, ("xiaohongshu.com", "xhslink.com")),
-    "patents": (None, ("patents.google.com",)),
+    "patents": (None, ("patents.google.com", "ppubs.uspto.gov", "image-ppubs.uspto.gov")),
     "yahoo finance": (None, ("finance.yahoo.com",)),
     "zhihu": (None, ("zhihu.com",)),
     "bilibili": (None, ("bilibili.com",)),

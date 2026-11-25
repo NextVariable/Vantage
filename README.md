@@ -11,7 +11,7 @@ The Skill plans subquestions before searching, checks retained evidence against 
 ## Versions
 
 - **Published: Vantage 1.0 Beta 1** (`1.0.0b1`). The installation below pins the published tag. [GitHub pre-release](https://github.com/NextVariable/Vantage/releases/tag/v1.0.0b1)
-- **In development: Vantage 1.1 Global Source Expansion**. This branch, `dev/vantage-1.1-global-sources`, installs package version `1.1.0.dev1`. It has dated source validation and remains an unreleased development build. [1.1 acceptance record](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
+- **In development: Vantage 1.1 Global Source Expansion**. This branch, `dev/vantage-1.1-global-sources`, installs package version `1.1.0.dev2`. It has dated source validation and remains an unreleased development build. [1.1 acceptance record](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
 
 ## What you can research
 
@@ -47,7 +47,7 @@ Confirm the version prints `1.0.0b1`. Then ask your agent to use Vantage. Keep t
 For development or validation, replace `--branch v1.0.0b1` with
 `--branch dev/vantage-1.1-global-sources` and use
 `~/.codex/skills/vantage-dev` as the target and working directory. The version
-check should print `1.1.0.dev1`. Enable one copy of the `vantage` Skill in a
+check should print `1.1.0.dev2`. Enable one copy of the `vantage` Skill in a
 Codex environment at a time.
 
 For direct use, `vantage` defaults to adaptive research with a three-round
@@ -56,6 +56,24 @@ cap. The CLI requires a structured host model, for example
 requests. Use `--window DAYS` or inclusive UTC `--start-date` and `--end-date`.
 The legacy `sourceglint` executable and Python import remain available.
 See [four worked prompts and a recorded run](docs/examples/vantage-1.0.md).
+
+### One-command setup
+
+```sh
+vantage setup            # inspect, choose, store, optionally probe
+vantage setup --skip     # print what already works; change nothing
+vantage setup --free-only --json
+vantage setup --probe    # bounded live check, no paid calls
+```
+
+The wizard detects the OS, Python, existing keys (names only), local CLIs
+(`yt-dlp`, `gh`, `digg-pp-cli`, `trustpilot-pp-cli`, `brightdata`), an
+authorized local Xiaohongshu MCP service and a GitHub CLI login. It lists the
+free sources, recommends the smallest account set, lets you skip everything,
+and stores a pasted key in the macOS Keychain (falling back to a 0600 file).
+Environment variables still win. It never registers an account, buys a plan,
+tops up a balance, enables auto-renewal, reads browser cookies or widens an
+existing account's scopes. See the [setup guide](docs/setup-guide.md).
 
 ## Results and coverage
 
@@ -75,13 +93,27 @@ Research is bounded sampling. Coverage depends on access, rate limits, language 
 
 ### 1.1 source verification
 
-As of 2026-11-24, the latest 1.1 structured checks recorded **35 key-free direct
-platforms** and **one CLI platform** (public YouTube video metadata). Host web
-probes captured **24 dated original samples**. PR TIMES and G2 reached actual
-Vantage reports. The latest deduplicated live count is **38 platforms**.
-Authorized APIs, independent MCP routes, the currently rate-limited arXiv route
-and Steam review failures are tracked separately. See the access guide for
-catalog registrations, runtime slots, and frozen replay results. [Source access](docs/source-access-matrix.md) · [Verification snapshot](docs/source-live-status.json)
+As of 2026-11-25, every deduplicated upstream last30days platform has a Vantage
+connector (24/24). Seven have a direct live round-trip (YouTube, Hacker News,
+GitHub, arXiv, DEV, Techmeme, USPTO patents) and one more was verified from a
+frozen original page (Trustpilot), for 8/24. A bounded probe also re-confirmed
+Hacker News, GitHub, arXiv, DEV and Techmeme, and opened an anonymous USPTO
+search session that returned dated patent evidence.
+
+One `SCRAPECREATORS_API_KEY` can enrich nine platforms (TikTok, Instagram,
+Threads, Pinterest, LinkedIn, Reddit, YouTube, Telegram and Meta Ad Library),
+subject to that provider's plan. Without it the free routes still run:
+`yt-dlp` for YouTube and explicit public TikTok/Instagram links, public Reddit
+RSS/archive, Digg and Trustpilot CLIs when installed, and the keyless USPTO
+session. Each platform tries its free route first and records the route it
+actually used. Paid fallback is capped
+(`VANTAGE_PAID_FALLBACK_CALLS`, default 10) and can be disabled entirely with
+`VANTAGE_DISABLE_PAID_FALLBACK=1`. No credential means no paid call.
+
+The 2026-11-24 snapshot's 35 key-free direct platforms remain valid. Authorized
+APIs, CLI tools that are not installed here (Digg, Trustpilot, Bright Data) and
+currently unreachable endpoints (Reddit public RSS 404, Polymarket 413) are
+tracked separately. [Source access](docs/source-access-matrix.md) · [Verification snapshot](docs/source-live-status.json)
 
 ## Research examples and docs
 

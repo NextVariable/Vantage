@@ -17,16 +17,18 @@ publication anchor are dropped.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Mapping
 from urllib.parse import urlencode
 
 from ..pipeline.adapters import (
     AdapterAuthMissing,
+    AdapterError,
     AdapterInvalidResponse,
     AdapterRateLimited,
     AdapterTimeout,
@@ -35,6 +37,7 @@ from ..pipeline.adapters import (
 )
 from ._http import (
     HttpClient,
+    HttpPermanentError,
     HttpTimeoutError,
     HttpTransientError,
     StdlibHttpClient,
@@ -219,7 +222,7 @@ class ScrapeCreatorsPlatformAdapter:
             "comments": _count(raw.get("comment_count")),
         }
         return self._base(native_id=native_id, url=url, text=text, author=author,
-                          published=published, engagement=engagement, source_type="video")
+                          published=published, engagement=engagement, source_type="post")
 
     def _parse_threads(self, raw: Mapping[str, object]) -> RawSourceResult | None:
         native_id = str(raw.get("id") or raw.get("pk") or raw.get("code") or "")
@@ -261,7 +264,7 @@ class ScrapeCreatorsPlatformAdapter:
             "comments": _count(raw.get("comment_count") or raw.get("comments")),
         }
         return self._base(native_id=native_id, url=url, text=text, author=author,
-                          published=published, engagement=engagement, source_type="pin")
+                          published=published, engagement=engagement, source_type="post")
 
     def _parse_linkedin(self, raw: Mapping[str, object]) -> RawSourceResult | None:
         native_id = str(raw.get("urn") or raw.get("id") or raw.get("postId") or "")
@@ -378,7 +381,7 @@ class MetaAdLibraryAdapter:
             if not native_id or not body or not published:
                 continue
             output.append(RawSourceResult(
-                source=self.source_name, source_type="ad", source_native_id=native_id,
+                source=self.source_name, source_type="page", source_native_id=native_id,
                 url=str(ad.get("ad_snapshot_url") or f"https://www.facebook.com/ads/library/?id={native_id}"),
                 title=body[:120], text=body, author=page, published_at=published,
                 market=market, language="en", query=query, query_language="en",
@@ -478,7 +481,7 @@ class PolymarketAdapter:
             if not native_id or not title or not start or not slug:
                 continue
             output.append(RawSourceResult(
-                source=self.source_name, source_type="market", source_native_id=native_id,
+                source=self.source_name, source_type="page", source_native_id=native_id,
                 url=f"https://polymarket.com/event/{slug}", title=title[:120], text=title,
                 author="Polymarket", published_at=start, market="global", language="en",
                 query=query, query_language="en",
@@ -602,7 +605,7 @@ class DiggCliAdapter:
             if not title or not url or not published:
                 continue
             output.append(RawSourceResult(
-                source=self.source_name, source_type="story", source_native_id=native_id,
+                source=self.source_name, source_type="page", source_native_id=native_id,
                 url=url, title=title[:120], text=str(story.get("description") or title),
                 author=str(story.get("publisher") or ""), published_at=published,
                 market="us", language="en", query=query, query_language="en",
@@ -612,12 +615,888 @@ class DiggCliAdapter:
         return output
 
 
+# --------------------------------------------------------------------------
+# ScrapeCreators: Reddit, YouTube, Telegram, Meta Ads
+# --------------------------------------------------------------------------
+
+SC_BASE = "https://api.scrapecreators.com"
+
+
+def _sc_payload(
+    http_client: HttpClient,
+    path: str,
+    params: Mapping[str, object],
+    api_key: str,
+    source: str,
+) -> Mapping[str, object]:
+    cleaned = {key: value for key, value in params.items() if value not in (None, "")}
+    url = f"{SC_BASE}{path}?{urlencode(cleaned)}"
+    payload = _get_json(
+        http_client, url, source=source,
+        headers={"x-api-key": api_key, "Accept": "application/json"},
+    )
+    if not isinstance(payload, Mapping):
+        raise AdapterInvalidResponse(source, "ScrapeCreators payload was not an object")
+    return payload
+
+
+def _sc_items(payload: Mapping[str, object], keys: tuple[str, ...]) -> list[object]:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+    return []
+
+
+def _timeframe(plan: Mapping[str, object]) -> str:
+    """Map the research window onto ScrapeCreators' fixed timeframes."""
+    window = plan.get("time_window") if isinstance(plan, Mapping) else None
+    days = 30
+    if isinstance(window, Mapping):
+        if "days" in window:
+            try:
+                days = max(1, int(window["days"]))
+            except (TypeError, ValueError):
+                days = 30
+        elif "start" in window and "end" in window:
+            try:
+                start = datetime.fromisoformat(str(window["start"]).replace("Z", "+00:00"))
+                end = datetime.fromisoformat(str(window["end"]).replace("Z", "+00:00"))
+                days = max(1, (end - start).days)
+            except (TypeError, ValueError):
+                days = 30
+    if days <= 1:
+        return "day"
+    if days <= 7:
+        return "week"
+    if days <= 31:
+        return "month"
+    if days <= 366:
+        return "year"
+    return "all"
+
+
+def _first_text(value: object) -> str:
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            text = str(item or "").strip()
+            if text:
+                return text
+        return ""
+    return str(value or "").strip()
+
+
+def _strip_html(value: object) -> str:
+    text = str(value or "")
+    if "<" in text and ">" in text:
+        text = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(text.split()).strip()
+
+
+@dataclass(frozen=True)
+class ScrapeCreatorsRedditAdapter:
+    """Reddit keyword search through the aggregated provider.
+
+    The keyless public route runs first in the runtime; this adapter is the
+    authorized fallback. Native ids keep the ``t3_`` prefix so a post reached
+    through both routes collapses to one item.
+    """
+
+    api_key: str | None = None
+    http_client: HttpClient | None = None
+    max_per_query: int = 15
+    source_name: str = "reddit"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key:
+            raise AdapterAuthMissing(self.source_name, "SCRAPECREATORS_API_KEY is required")
+        query = _query(request, self.source_name)
+        payload = _sc_payload(
+            self.http_client, "/v1/reddit/search",
+            {"query": query, "sort": "relevance", "timeframe": _timeframe(plan)},
+            self.api_key, self.source_name,
+        )
+        output: list[RawSourceResult] = []
+        for post in _sc_items(payload, ("posts", "results", "data")):
+            if not isinstance(post, Mapping):
+                continue
+            raw_id = str(post.get("id") or "")
+            if not raw_id:
+                continue
+            native_id = raw_id if raw_id.startswith("t3_") else f"t3_{raw_id}"
+            permalink = str(post.get("permalink") or "")
+            url = f"https://www.reddit.com{permalink}" if permalink else str(post.get("url") or "")
+            if "reddit.com" not in url:
+                continue
+            title = _strip_html(post.get("title"))
+            body = _strip_html(post.get("selftext") or post.get("body"))
+            text = body if len(body) > len(title) else title
+            published = _iso(post.get("created_at") or post.get("created_utc") or post.get("date"))
+            if not text or not published:
+                continue
+            subreddit = post.get("subreddit")
+            if isinstance(subreddit, Mapping):
+                subreddit = subreddit.get("name") or subreddit.get("display_name")
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="post", source_native_id=native_id,
+                url=url, title=title[:120] or text[:120], text=text,
+                author=str(post.get("author") or ""), published_at=published,
+                market="global", language="en", query=query, query_language="en",
+                engagement={
+                    "upvotes": _count(post.get("score") or post.get("ups") or post.get("votes")),
+                    "comments": _count(post.get("num_comments")),
+                },
+                raw_metadata={
+                    "route": "scrapecreators_reddit", "provider": "scrapecreators",
+                    "subreddit": str(subreddit or ""),
+                },
+            ))
+            if len(output) >= _limit(request, self.max_per_query):
+                break
+        if not output:
+            self.limitations.append("ScrapeCreators Reddit returned no dated posts for this query")
+        return output
+
+
+@dataclass(frozen=True)
+class ScrapeCreatorsYouTubeAdapter:
+    """YouTube keyword search through the aggregated provider.
+
+    Records without an absolute publication timestamp are dropped: the
+    provider's relative strings ("2 weeks ago") are not a date.
+    """
+
+    api_key: str | None = None
+    http_client: HttpClient | None = None
+    max_per_query: int = 10
+    source_name: str = "youtube"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key:
+            raise AdapterAuthMissing(self.source_name, "SCRAPECREATORS_API_KEY is required")
+        query = _query(request, self.source_name)
+        payload = _sc_payload(
+            self.http_client, "/v1/youtube/search", {"query": query},
+            self.api_key, self.source_name,
+        )
+        output: list[RawSourceResult] = []
+        for video in _sc_items(payload, ("videos", "data", "items")):
+            if not isinstance(video, Mapping):
+                continue
+            video_id = str(video.get("videoId") or video.get("video_id") or video.get("id") or "")
+            if not video_id:
+                continue
+            title = _strip_html(video.get("title"))
+            description = _strip_html(video.get("description"))[:500]
+            channel = video.get("channel") or video.get("channel_name") or video.get("uploader")
+            if isinstance(channel, Mapping):
+                channel = channel.get("title") or channel.get("handle") or ""
+            published = _iso(
+                video.get("upload_date") or video.get("publishedTime")
+                or video.get("published_at") or video.get("date")
+            )
+            if not title or not published:
+                continue
+            url = str(video.get("url") or f"https://www.youtube.com/watch?v={video_id}")
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="post", source_native_id=video_id,
+                url=url, title=title[:120], text=(description or title),
+                author=str(channel or ""), published_at=published,
+                market="global", language="en", query=query, query_language="en",
+                engagement={
+                    "views": _count(video.get("viewCountInt") or video.get("view_count") or video.get("views")),
+                    "likes": _count(video.get("like_count") or video.get("likes")),
+                    "comments": _count(video.get("comment_count") or video.get("comments")),
+                },
+                raw_metadata={"route": "scrapecreators_youtube", "provider": "scrapecreators"},
+            ))
+            if len(output) >= _limit(request, self.max_per_query):
+                break
+        if not output:
+            self.limitations.append("ScrapeCreators YouTube returned no item with an absolute date")
+        return output
+
+
+def _parse_channels(raw: object) -> tuple[str, ...]:
+    values: list[str] = []
+    if isinstance(raw, str):
+        values = [part.strip() for part in raw.split(",")]
+    elif isinstance(raw, (list, tuple)):
+        values = [str(part).strip() for part in raw]
+    cleaned: list[str] = []
+    for value in values:
+        handle = value.removeprefix("https://t.me/").removeprefix("@").strip("/")
+        if handle and handle not in cleaned:
+            cleaned.append(handle)
+    return tuple(cleaned)
+
+
+@dataclass(frozen=True)
+class ScrapeCreatorsTelegramAdapter:
+    """Public Telegram channel posts through the aggregated provider.
+
+    Upstream has no keyword discovery for Telegram: a channel list is required.
+    Without both a key and at least one channel the adapter reports the exact
+    missing piece instead of returning unrelated content.
+    """
+
+    api_key: str | None = None
+    channels: object = ""
+    http_client: HttpClient | None = None
+    max_per_channel: int = 5
+    source_name: str = "telegram"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key:
+            raise AdapterAuthMissing(self.source_name, "SCRAPECREATORS_API_KEY is required")
+        channels = _parse_channels(self.channels)
+        if not channels:
+            raise AdapterAuthMissing(self.source_name, "TELEGRAM_SOURCES channel list is required")
+        query = str(request.get("query") or "").strip()
+        output: list[RawSourceResult] = []
+        for handle in channels:
+            try:
+                payload = _sc_payload(
+                    self.http_client, "/v1/telegram/channel/posts", {"handle": handle},
+                    self.api_key, self.source_name,
+                )
+            except (AdapterAuthMissing, AdapterInvalidResponse):
+                raise
+            except AdapterError as exc:
+                self.limitations.append(f"telegram @{handle}: {type(exc).__name__}")
+                continue
+            channel = payload.get("channel") if isinstance(payload.get("channel"), Mapping) else {}
+            kept = 0
+            for post in _sc_items(payload, ("posts", "data", "items")):
+                if not isinstance(post, Mapping):
+                    continue
+                post_id = str(post.get("id") or post.get("message_id") or "")
+                text = _strip_html(post.get("text") or post.get("message") or post.get("caption"))
+                published = _iso(post.get("date") or post.get("published_at") or post.get("created_at"))
+                if not post_id or not text or not published:
+                    continue
+                output.append(RawSourceResult(
+                    source=self.source_name, source_type="post",
+                    source_native_id=f"{handle}:{post_id}",
+                    url=f"https://t.me/{handle}/{post_id}",
+                    title=text[:120], text=text,
+                    author=str(channel.get("name") or channel.get("handle") or handle),
+                    published_at=published, market="global", language="en",
+                    query=query, query_language="en",
+                    engagement={
+                        "views": _count(post.get("views") or post.get("view_count")),
+                        "forwards": _count(post.get("forwards") or post.get("forward_count")),
+                    },
+                    raw_metadata={"route": "scrapecreators_telegram", "provider": "scrapecreators",
+                                  "channel": handle},
+                ))
+                kept += 1
+                if kept >= self.max_per_channel:
+                    break
+            if not kept:
+                self.limitations.append(f"telegram @{handle}: no dated post in the returned page")
+        return output
+
+
+@dataclass(frozen=True)
+class ScrapeCreatorsMetaAdsAdapter:
+    """Meta Ad Library keyword search through the aggregated provider.
+
+    This is the paid-provider alternative to the official Graph API; it does
+    not remove Meta's own policy constraints and is only used when a key is
+    configured.
+    """
+
+    api_key: str | None = None
+    http_client: HttpClient | None = None
+    max_per_query: int = 10
+    source_name: str = "meta_ad_library"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key:
+            raise AdapterAuthMissing(self.source_name, "SCRAPECREATORS_API_KEY is required")
+        query = _query(request, self.source_name)
+        country = str(request.get("market") or "US").upper()
+        payload = _sc_payload(
+            self.http_client, "/v1/facebook/adLibrary/search/ads",
+            {
+                "query": query,
+                "country": country if len(country) == 2 else "US",
+                "status": "ACTIVE",
+                "search_type": "keyword_unordered",
+                "trim": "true",
+            },
+            self.api_key, self.source_name,
+        )
+        output: list[RawSourceResult] = []
+        for row in _sc_items(payload, ("searchResults", "results", "ads", "data")):
+            if not isinstance(row, Mapping):
+                continue
+            snapshot = row.get("snapshot") if isinstance(row.get("snapshot"), Mapping) else {}
+            body = snapshot.get("body")
+            if isinstance(body, Mapping):
+                body = body.get("text")
+            text = _strip_html(body or snapshot.get("title"))
+            native_id = str(row.get("ad_archive_id") or row.get("collation_id") or "")
+            published = _iso(
+                row.get("start_date_string") or row.get("start_date")
+                or row.get("ad_delivery_start_time")
+            )
+            page_name = str(snapshot.get("page_name") or row.get("page_name") or "")
+            if not text or not native_id or not published:
+                continue
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="page", source_native_id=native_id,
+                url=str(snapshot.get("url") or f"https://www.facebook.com/ads/library/?id={native_id}"),
+                title=text[:120], text=text, author=page_name, published_at=published,
+                market=country, language="en", query=query, query_language="en",
+                engagement={},
+                raw_metadata={"route": "scrapecreators_meta_ads", "provider": "scrapecreators"},
+            ))
+            if len(output) >= _limit(request, self.max_per_query):
+                break
+        if not output:
+            self.limitations.append("ScrapeCreators Meta Ads returned no dated active creative")
+        return output
+
+
+# --------------------------------------------------------------------------
+# Public-link extraction with yt-dlp (no provider key)
+# --------------------------------------------------------------------------
+
+_PUBLIC_POST_RE = re.compile(
+    r"https?://(?:www\.)?(?:tiktok\.com/@[\w.\-]+/video/\d+"
+    r"|instagram\.com/(?:reel|reels|p)/[\w\-]+)",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class PublicLinkYtDlpAdapter:
+    """Resolve explicitly supplied public TikTok/Instagram links with yt-dlp.
+
+    Keyword discovery is deliberately not attempted here: without an
+    authorized provider or a host web search there is no legal discovery
+    route. Given a public post URL, yt-dlp returns metadata, the caption and
+    (when the platform exposes it) a transcript, with no cookie read.
+    """
+
+    platform: str
+    executable: str | None = None
+    http_client: HttpClient | None = None
+    max_urls: int = 3
+    timeout_seconds: float = 60.0
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.executable is None:
+            object.__setattr__(self, "executable", shutil.which("yt-dlp"))
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.platform
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        raw_urls: list[str] = []
+        explicit = request.get("urls") or request.get("url")
+        if isinstance(explicit, str):
+            raw_urls.extend(_PUBLIC_POST_RE.findall(explicit))
+        elif isinstance(explicit, (list, tuple)):
+            for value in explicit:
+                raw_urls.extend(_PUBLIC_POST_RE.findall(str(value)))
+        raw_urls.extend(_PUBLIC_POST_RE.findall(str(request.get("query") or "")))
+        urls = list(dict.fromkeys(raw_urls))[: self.max_urls]
+        if not urls:
+            self.limitations.append(
+                f"{self.platform}: no public post URL supplied; keyword discovery needs an authorized provider"
+            )
+            return []
+        expected = "tiktok.com" if self.platform == "tiktok" else "instagram.com"
+        urls = [url for url in urls if expected in url]
+        if not urls:
+            return []
+        if not self.executable:
+            raise AdapterUnavailable(self.platform, "yt-dlp is not installed")
+        output: list[RawSourceResult] = []
+        for url in urls:
+            try:
+                from ._command import run_command
+
+                completed = run_command(
+                    [
+                        self.executable, "--ignore-config", "--no-cookies-from-browser",
+                        "--dump-json", "--no-warnings", "--no-download", url,
+                    ],
+                    timeout=self.timeout_seconds,
+                    env=_tool_env(),
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                self.limitations.append(f"{self.platform}: yt-dlp failed for one link ({type(exc).__name__})")
+                continue
+            if completed.returncode != 0:
+                self.limitations.append(f"{self.platform}: yt-dlp exited {completed.returncode} for one link")
+                continue
+            payload: object = None
+            for line in completed.stdout.splitlines():
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                break
+            if not isinstance(payload, Mapping):
+                continue
+            native_id = str(payload.get("id") or "")
+            text = str(payload.get("description") or payload.get("title") or "").strip()
+            published = _iso(payload.get("timestamp") or payload.get("upload_date"))
+            if not native_id or not text or not published:
+                self.limitations.append(f"{self.platform}: one link had no absolute date")
+                continue
+            output.append(RawSourceResult(
+                source=self.platform, source_type="post", source_native_id=native_id,
+                url=str(payload.get("webpage_url") or url),
+                title=str(payload.get("title") or text)[:120], text=text,
+                author=str(payload.get("uploader") or payload.get("channel") or ""),
+                published_at=published, market="global", language="en",
+                query=str(request.get("query") or ""), query_language="en",
+                engagement={
+                    "views": _count(payload.get("view_count")),
+                    "likes": _count(payload.get("like_count")),
+                    "comments": _count(payload.get("comment_count")),
+                },
+                raw_metadata={"route": "public_link_ytdlp"},
+            ))
+        return output
+
+
+def _tool_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """A small child environment: runtime, locale and proxy settings only."""
+    allow = {
+        "PATH", "HOME", "USERPROFILE", "LANG", "LC_ALL", "LC_CTYPE", "TZ",
+        "TMPDIR", "TEMP", "TMP", "SSL_CERT_FILE", "SSL_CERT_DIR", "NO_COLOR",
+        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+    }
+    env = {key: value for key, value in os.environ.items() if key in allow}
+    for key, value in (extra or {}).items():
+        if value:
+            env[key] = value
+    return env
+
+
+# --------------------------------------------------------------------------
+# Trustpilot local CLI (no browser, no WAF harvest)
+# --------------------------------------------------------------------------
+
+_DOMAIN_RE = re.compile(r"\b[a-z0-9][a-z0-9.-]*\.(?:com|io|co|net|org|ai|app|dev|tech|shop|store)\b", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class TrustpilotCliAdapter:
+    """Trustpilot through ``trustpilot-pp-cli`` when its session is replayable.
+
+    Only local reads are allowed by default. If the CLI has no fresh WAF
+    session, the adapter reports how to create one (``trustpilot-pp-cli auth
+    login``) instead of launching a browser inside a research run.
+    """
+
+    cli: str = "trustpilot-pp-cli"
+    runner: object | None = None
+    source_name: str = "trustpilot"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def _run(self, args: list[str], timeout: float) -> dict[str, object]:
+        if self.runner is not None:
+            return self.runner(args)  # type: ignore[operator]
+        binary = shutil.which(self.cli)
+        if not binary:
+            raise AdapterUnavailable(self.source_name, f"{self.cli} is not installed")
+        try:
+            completed = run_command([binary, *args], timeout=timeout, env=_tool_env())
+        except subprocess.TimeoutExpired as exc:
+            raise AdapterTimeout(self.source_name, f"{self.cli} timed out") from exc
+        if completed.returncode != 0:
+            raise AdapterUnavailable(self.source_name, f"{self.cli} exited {completed.returncode}")
+        try:
+            payload = json.loads(completed.stdout or "{}")
+        except json.JSONDecodeError as exc:
+            raise AdapterInvalidResponse(self.source_name, f"{self.cli} output was not JSON") from exc
+        return payload if isinstance(payload, Mapping) else {}
+
+    def _session_fresh(self, status: Mapping[str, object], now: str) -> bool:
+        harvested = ""
+        for container in (status, status.get("session")):
+            if isinstance(container, Mapping) and container.get("harvestedAt"):
+                harvested = str(container["harvestedAt"])
+                break
+        if not harvested:
+            return False
+        try:
+            harvested_dt = datetime.fromisoformat(harvested.replace("Z", "+00:00"))
+            now_dt = datetime.fromisoformat(str(now).replace("Z", "+00:00"))
+            age = (now_dt - harvested_dt).total_seconds()
+        except ValueError:
+            return False
+        return 0 <= age <= 180
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        query = _query(request, self.source_name)
+        explicit = str(request.get("domain") or "").strip()
+        match = _DOMAIN_RE.search(explicit or query)
+        if not match:
+            self.limitations.append("Trustpilot local route needs a company domain (for example acme.com)")
+            return []
+        domain = match.group(0).lower()
+        status = self._run(["auth", "status", "--agent"], timeout=10)
+        if not self._session_fresh(status, str(request.get("retrieved_at") or "")):
+            self.limitations.append(
+                "Trustpilot session is missing or stale; run `trustpilot-pp-cli auth login`, "
+                "then rerun within three minutes"
+            )
+            return []
+        payload = self._run(["info", "--agent", "--", domain], timeout=75)
+        records = payload.get("reviews") if isinstance(payload.get("reviews"), list) else []
+        output: list[RawSourceResult] = []
+        for review in records:
+            if not isinstance(review, Mapping):
+                continue
+            text = _strip_html(review.get("text") or review.get("content") or review.get("title"))
+            published = _iso(review.get("publishedAt") or review.get("date") or review.get("createdAt"))
+            native_id = str(review.get("id") or review.get("reviewId") or "")
+            if not text or not published or not native_id:
+                continue
+            rating = review.get("rating")
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="review", source_native_id=native_id,
+                url=str(review.get("url") or f"https://www.trustpilot.com/review/{domain}"),
+                title=text[:120], text=text,
+                author=str(review.get("author") or review.get("authorName") or ""),
+                published_at=published, market="global", language="en",
+                query=query, query_language="en",
+                engagement={"rating": _count(rating)} if rating is not None else {},
+                raw_metadata={"route": "trustpilot_cli", "domain": domain},
+            ))
+            if len(output) >= _limit(request, 10):
+                break
+        if not output:
+            self.limitations.append("Trustpilot cached record carried no dated review")
+        return output
+
+
+# --------------------------------------------------------------------------
+# Amazon through the Bright Data CLI (paid dataset, opt-in)
+# --------------------------------------------------------------------------
+
+_AMAZON_SEARCH_DATASET = "gd_lwdb4vjm1ehb499uxs"
+
+
+@dataclass(frozen=True)
+class AmazonBrightDataAdapter:
+    """Amazon product search through the Bright Data CLI.
+
+    Activation is two-way: the ``brightdata`` binary must be installed and
+    either ``BRIGHTDATA_API_KEY`` or the CLI's own login must exist. The
+    adapter never buys credits or logs in; it reports what is missing.
+    """
+
+    cli: str = "brightdata"
+    api_key: str | None = None
+    runner: object | None = None
+    source_name: str = "amazon"
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def _run(self, args: list[str], timeout: float) -> dict[str, object]:
+        if self.runner is not None:
+            return self.runner(args)  # type: ignore[operator]
+        binary = shutil.which(self.cli)
+        if not binary:
+            raise AdapterUnavailable(self.source_name, f"{self.cli} is not installed")
+        try:
+            completed = run_command(
+                [binary, *args], timeout=timeout,
+                env=_tool_env({"BRIGHTDATA_API_KEY": self.api_key or ""}),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise AdapterTimeout(self.source_name, f"{self.cli} timed out") from exc
+        if completed.returncode != 0:
+            raise AdapterUnavailable(self.source_name, f"{self.cli} exited {completed.returncode}")
+        try:
+            payload = json.loads(completed.stdout or "{}")
+        except json.JSONDecodeError as exc:
+            raise AdapterInvalidResponse(self.source_name, f"{self.cli} output was not JSON") from exc
+        return payload if isinstance(payload, Mapping) else {}
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        if not self.api_key and not shutil.which(self.cli):
+            raise AdapterUnavailable(self.source_name, "brightdata CLI and BRIGHTDATA_API_KEY are absent")
+        query = _query(request, self.source_name)
+        payload = self._run(
+            [
+                "pipelines", "run", _AMAZON_SEARCH_DATASET, "collect_by_url",
+                "--input", json.dumps([{"keyword": query, "url": "https://www.amazon.com",
+                                        "pages_to_search": 1}]),
+                "--json", "--timeout", "60",
+            ],
+            timeout=75,
+        )
+        records = payload.get("records") or payload.get("results") or payload.get("data") or []
+        output: list[RawSourceResult] = []
+        for row in records if isinstance(records, list) else []:
+            if not isinstance(row, Mapping):
+                continue
+            title = _strip_html(row.get("title") or row.get("name"))
+            asin = str(row.get("asin") or row.get("id") or "")
+            url = str(row.get("url") or (f"https://www.amazon.com/dp/{asin}" if asin else ""))
+            published = _iso(
+                row.get("date_first_available") or row.get("first_available")
+                or row.get("published_at")
+            )
+            if not title or not asin or not url or not published:
+                continue
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="page", source_native_id=asin,
+                url=url, title=title[:120], text=title,
+                author=str(row.get("brand") or row.get("seller") or ""),
+                published_at=published, market="us", language="en",
+                query=query, query_language="en",
+                engagement={
+                    "rating": _count(row.get("rating") or row.get("stars")),
+                    "comments": _count(row.get("reviews_count") or row.get("review_count")),
+                },
+                raw_metadata={"route": "brightdata_amazon_search"},
+            ))
+            if len(output) >= _limit(request, 10):
+                break
+        if not output:
+            self.limitations.append("Amazon returned no product with a publication date; listings are usually undated")
+        return output
+
+
+# --------------------------------------------------------------------------
+# US patents through the public USPTO search session (no credential)
+# --------------------------------------------------------------------------
+
+_USPTO_BASE = "https://ppubs.uspto.gov"
+_USPTO_PDF = "https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/"
+_USPTO_USER_AGENT = "VantageResearch/1.1"
+
+
+def _patent_phrase(query: str) -> str:
+    words = [word for word in re.split(r"\s+", query) if word]
+    drop = {"patent", "patents", "filing", "filings", "recent", "latest", "new",
+            "company", "startup", "and", "or", "the", "for", "of", "in", "on",
+            "about", "market", "research", "analysis", "trend", "trends", "news",
+            "landscape", "overview", "competitor", "competitors", "competition",
+            "report", "reports", "2025", "2026", "2027"}
+    kept = [word for word in words if word.casefold().strip(",.") not in drop]
+    phrase = " ".join(kept[:6]) or query
+    return phrase.replace('"', "").replace("\\", "")
+
+
+def _patent_words(phrase: str) -> list[str]:
+    words = [word.strip(",.") for word in phrase.split()]
+    return [word for word in words if len(word) >= 3][:4]
+
+
+@dataclass(frozen=True)
+class UsptoPatentAdapter:
+    """US patent applications/grants through the public USPTO search UI API.
+
+    The legacy PatentsView endpoint is retired. This uses the same anonymous
+    session the public Patent Public Search page opens, sends no credential and
+    reads one page per database. A refusal is reported, never circumvented.
+    """
+
+    http_client: HttpClient | None = None
+    source_name: str = "patents"
+    max_per_query: int = 10
+    timeout_seconds: float = 20.0
+    limitations: list[str] = field(default_factory=list, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.http_client is None:
+            object.__setattr__(self, "http_client", StdlibHttpClient())
+
+    @property
+    def name(self) -> str:
+        return self.source_name
+
+    def _post(self, url: str, body: object, token: str | None = None) -> tuple[object, Mapping[str, str]]:
+        headers = {
+            "User-Agent": _USPTO_USER_AGENT,
+            "Content-Type": "application/json",
+            "Referer": f"{_USPTO_BASE}/pubwebapp/",
+            "Origin": _USPTO_BASE,
+            "X-Access-Token": token or "null",
+        }
+        try:
+            response = self.http_client.request(
+                url, method="POST", json_data=body, headers=headers,
+                timeout=self.timeout_seconds, max_bytes=2_000_000,
+            )
+        except HttpTransientError as exc:
+            if exc.status in (401, 403):
+                raise AdapterAuthMissing(self.source_name, "USPTO refused an anonymous session") from exc
+            if exc.status == 429:
+                raise AdapterRateLimited(self.source_name, "USPTO rate limit") from exc
+            raise AdapterUnavailable(self.source_name, f"USPTO transient {exc.status}") from exc
+        except HttpPermanentError as exc:
+            if exc.status in (401, 403):
+                raise AdapterAuthMissing(self.source_name, "USPTO refused an anonymous session") from exc
+            if exc.status == 429:
+                raise AdapterRateLimited(self.source_name, "USPTO rate limit") from exc
+            raise AdapterUnavailable(self.source_name, f"USPTO HTTP {exc.status}") from exc
+        except HttpTimeoutError as exc:
+            raise AdapterTimeout(self.source_name, str(exc)) from exc
+        try:
+            payload = response.json()
+        except Exception as exc:
+            raise AdapterInvalidResponse(self.source_name, "USPTO body was not JSON") from exc
+        return payload, {k.lower(): v for k, v in response.headers.items()}
+
+    def _session(self) -> tuple[str, object]:
+        body, headers = self._post(f"{_USPTO_BASE}/api/users/me/session", -1)
+        token = headers.get("x-access-token", "")
+        case = body.get("userCase") if isinstance(body, Mapping) else None
+        case_id = case.get("caseId") if isinstance(case, Mapping) else None
+        if not token or case_id is None:
+            raise AdapterAuthMissing(self.source_name, "USPTO gave no anonymous session")
+        return str(token), case_id
+
+    def _search(self, token: str, case_id: object, query: str) -> list[Mapping[str, object]]:
+        payload, _ = self._post(
+            f"{_USPTO_BASE}/api/searches/searchWithBeFamily",
+            {
+                "start": 0, "pageCount": 50, "sort": "date_publ desc",
+                "docFamilyFiltering": "noFiltering", "searchType": 1,
+                "familyIdEnglishOnly": True, "familyIdFirstPreferred": "US-PGPUB",
+                "familyIdSecondPreferred": "USPAT", "familyIdThirdPreferred": "FPRS",
+                "showDocPerFamilyPref": "showEnglish", "queryId": 0, "tagDocSearch": False,
+                "query": {
+                    "caseId": case_id, "hl_snippets": "2", "op": "OR", "q": query,
+                    "queryName": query, "highlights": "0", "qt": "brs",
+                    "spellCheck": False, "viewName": "tile", "plurals": True,
+                    "britishEquivalents": True,
+                    "databaseFilters": [{"databaseName": "US-PGPUB", "countryCodes": []}],
+                    "searchType": 1, "ignorePersist": True, "userEnteredQuery": query,
+                },
+            },
+            token,
+        )
+        rows = payload.get("patents") if isinstance(payload, Mapping) else None
+        return [row for row in rows or [] if isinstance(row, Mapping)]
+
+    def retrieve(self, plan: Mapping[str, object], request: Mapping[str, object]) -> list[RawSourceResult]:
+        query = _query(request, self.source_name)
+        phrase = _patent_phrase(query)
+        if not phrase:
+            return []
+        from ._recency import search_bounds
+
+        bounds = search_bounds(plan, request)
+        date_clause = ""
+        if bounds:
+            start, end = bounds
+            date_clause = f' AND @pd>="{start:%Y%m%d}"<="{end:%Y%m%d}"'
+        words = _patent_words(phrase)
+        candidates = [
+            f'(("{phrase}").ti. or ("{phrase}").ab.){date_clause}',
+        ]
+        if len(words) >= 2:
+            terms = " AND ".join(f'({word}).ab.' for word in words)
+            candidates.append(f"{terms}{date_clause}")
+            top_two = " AND ".join(f'({word}).ab.' for word in words[:2])
+            candidates.append(f"{top_two}{date_clause}")
+        candidates.append(f'("{phrase}").aanm.{date_clause}')
+        token, case_id = self._session()
+        rows: list[Mapping[str, object]] = []
+        for uspto_query in candidates:
+            rows = self._search(token, case_id, uspto_query)
+            if rows:
+                break
+        output: list[RawSourceResult] = []
+        for row in rows:
+            number = str(row.get("publicationReferenceDocumentNumber") or "")
+            guid = str(row.get("guid") or "")
+            title = _strip_html(_first_text(row.get("inventionTitle")))
+            published = _iso(_first_text(row.get("datePublished")))
+            applicant = _first_text(row.get("applicantName") or row.get("assigneeName"))
+            native_id = guid or number
+            if not native_id or not title or not published:
+                continue
+            output.append(RawSourceResult(
+                source=self.source_name, source_type="page", source_native_id=native_id,
+                url=f"{_USPTO_PDF}{number}" if number else f"{_USPTO_BASE}/pubwebapp/",
+                title=title[:120], text=title, author=applicant,
+                published_at=published, market="us", language="en",
+                query=query, query_language="en", engagement={},
+                raw_metadata={"route": "uspto_public_search", "document_number": number},
+            ))
+            if len(output) >= _limit(request, self.max_per_query):
+                break
+        if not output:
+            self.limitations.append("USPTO returned no dated application naming this phrase")
+        return output
+
+
 __all__ = [
+    "AmazonBrightDataAdapter",
     "DiggCliAdapter",
     "MetaAdLibraryAdapter",
     "PolymarketAdapter",
+    "PublicLinkYtDlpAdapter",
+    "ScrapeCreatorsMetaAdsAdapter",
     "ScrapeCreatorsPlatformAdapter",
+    "ScrapeCreatorsRedditAdapter",
+    "ScrapeCreatorsTelegramAdapter",
+    "ScrapeCreatorsYouTubeAdapter",
     "StockTwitsAdapter",
+    "TrustpilotCliAdapter",
     "TruthSocialAdapter",
+    "UsptoPatentAdapter",
     "XiaohongshuMcpAdapter",
 ]

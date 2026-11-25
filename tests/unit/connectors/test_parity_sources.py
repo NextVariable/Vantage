@@ -8,12 +8,23 @@ from sourceglint.connectors.parity_sources import (
     DiggCliAdapter,
     MetaAdLibraryAdapter,
     PolymarketAdapter,
+    PublicLinkYtDlpAdapter,
+    ScrapeCreatorsMetaAdsAdapter,
     ScrapeCreatorsPlatformAdapter,
+    ScrapeCreatorsRedditAdapter,
+    ScrapeCreatorsTelegramAdapter,
+    ScrapeCreatorsYouTubeAdapter,
     StockTwitsAdapter,
+    TrustpilotCliAdapter,
     TruthSocialAdapter,
+    UsptoPatentAdapter,
     XiaohongshuMcpAdapter,
 )
-from sourceglint.pipeline.adapters import AdapterAuthMissing, AdapterInvalidResponse
+from sourceglint.pipeline.adapters import (
+    AdapterAuthMissing,
+    AdapterInvalidResponse,
+    AdapterUnavailable,
+)
 
 
 class StubHttp:
@@ -172,3 +183,161 @@ def test_digg_maps_cli_json_through_an_injected_runner():
     items = DiggCliAdapter(runner=lambda args: payload).retrieve({}, REQUEST)
     assert items[0].source_native_id == "d1"
     assert items[0].engagement["digg_score"] == 42
+
+
+# ---------------------------------------------------------------------------
+# ScrapeCreators expansion
+# ---------------------------------------------------------------------------
+
+
+def test_scrapecreators_reddit_keeps_t3_prefix_and_engagement():
+    http = StubHttp([{"posts": [{
+        "id": "abc123", "permalink": "/r/startups/comments/abc123/demo/",
+        "title": "We tested an AI agent in production",
+        "selftext": "Longer body about reliability.",
+        "author": "builder", "created_at": "2026-11-20T10:00:00.000Z",
+        "score": 91, "num_comments": 12, "subreddit": {"name": "startups"},
+    }]}])
+    items = ScrapeCreatorsRedditAdapter(api_key="key", http_client=http).retrieve({}, REQUEST)
+    assert items[0].source_native_id == "t3_abc123"
+    assert items[0].url.endswith("/comments/abc123/demo/")
+    assert items[0].engagement == {"upvotes": 91, "comments": 12}
+    assert "sort=relevance" in http.calls[0]["url"]
+    assert "timeframe=month" in http.calls[0]["url"]
+
+
+def test_scrapecreators_reddit_requires_a_key():
+    with pytest.raises(AdapterAuthMissing):
+        ScrapeCreatorsRedditAdapter(api_key=None).retrieve({}, REQUEST)
+
+
+def test_scrapecreators_youtube_drops_relative_dates():
+    http = StubHttp([{"videos": [
+        {"videoId": "abc", "title": "Absolute date", "publishedTime": "2026-11-18T00:00:00Z",
+         "channel": {"title": "Builder"}, "viewCountInt": 500},
+        {"videoId": "rel", "title": "Relative only", "publishedTime": "2 weeks ago"},
+    ]}])
+    adapter = ScrapeCreatorsYouTubeAdapter(api_key="key", http_client=http)
+    items = adapter.retrieve({}, REQUEST)
+    assert [item.source_native_id for item in items] == ["abc"]
+    assert items[0].engagement["views"] == 500
+
+
+def test_scrapecreators_telegram_requires_channels_and_maps_posts():
+    with pytest.raises(AdapterAuthMissing):
+        ScrapeCreatorsTelegramAdapter(api_key="key", channels="").retrieve({}, REQUEST)
+    http = StubHttp([{
+        "success": True,
+        "channel": {"name": "Builder News", "handle": "buildernews"},
+        "posts": [{"id": 42, "text": "New model shipped today", "date": "2026-11-21T09:00:00Z",
+                   "views": 800}],
+    }])
+    adapter = ScrapeCreatorsTelegramAdapter(
+        api_key="key", channels="https://t.me/buildernews, @other", http_client=http,
+    )
+    items = adapter.retrieve({}, REQUEST)
+    assert items[0].source_native_id == "buildernews:42"
+    assert items[0].url == "https://t.me/buildernews/42"
+    assert items[0].author == "Builder News"
+    assert "handle=buildernews" in http.calls[0]["url"]
+
+
+def test_scrapecreators_meta_ads_maps_snapshot_body():
+    http = StubHttp([{"searchResults": [{
+        "ad_archive_id": "ad1", "start_date_string": "2026-11-10",
+        "snapshot": {"body": {"text": "Try the new AI workspace"},
+                     "page_name": "Acme", "url": "https://www.facebook.com/ads/library/?id=ad1"},
+    }]}])
+    items = ScrapeCreatorsMetaAdsAdapter(api_key="key", http_client=http).retrieve({}, REQUEST)
+    assert items[0].source_type == "page"
+    assert items[0].author == "Acme"
+    assert items[0].published_at == "2026-11-10T00:00:00Z"
+    assert "search_type=keyword_unordered" in http.calls[0]["url"]
+
+
+def test_public_link_adapter_requires_a_url_instead_of_faking_discovery(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/yt-dlp")
+    adapter = PublicLinkYtDlpAdapter(platform="tiktok")
+    items = adapter.retrieve({}, {"query": "AI agents", "limit": 3})
+    assert items == []
+    assert any("no public post URL" in note for note in adapter.limitations)
+
+
+def test_trustpilot_without_a_fresh_session_never_launches_a_browser():
+    calls: list[list[str]] = []
+
+    def runner(args):
+        calls.append(args)
+        return {"session": {"harvestedAt": "2026-11-20T00:00:00Z"}} if args[:1] == ["auth"] else {}
+
+    adapter = TrustpilotCliAdapter(runner=runner)
+    items = adapter.retrieve({}, {**REQUEST, "query": "acme.com", "retrieved_at": "2026-11-25T00:00:00Z"})
+    assert items == []
+    assert calls == [["auth", "status", "--agent"]]
+    assert any("trustpilot-pp-cli auth login" in note for note in adapter.limitations)
+
+
+def test_trustpilot_needs_a_domain_for_the_local_route():
+    adapter = TrustpilotCliAdapter(runner=lambda args: {})
+    assert adapter.retrieve({}, REQUEST) == []
+    assert any("company domain" in note for note in adapter.limitations)
+
+
+def test_trustpilot_missing_cli_is_unavailable(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda _: None)
+    with pytest.raises(AdapterUnavailable):
+        TrustpilotCliAdapter().retrieve({}, {**REQUEST, "query": "acme.com"})
+
+
+class _PatentHttp:
+    status = 200
+    headers = {"x-access-token": "token-1"}
+
+    def __init__(self):
+        self.bodies = []
+
+    def request(self, url, **kwargs):
+        self.bodies.append(kwargs.get("json_data"))
+        if url.endswith("/api/users/me/session"):
+            payload = {"userCase": {"caseId": 7}}
+        else:
+            payload = {"patents": [{
+                "guid": "g1",
+                "publicationReferenceDocumentNumber": "20260303390",
+                "inventionTitle": ["<span>DYNAMIC</span> MEETING ASSISTANTS"],
+                "datePublished": ["2026-10-01T00:00:00Z"],
+                "applicantName": ["Acme Corp"],
+            }, {
+                "guid": "g2",
+                "inventionTitle": ["Undated item"],
+            }]}
+        return _PatentResponse(payload)
+
+
+class _PatentResponse:
+    def __init__(self, payload):
+        self.status = 200
+        self.headers = {"x-access-token": "token-1"}
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+def test_uspto_maps_dated_patent_and_drops_undated_rows():
+    http = _PatentHttp()
+    adapter = UsptoPatentAdapter(http_client=http)
+    items = adapter.retrieve(
+        {"time_window": {"days": 30}},
+        {**REQUEST, "query": "meeting assistant", "retrieved_at": "2026-11-25T00:00:00Z"},
+    )
+    assert len(items) == 1
+    assert items[0].source_native_id == "g1"
+    assert items[0].title == "DYNAMIC MEETING ASSISTANTS"
+    assert items[0].published_at == "2026-10-01T00:00:00Z"
+    assert items[0].url.endswith("/20260303390")
+    assert items[0].author == "Acme Corp"
+    # the request carried both a session body and a bounded query
+    assert http.bodies[0] == -1
+    assert "meeting assistant" in str(http.bodies[-1])
+    assert '@pd>="' in str(http.bodies[-1])

@@ -5,21 +5,29 @@ implemented connectors and potential platform routes.
 
 ## Rules the runtime follows
 
-- Credentials are read **by environment-variable name** inside the adapter
-  factory. Values are never written to logs, reports, evidence, or test output.
-- Vantage never creates accounts, buys plans, tops up balances, or enables a
-  paid API automatically. A missing credential is reported, not worked around.
+- Credentials are resolved in this order: process environment → private
+  `~/.config/vantage/credentials.env` (0600) → macOS Keychain
+  (`vantage-<NAME>`). Values are never written to logs, reports, evidence, or
+  test output.
+- `vantage setup` is the supported way to store a key. It prints names and
+  sources only, and its `--probe` step never makes a paid call.
+- Vantage never creates accounts, buys plans, tops up balances, enables
+  auto-renewal, imports browser cookies, or widens an existing account's
+  scopes. A missing credential is reported, not worked around.
 - When a credential is absent the source is marked `credential_required` /
   `approval_required`. A declared public-web fallback is usable only when the
   original item can be verified.
 - Do not paste a key into a prompt, issue, commit, or config file. Set it in the
-  environment of the process that runs Vantage.
+  environment, or let the wizard store it in the Keychain.
 - Reddit, X, Bluesky and similar platforms forbid cookie scraping and
   logged-in automation. Only the documented OAuth/API path is implemented.
 
 ## Checking your setup
 
 ```bash
+vantage setup                 # inspect, optionally store keys, optionally probe
+vantage setup --skip --json   # nothing is changed; machine-readable inventory
+vantage setup --free-only     # hide paid suggestions
 sourceglint doctor            # human-readable states
 sourceglint doctor --json     # machine-readable, names only
 ```
@@ -28,11 +36,16 @@ States you may see:
 
 | State | Meaning |
 | --- | --- |
-| `DISABLED` | Connector exists but the registry entry is off (the 1.1 default). |
+| `DISABLED` | Connector exists but the registry entry is off and no auto-enable condition is met. |
 | `MISSING_CREDENTIALS` | Enabled route whose credential variables are unset. |
-| `MISSING_TOOL` | A local binary (currently `yt-dlp`) is not installed. |
+| `MISSING_TOOL` | A declared local binary (`yt-dlp`, `digg-pp-cli`, `trustpilot-pp-cli`, `brightdata`) is absent. |
 | `READY_UNVERIFIED` | Offline checks passed; upstream access is not certified. |
 | `HOST_REQUIRED` | Needs a host search/fetch capability or an official-fetch connector. |
+
+A disabled entry is enabled for the current process only when **every** declared
+credential is present (or, for a tool-only entry, the binary is on `PATH`).
+`VANTAGE_AUTO_ENABLE_KEYED=0` turns that behaviour off and restores a strictly
+static registry.
 
 `doctor` is offline. It never makes a network request and never certifies that
 an upstream API currently works.
@@ -47,7 +60,8 @@ an upstream API currently works.
 | Semantic Scholar | `SEMANTIC_SCHOLAR_API_KEY` | Anonymous access is heavily rate-limited. | arXiv / OpenAlex / Crossref. |
 | Reddit | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Optional. Without it the keyless RSS route is used with bounded degradation. | Public archive and post pages. |
 | Discord | `DISCORD_BOT_TOKEN` | Bot must be invited; message content is a privileged intent. | None (no public server search). |
-| Telegram | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` | Public channels or user-authorized chats only. | t.me previews. |
+| ScrapeCreators | `SCRAPECREATORS_API_KEY` | One key for TikTok, Instagram, Threads, Pinterest, LinkedIn, Reddit, YouTube, Telegram and Meta Ad Library; endpoint availability depends on the plan. | The free routes still run. |
+| Telegram | `SCRAPECREATORS_API_KEY`, `TELEGRAM_SOURCES` | Public channel handles only; no user session or chat access. | `t.me` previews via host search. |
 | Meta Ad Library | `META_ACCESS_TOKEN` | Coverage varies by ad type and region. | Public ad-library pages. |
 | Similarweb | `SIMILARWEB_API_KEY` | Commercial plan. | Public traffic pages. |
 | SEMrush | `SEMRUSH_API_KEY` | Commercial plan. | Public pages. |
@@ -55,7 +69,9 @@ an upstream API currently works.
 | Rakuten | `RAKUTEN_APPLICATION_ID` | Free developer app registration. | rakuten.co.jp pages. |
 | App Store Connect | `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID` | Owner-only review API. | Public apps.apple.com pages. |
 | Google Play | `GOOGLE_APPLICATION_CREDENTIALS` | Owner-authorized publisher API. | Public play.google.com pages. |
-| USPTO | `USPTO_API_KEY` | Open Data Portal key. | patents.google.com / uspto.gov pages. |
+| USPTO patents | none (anonymous public search session) | No key or cookie; one page per database, bounded query set. | `patents.google.com` pages via host search. |
+| Amazon | `BRIGHTDATA_API_KEY` + `brightdata` CLI | Paid dataset route; both the binary and an authorization are required. | amazon.com pages via host search. |
+| Trustpilot | none; optional `trustpilot-pp-cli` | The adapter only reads a replayable local session and never launches a browser. | Host search of public business pages. |
 | EPO OPS | `EPO_OPS_KEY`, `EPO_OPS_SECRET` | Free OPS registration with quota. | epo.org pages. |
 | The Lens | `THE_LENS_TOKEN` | Account token. | thelens.org pages. |
 | Companies House | `COMPANIES_HOUSE_API_KEY` | Free UK register key. | Public company pages. |
@@ -215,27 +231,43 @@ Each entry states the exact gate to clear before a connector can be claimed.
 | Reddit | <https://www.reddit.com/prefs/apps> (script app) | Free OAuth registration | Dated posts and accessible comments | Connector present; OAuth env vars unset, keyless route failed |
 | Bluesky | <https://bsky.app/settings/app-passwords> | Free app password | Search posts and engagement | Connector present; `BSKY_HANDLE`/`BSKY_APP_PASSWORD` unset |
 | Truth Social | <https://truthsocial.com> account → developer/API token, or public pages | Account bearer token; Vantage will not import browser sessions | Public statuses and engagement | Adapter implemented; `TRUTHSOCIAL_TOKEN` unset |
-| Telegram | <https://my.telegram.org> or a user-authorized MCP/bot | `api_id`/`api_hash` and channel permission | Public channel posts | Not implemented; host search only |
+| Telegram | ScrapeCreators channel-posts endpoint plus a channel list | `SCRAPECREATORS_API_KEY` and `TELEGRAM_SOURCES` | Dated channel posts, views, forwards | Adapter implemented; both variables unset (paid) |
 | Digg | `digg-pp-cli` from the printing-press CLI set | Local binary | Stories and dates | Adapter implemented; binary absent, reported `MISSING_TOOL` |
 | StockTwits | <https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json> | None, but a ticker is required; public API returned 403 from this network | Symbol messages and engagement | Adapter implemented; not verified |
-| Patents (USPTO) | <https://developer.uspto.gov/api-catalog> Open Data Portal | Free API key; legacy PatentsView endpoint retired | Patent search metadata and dates | Not implemented; host search only (`patents.google.com`) |
-| Amazon | <https://webservices.amazon.com/paapi5/documentation/> or Bright Data dataset | Affiliate approval + qualifying sales, or paid dataset | Product metadata/pricing; review text depends on the product | Not implemented; host search only |
-| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity verification and access token | Ads by page and region | Adapter implemented; `META_ACCESS_TOKEN` unset |
+| Patents (USPTO) | Public Patent Public Search session | None (anonymous) | Dated applications, title, applicant, PDF | Verified live 2026-11-25 |
+| Amazon | Bright Data CLI + dataset | Paid credits and an installed `brightdata` binary | Product metadata; review text depends on the dataset | Adapter implemented; binary and key absent |
+| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity verification and access token, or the provider fallback | Ads by page and region | Adapter implemented; `META_ACCESS_TOKEN` unset |
 | Yahoo Finance | Public quote/news endpoints | None for public pages; RSS was rate-limited in the probe | Quotes/news as enrichment, not a search platform | Not a source; artifact only |
 | Perplexity / Deepline | Provider paid API | Paid key | Answer/enrichment, not independent evidence | Not a platform; excluded from counts |
 | Xiaohongshu | A local MCP service plus a user-authorized session, or public pages | Local service and explicit user authorization | Notes, comments, engagement | Adapter implemented (`mcp`); `XHS_MCP_URL` unset, refuses when not logged in |
-| Trustpilot | <https://developers.trustpilot.com/> or `trustpilot-pp-cli` | Business-unit authorization or local CLI | Dated reviews for authorized units | Host-only; one frozen original page replayed through Host search |
+| Trustpilot | `trustpilot-pp-cli` or <https://developers.trustpilot.com/> | Local CLI session (Vantage never runs the browser login) or business-unit approval | Dated reviews | Adapter implemented (local reads only); binary absent; one frozen page replay on record |
 
 ### Minimum authorization list
 
 | Category | Channels | Connector done? | Expected depth | Verification command |
 | --- | --- | --- | --- | --- |
-| Free account | Bluesky (app password), Reddit (script app), Truth Social (account token), Xiaohongshu (local MCP login) | Yes | Dated posts, author, some engagement | `sourceglint doctor --json` then one small query |
-| Free API key | Semantic Scholar, PubMed (key optional), USPTO ODP (patents) | Patents: no | Metadata and dates | After key: `RUN_LIVE_TESTS=1 .venv/bin/python -m pytest -q -k patents tests/live` |
-| User-authorized MCP | Xiaohongshu | Yes | Notes and engagement | `XHS_MCP_URL=... sourceglint doctor` |
-| Platform approval | Meta Ad Library (identity verification), LinkedIn partner product, Instagram/Threads Graph API, Trustpilot business unit | Meta/Instagram/Threads/LinkedIn adapters done; Trustpilot not done | Approved-surface posts/ads/reviews | Approval first; then one named-object probe |
-| Paid | ScrapeCreators (Instagram, Threads, Pinterest, LinkedIn, TikTok), X API tier, Amazon/Bright Data, Telegram key | ScrapeCreators and X adapters done; Amazon/Telegram not done | Keyword search with engagement | `SCRAPECREATORS_API_KEY=... sourceglint doctor` |
-| Single vendor, many platforms | ScrapeCreators covers Instagram, Threads, Pinterest, LinkedIn and TikTok with one key | Yes, one shared adapter | Same depth per platform, subject to plan quota | One key enables all five registry entries; verify each platform separately |
+| Zero configuration | YouTube (`yt-dlp`), Reddit public/archive, Patents (USPTO), GitHub, Hacker News, arXiv, DEV, Techmeme, Digg CLI when installed, Trustpilot CLI when installed | Yes | Metadata, dates, captions/reviews where available | `vantage setup --probe` |
+| One account, free | Bluesky (app password), Truth Social (account token), Reddit OAuth app | Yes | Dated posts, author, some engagement | `vantage setup`, then one small query |
+| Free API key | Semantic Scholar; USPTO ODP is no longer required for the anonymous route | Yes | Metadata and dates | `RUN_LIVE_TESTS=1 .venv/bin/python -m pytest -q -k "semantic or patents" tests/live` |
+| User-authorized MCP | Xiaohongshu | Yes | Notes and engagement | `XHS_MCP_URL=... vantage setup --probe` |
+| Platform approval | Meta Ad Library, LinkedIn partner product, Instagram/Threads Graph API, Trustpilot business unit | Yes | Approved-surface posts/ads/reviews | Approval first; then one named-object probe |
+| Paid | ScrapeCreators (9 platforms), X API tier, Amazon via Bright Data | Yes | Keyword search with engagement; Amazon product pages | `vantage setup`, then `vantage setup --probe` (the probe does not spend) |
+| Single vendor, many platforms | ScrapeCreators covers TikTok, Instagram, Threads, Pinterest, LinkedIn, Reddit, YouTube, Telegram and Meta Ad Library with one key | Yes, one shared adapter | Same depth per platform, subject to plan quota | Configure one key; verify each platform separately |
+
+The shortest list that only you can perform:
+
+1. Create a ScrapeCreators account and paste its key into `vantage setup` (skip
+   this to stay free).
+2. If you want X: create/upgrade an X developer project and paste its bearer
+   token.
+3. If you want Bluesky or Truth Social: create an app password/account token
+   and paste it into `vantage setup`.
+4. If you want Amazon: install the Bright Data CLI and authorize that account.
+5. If you want Meta Ad Library: complete Meta's identity verification.
+
+Everything else either works already, is downloaded by the package manager
+(`yt-dlp`), or is a local session you create once with the vendor CLI
+(`trustpilot-pp-cli auth login`).
 
 No connector is registered, purchased, recharged, or cookie-imported here.
 Everything above is an external authorization decision for the operator.
@@ -243,13 +275,23 @@ Everything above is an external authorization decision for the operator.
 To enable any implemented gated route:
 
 ```bash
-export SCRAPECREATORS_API_KEY=...        # TikTok, Instagram, Threads, Pinterest, LinkedIn
-export TRUTHSOCIAL_TOKEN=...             # Truth Social
-export META_ACCESS_TOKEN=...             # Meta Ad Library (identity verification also required)
-export XHS_MCP_URL=http://127.0.0.1:...  # Xiaohongshu local service, must be logged in
-# enable only the relevant registry entry (or use a profile that includes it)
+vantage setup                                    # prefer this: detects and stores keys
+export SCRAPECREATORS_API_KEY=...                # nine platforms, subject to your plan
+export TELEGRAM_SOURCES=buildernews,ainews        # required by the Telegram route
+export TRUTHSOCIAL_TOKEN=...
+export META_ACCESS_TOKEN=...
+export BRIGHTDATA_API_KEY=...                    # Amazon; the CLI must also be installed
+export XHS_MCP_URL=http://127.0.0.1:...          # Xiaohongshu local service, must be logged in
 .venv/bin/sourceglint doctor --json | grep -A2 '"source": "instagram"'
 ```
+
+Budget and fallback controls:
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `VANTAGE_PAID_FALLBACK_CALLS` | `10` | Hard cap on paid route calls per platform adapter instance. `0` disables spending. |
+| `VANTAGE_DISABLE_PAID_FALLBACK` | unset | `1`/`true` makes the engine use only free routes even when a key exists. |
+| `VANTAGE_AUTO_ENABLE_KEYED` | `1` | `0` stops credentials from activating disabled registry entries. |
 
 A configured key is not a verification. Run one small query and check that
 dated items with original URLs reach the ledger before marking the route

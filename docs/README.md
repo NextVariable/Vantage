@@ -3,6 +3,7 @@
 ## 使用与安装 · Getting started
 
 - [中文使用说明](../README.zh-CN.md) · [English guide](../README.md)
+- [统一配置向导 · Setup guide](setup-guide.md)
 - [Beta 1 预发布与固定标签安装 · Published Beta](https://github.com/NextVariable/Vantage/releases/tag/v1.0.0b1)
 - [宿主 Skill 入口 · Skill entry](../SKILL.md) · [交互协议与证据导出 · Host protocol](../references/host-protocol.md)
 
@@ -21,6 +22,7 @@
 ## 真实研究 · Recorded research
 
 - [1.1 最新真实案例 · Latest 1.1 runs](source-expansion-1.1.md#two-real-vantage-reports)，日本会议纪要产品发布、Otter 用户反馈。Read the reported status, quality and coverage limitations with each result.
+- [统一来源激活后的真实多平台运行 · Activation run](examples/source-activation-run-1.1.md)，包含 USPTO 专利平台观察。
 - [1.0 Beta 四类真实研究 · Four published-Beta cases](examples/beta-final-2026-11-24/README.md)
 - [1.0 使用示例与运行方式 · Worked prompts and invocation](examples/vantage-1.0.md)
 

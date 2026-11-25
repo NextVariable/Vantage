@@ -175,6 +175,9 @@ def _main(argv: Sequence[str] | None, *, branded: bool) -> int:
     if arguments and arguments[0] == "doctor":
         from .health import main as doctor
         return doctor(arguments[1:])
+    if arguments and arguments[0] == "setup":
+        from .setup_wizard import run_setup
+        return run_setup(arguments[1:])
     parser = _build_parser("vantage" if branded else "sourceglint")
     args = parser.parse_args(argv)
     from .interface.parser import requests_opportunities

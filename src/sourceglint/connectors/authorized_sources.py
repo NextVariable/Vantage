@@ -353,7 +353,7 @@ class ScrapeCreatorsTikTokAdapter:
             stats = item.get("statistics") if isinstance(item.get("statistics"), Mapping) else {}
             output.append(RawSourceResult(
                 source=self.source_name,
-                source_type="video",
+                source_type="post",
                 source_native_id=video_id,
                 url=share or f"https://www.tiktok.com/@{author}/video/{video_id}",
                 title=text[:120],

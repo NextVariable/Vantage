@@ -10,8 +10,8 @@
     "crossref",
     "datacite",
     "devto",
-    "docker_hub",
     "doaj",
+    "docker_hub",
     "github",
     "gitlab",
     "greenhouse",
@@ -28,17 +28,19 @@
     "open_library",
     "openalex",
     "package_registries",
-    "pypi",
+    "patents",
     "pubmed",
+    "pypi",
     "qiita",
     "rubygems",
     "sec_edgar",
     "sspai",
     "stack_overflow",
+    "techmeme",
     "world_bank",
     "youtube",
-    "zenodo",
-    "zenn"
+    "zenn",
+    "zenodo"
   ],
   "failed": {
     "arxiv": "upstream rate limit (429) during this run; passed the 2026-10-04 snapshot",
@@ -189,5 +191,99 @@
       "meta_ad_library": "Graph ads_archive; META_ACCESS_TOKEN and identity verification required",
       "xiaohongshu": "user-authorized local MCP service; XHS_MCP_URL unset; refuses when not logged in"
     }
+  },
+  "phase5_activation": {
+    "verified_at": "2026-11-25",
+    "command": ".venv/bin/python -m sourceglint.cli setup --json --probe",
+    "probe_available": [
+      "arxiv",
+      "devto",
+      "github",
+      "hacker_news",
+      "patents",
+      "techmeme",
+      "youtube"
+    ],
+    "probe_unavailable": {
+      "reddit": "public RSS HTTP 404 from this network",
+      "polymarket": "Gamma public-search HTTP 413"
+    },
+    "probe_missing_tool": [
+      "digg",
+      "trustpilot",
+      "amazon"
+    ],
+    "probe_not_configured": [
+      "tiktok",
+      "instagram",
+      "threads",
+      "pinterest",
+      "linkedin",
+      "telegram",
+      "meta_ad_library",
+      "x",
+      "xiaohongshu"
+    ],
+    "real_research": {
+      "run": "docs/examples/source-activation-run-1.1.md",
+      "model": "deepseek-chat via the host-neutral contract",
+      "items": 17,
+      "original_platforms": {
+        "DEV": 1,
+        "GitHub": 12,
+        "USPTO": 1,
+        "YouTube": 3
+      },
+      "platform_observations_rendered": true,
+      "patents_only_run": "1 dated USPTO application retrieved end-to-end"
+    },
+    "upstream_parity": {
+      "audited_lanes": 31,
+      "deduplicated_platforms": 24,
+      "aligned_implemented": 24,
+      "verified_direct_or_frozen": 8,
+      "verified_direct_live": 7,
+      "verified_frozen_replay": 1,
+      "implemented_credential_required": 12,
+      "implemented_unverified": 4,
+      "host_only_not_implemented": 0
+    },
+    "zero_config_sources": [
+      "arxiv",
+      "devto",
+      "github",
+      "hacker_news",
+      "hugging_face",
+      "package_registries",
+      "patents",
+      "qiita",
+      "reddit",
+      "stack_overflow",
+      "youtube"
+    ],
+    "single_key_platforms": [
+      "tiktok",
+      "instagram",
+      "threads",
+      "pinterest",
+      "linkedin",
+      "reddit",
+      "youtube",
+      "telegram",
+      "meta_ad_library"
+    ],
+    "controls": {
+      "VANTAGE_PAID_FALLBACK_CALLS": "default 10 per platform adapter; 0 disables spending",
+      "VANTAGE_DISABLE_PAID_FALLBACK": "1 forces free routes only",
+      "VANTAGE_AUTO_ENABLE_KEYED": "0 disables credential-based activation",
+      "storage": "environment > 0600 config file > macOS Keychain"
+    },
+    "notes": [
+      "No simulated data is counted as a live result.",
+      "A configured credential is not a verification; metered routes are reported as not_probed by the wizard.",
+      "Reddit, StockTwits, Polymarket and Digg remain implemented but unverified from this network.",
+      "Trustpilot has a frozen-page replay and a local-CLI adapter; the CLI is absent here.",
+      "Amazon requires the Bright Data CLI and a paid authorization."
+    ]
   }
 }

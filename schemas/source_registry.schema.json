@@ -39,6 +39,12 @@
         "uniqueItems": true,
         "description": "Names of credentials this source needs. Empty/absent = no auth needed. Real values live in host secret storage."
       },
+      "tools": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "uniqueItems": true,
+        "description": "Optional local executables this route needs. It is enabled only when every named binary is on PATH."
+      },
       "priority": {
         "type": "integer",
         "minimum": 0,

@@ -2,6 +2,42 @@
 
 Python 3.10 compatibility is exercised by the public CI matrix; recommendation ID construction avoids syntax that requires Python 3.12.
 
+## 1.1.0.dev2 — unified source activation (2026-11-25)
+
+Development branch only; no 1.1 release or tag. This closes the upstream source
+parity matrix and freezes 1.1 feature work.
+
+- Add `vantage setup`: environment/key/CLI/MCP detection with names only,
+  zero-config inventory, smallest-account recommendation, skip-all and
+  free-only modes, macOS Keychain storage with a 0600 file fallback, and an
+  opt-in bounded live probe. It never registers, buys, recharges, reads browser
+  cookies or widens account scopes.
+- Add `sourceglint.credentials`: environment → private file → Keychain
+  resolution. Adapters use it, so existing environment variables keep working.
+- Expand the shared ScrapeCreators adapter with Reddit, YouTube, Telegram and
+  Meta Ad Library routes; one key can now enrich nine platforms.
+- Add connectors for Telegram (channel posts), Trustpilot (local CLI session
+  only, no browser), Amazon (Bright Data CLI, paid and gated) and US patents
+  (anonymous USPTO Public Search session). All upstream host-only platforms now
+  have a code path.
+- Add bounded per-platform fallback: free route first, paid route only with a
+  configured key and budget, no retry loops, evidence preserved on failure,
+  platform-native-id dedupe across routes, and `access_route` recorded per item.
+- Auto-enable keyed sources only when every declared credential is present, and
+  tool-gated sources only when the binary exists. Missing credentials never
+  enable anything.
+- Fix latent source-type values that the normaliser would drop (`video`, `pin`,
+  `ad`, `market`, `story` now map to `post`/`page`), so those adapters can
+  contribute evidence instead of silently disappearing.
+- Allow scalar JSON request bodies in the bounded HTTP client for the public
+  USPTO session endpoint.
+- Verify live: the USPTO session and a dated patent item, plus bounded probes
+  for Hacker News, GitHub, arXiv, DEV and Techmeme. Record Reddit public RSS
+  404, Polymarket 413 and the absent Digg/Trustpilot/Bright Data binaries.
+- Docs: parity matrix, authorization inventory, live-status snapshot, setup
+  guide, and a real multi-platform run that includes a platform observation
+  from USPTO.
+
 ## 1.1.0.dev1 — unreleased global source expansion
 
 Development branch only; no 1.1 release or tag.

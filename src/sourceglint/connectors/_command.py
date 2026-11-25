@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import subprocess
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from ..deadline import limit_timeout
 
@@ -15,8 +15,17 @@ class CommandResult:
     stderr: str
 
 
-def run_command(command: Sequence[str], timeout: float, stdin: str | None = None) -> CommandResult:
-    """Run an argv sequence without a shell and capture bounded text output."""
+def run_command(
+    command: Sequence[str],
+    timeout: float,
+    stdin: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> CommandResult:
+    """Run an argv sequence without a shell and capture bounded text output.
+
+    ``env`` is optional. When supplied it replaces the child environment, so a
+    caller can pass an allowlist instead of every provider secret it inherited.
+    """
     try:
         timeout = limit_timeout(timeout)
     except TimeoutError as exc:
@@ -30,6 +39,7 @@ def run_command(command: Sequence[str], timeout: float, stdin: str | None = None
         timeout=timeout,
         check=False,
         shell=False,
+        env=dict(env) if env is not None else None,
     )
     return CommandResult(
         returncode=completed.returncode,

@@ -826,6 +826,7 @@
 - name: digg
   # Optional local digg-pp-cli; reported missing when the binary is absent.
   enabled: false
+  tools: [digg-pp-cli]
   type: secondary
   cost: free
   auth_required: false
@@ -851,4 +852,68 @@
   markets: [cn]
   languages: [zh]
   cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: telegram
+  # Public channel posts through ScrapeCreators; a channel list is mandatory.
+  # Auto-enabled only when both the key and TELEGRAM_SOURCES are present.
+  enabled: false
+  type: community
+  cost: paid
+  auth_required: true
+  credentials: [SCRAPECREATORS_API_KEY, TELEGRAM_SOURCES]
+  priority: 57
+  capabilities: [search, comments]
+  rate_limit: { rpm: 10 }
+  markets: [global]
+  languages: [en, ja, zh, de, fr, ko]
+  cache_ttl: 900
+  max_queries_per_run: 1
+
+- name: trustpilot
+  # Local trustpilot-pp-cli cache/session reads. The adapter never launches a
+  # browser; without a fresh session it reports the login command instead.
+  enabled: false
+  tools: [trustpilot-pp-cli]
+  type: secondary
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 54
+  capabilities: [search, reviews]
+  rate_limit: { rpm: 10 }
+  markets: [global]
+  languages: [en, de, fr]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: amazon
+  # Paid Bright Data dataset route. Requires the CLI and an explicit key or
+  # CLI login; never enabled by a missing credential.
+  enabled: false
+  type: marketplace
+  cost: paid
+  auth_required: true
+  credentials: [BRIGHTDATA_API_KEY]
+  priority: 49
+  capabilities: [search, reviews]
+  rate_limit: { rpm: 6 }
+  markets: [us, global]
+  languages: [en]
+  cache_ttl: 1800
+  max_queries_per_run: 1
+
+- name: patents
+  # Anonymous USPTO Patent Public Search session: no key, no cookie.
+  enabled: true
+  type: secondary
+  cost: free
+  auth_required: false
+  credentials: []
+  priority: 44
+  capabilities: [search]
+  rate_limit: { rpm: 6 }
+  markets: [us, global]
+  languages: [en]
+  cache_ttl: 3600
   max_queries_per_run: 1

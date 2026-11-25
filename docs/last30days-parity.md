@@ -43,47 +43,73 @@ Machine-readable matrix: [last30days-parity.csv](last30days-parity.csv)
 | --- | --- |
 | Upstream lanes audited | 31 |
 | Deduplicated upstream platforms | 24 |
-| Aligned with a Vantage connector (free, gated or unverified) | 20 / 24 (83%) |
-| Verified by a real round-trip (direct or frozen Host page) | 7 / 24 (29%) |
-| — verified direct live | 6 (YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme) |
+| Aligned with a Vantage connector (free, gated or unverified) | 24 / 24 (100%) |
+| Verified by a real round-trip (direct or frozen Host page) | 8 / 24 (33%) |
+| — verified direct live | 7 (YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme, USPTO Patents) |
 | — verified from a frozen original page | 1 (Trustpilot) |
-| Aligned but credential- or authorization-gated | 10 |
+| Aligned but credential- or authorization-gated | 12 |
 | Aligned but unverified without credentials (keyless/CLI) | 4 |
-| Upstream platforms still host-only | 4 (Trustpilot, Amazon, Telegram, Patents) |
+| Upstream platforms still host-only | 0 |
 | Vantage verified direct platforms not present upstream | 32 |
 | Deduplicated platforms with a direct or live-web route | 39 |
 | Deduplicated platforms including named Host replays | 59 |
 
 Aligned and verified upstream platforms: YouTube, Hacker News, GitHub, arXiv,
-DEV, Techmeme (direct live) and Trustpilot (frozen original page through Host
-search). The three ATS boards (Lever, Greenhouse, Ashby) implement the upstream
-`jobs` lane as three independent platforms, are separately live-verified, and
-are not counted in the 24-platform figure because `jobs` is a cross-platform
-lane.
+DEV, Techmeme and USPTO Patents (direct live) plus Trustpilot (frozen original
+page through Host search). The three ATS boards (Lever, Greenhouse, Ashby)
+implement the upstream `jobs` lane as three independent platforms, are
+separately live-verified, and are not counted in the 24-platform figure because
+`jobs` is a cross-platform lane.
 
-Credential- or authorization-gated connectors implemented this round:
-Instagram, Threads, Pinterest, LinkedIn (ScrapeCreators key), Truth Social
-(account token), Meta Ad Library (approved token) and Xiaohongshu
-(user-authorized local MCP service). Keyless connectors implemented but not
-verified from this network: StockTwits (403), Polymarket (timeout) and Digg
-(CLI absent). Reddit stays connector-implemented and unverified.
+Credential- or authorization-gated connectors: X (bearer token), TikTok,
+Instagram, Threads, Pinterest, LinkedIn, Reddit and YouTube (the
+ScrapeCreators key is an optional enrichment; their free routes still run),
+Bluesky (app password), Truth Social (account token), Meta Ad Library (approved
+token or the provider route), Xiaohongshu (user-authorized local MCP service),
+Telegram (provider key plus a channel list) and Amazon (Bright Data CLI plus
+key). Keyless connectors implemented but not verified from this network:
+Reddit (public RSS 404), StockTwits (403), Polymarket (413) and Digg (CLI
+absent). Trustpilot's adapter is implemented, but the local CLI is absent here;
+its frozen Host replay is the only verification on record.
 
-Still host-only: Trustpilot (frozen page replay only), Amazon (no free
-product/review API), Telegram (needs a paid key and channel scope) and Patents
-(legacy PatentsView retired; USPTO ODP requires a key). Reasons are in the CSV
-and in the authorization guide.
+Still host-only: none. Every upstream platform now has a code path; an
+unreachable endpoint is reported as unavailable rather than silently replaced.
 
 ## Status breakdown
 
 | Bucket | Count | Platforms |
 | --- | --- | --- |
-| Real live round-trip (direct) | 6 | YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme |
+| Real live round-trip (direct) | 7 | YouTube, Hacker News, GitHub, arXiv, DEV, Techmeme, USPTO Patents |
 | Frozen replay (original page) | 1 | Trustpilot |
-| Implemented, needs credentials | 10 | X, TikTok, Bluesky, Instagram, Threads, Pinterest, LinkedIn, Truth Social, Meta Ad Library, Xiaohongshu |
+| Implemented, needs credentials or approval | 12 | X, TikTok, Bluesky, Instagram, Threads, Pinterest, LinkedIn, Truth Social, Meta Ad Library, Xiaohongshu, Telegram, Amazon |
 | Implemented, unverified without credentials | 4 | Reddit, StockTwits, Polymarket, Digg |
-| Not implemented, host-only | 3 | Amazon, Telegram, Patents |
+| Not implemented, host-only | 0 | — |
 
-## What changed in this round
+## What changed in the unified-activation round (2026-11-25)
+
+- **Setup wizard** — `vantage setup` detects environment, keys (names only),
+  CLIs and an authorized local MCP service; lists free sources; recommends the
+  smallest account set; supports skip-all and free-only; stores a key in the
+  Keychain or a 0600 file; and runs an opt-in bounded probe.
+- **ScrapeCreators expansion** — one key now reaches Reddit, YouTube, Telegram
+  and Meta Ad Library in addition to TikTok, Instagram, Threads, Pinterest and
+  LinkedIn (nine platforms). Each endpoint has an offline contract test.
+- **New connectors** — Telegram channel posts, Trustpilot local CLI, Amazon
+  through the Bright Data CLI, and US patents through the anonymous USPTO
+  Public Search session. The patent route returned a dated application inside
+  a real research pipe, so it counts as verified direct.
+- **Bounded fallback** — free route first; paid route only with a configured
+  key, an explicit call budget and no infinite retry; evidence is kept when a
+  later route fails; one platform-native id yields one evidence item; the
+  actual route is recorded per item and summarised in coverage.
+- **Latent source-type fix** — `video`, `pin`, `ad`, `market` and `story` were
+  invalid evidence types and would have been dropped by the normaliser. They
+  now map to `post`/`page`, so those adapters can contribute evidence.
+- **Truthful live status** — Reddit public RSS 404, Polymarket 413 and the
+  absent Digg/Trustpilot/Bright Data binaries are recorded as such. No
+  simulated data is counted as a live result.
+
+### Earlier parity-closure work
 
 - **Ten parity adapters** — Instagram, Threads, Pinterest, LinkedIn (one
   shared ScrapeCreators adapter with per-platform mapping), Truth Social,
@@ -118,11 +144,18 @@ and in the authorization guide.
 
 ## Acceptance run
 
-[platform-aware-real-run.md](examples/platform-aware-real-run.md) is one real
-multi-platform run: a DeepSeek reasoning model injected through the host-neutral
-interface, live retrieval from GitHub, Hacker News, DEV, arXiv, Techmeme and
-YouTube, and cited evidence from three platforms. It is model research, not the
-scripted rendering sample. The older
+[platform-aware-real-run.md](examples/platform-aware-real-run.md) is a real
+multi-platform run from the parity round: a DeepSeek reasoning model injected
+through the host-neutral interface, live retrieval from GitHub, Hacker News,
+DEV, arXiv, Techmeme and YouTube, and cited evidence from three platforms.
+
+[source-activation-run-1.1.md](examples/source-activation-run-1.1.md) is the
+2026-11-25 activation run with the same contract plus USPTO patents. It retained
+17 items across DEV, GitHub, USPTO and YouTube, rendered platform observations
+that quote retrieved text, and recorded arXiv as rate-limited instead of
+substituting another route. A second patents-only run retrieved a dated
+application through the anonymous USPTO session. Both are model research, not
+the scripted rendering sample. The older
 [platform-aware-sample.md](examples/platform-aware-sample.md) stays as a
 rendering regression only.
 

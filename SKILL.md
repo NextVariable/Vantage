@@ -12,7 +12,7 @@ Do not substitute recommendations for the discoveries or experiences requested.
 
 ## Prepare
 
-This checkout targets Vantage `1.1.0.dev1` (development). For the published
+This checkout targets Vantage `1.1.0.dev2` (development). For the published
 `1.0.0b1` Beta, install Git tag `v1.0.0b1` and use the Skill from that checkout.
 See the [installation guide](README.md#install-10-beta-1). The Python import
 and compatibility launcher are both named `sourceglint`.
@@ -24,6 +24,11 @@ If `.venv` is absent, create it with `python3 -m venv .venv`. Install or refresh
 with `.venv/bin/python -m pip install -e .` if the `vantage` command is missing. On Windows use `.venv\Scripts\python.exe`.
 Run `.venv/bin/python -m sourceglint doctor` to inspect optional direct-source
 requirements. An offline readiness check does not verify current live access.
+Run `.venv/bin/vantage setup` once to detect existing keys and tools, list the
+free sources, store an optional key in the Keychain (values are never printed)
+and, with `--probe`, perform a bounded live check. `--skip` changes nothing;
+`--free-only` hides paid suggestions. The wizard never buys, registers, imports
+cookies or widens account scopes.
 
 Read [the bridge protocol](references/host-protocol.md) before the first run.
 Choose the source profile from the research question before running the command.
@@ -57,6 +62,17 @@ India/Hindi. Match the market and language to the question.
 Provide a named board, package, or data series when a connector requires it.
 Only use one profile and keep the existing per-run budgets. Users can describe
 what they want in natural language.
+
+A platform may have several legal routes. Vantage always tries the free route
+first (public Reddit, `yt-dlp` YouTube and explicit public TikTok/Instagram
+links, Digg/Trustpilot CLIs, anonymous USPTO search) and only then an
+authorized provider when its key is configured and the paid-call cap allows.
+A failed route never discards evidence already collected, and the same item
+reached through two routes is counted once. The report keeps the original
+platform (for example USPTO or Reddit) and the retrieval route it actually used.
+Explicit `--platform`/`--exclude-platform` scope constrains both the plan and
+the final evidence; if a requested platform is unreachable, say so instead of
+substituting another.
 
 Host targets are suggestions. If the user explicitly requests a catalog
 platform with a compatible public web route, prefer that domain even if a

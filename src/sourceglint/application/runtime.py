@@ -27,7 +27,13 @@ _ENV_CONFIG = os.environ.get("GTM_INTELLIGENCE_SOURCES_YAML", "")
 
 def default_sources() -> list[dict[str, Any]]:
     """Raw registry entries for default runs. Empty list when the config
-    file cannot be resolved (package-relative fallback honored)."""
+    file cannot be resolved (package-relative fallback honored).
+
+    A disabled entry whose *entire* credential list is configured is enabled
+    for this process (``VANTAGE_AUTO_ENABLE_KEYED=0`` opts out). That is what
+    makes one configured provider key unlock its platforms without asking the
+    user to edit YAML. A missing credential never enables anything.
+    """
     import yaml
 
     candidates = [_ENV_CONFIG, str(_REPO_CONFIG)]
@@ -40,13 +46,40 @@ def default_sources() -> list[dict[str, Any]]:
         with path.open("r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
         if isinstance(data, list):
-            return data
+            return _auto_enable(data)
     return []
 
 
+def _auto_enable(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if os.environ.get("VANTAGE_AUTO_ENABLE_KEYED", "1").strip().lower() in (
+        "0", "false", "no", "off",
+    ):
+        return entries
+    import shutil
+
+    from .. import credentials
+
+    output: list[dict[str, Any]] = []
+    for entry in entries:
+        row = dict(entry)
+        needed = [str(item) for item in (row.get("credentials") or [])]
+        tools = [str(item) for item in (row.get("tools") or [])]
+        if row.get("enabled"):
+            output.append(row)
+            continue
+        if needed and all(credentials.has(item) for item in needed):
+            row["enabled"] = True
+        elif tools and all(shutil.which(item) for item in tools) and not needed:
+            row["enabled"] = True
+        output.append(row)
+    return output
+
+
 def _env(*names: str) -> str:
+    from .. import credentials
+
     for name in names:
-        value = os.environ.get(name, "")
+        value = os.environ.get(name, "") or credentials.resolve(name)
         if value:
             return value
     return ""
@@ -108,32 +141,81 @@ def default_adapter_factory(
     if not allow_credentials and name in {
         "bluesky", "x", "product_hunt", "semantic_scholar", "tiktok",
         "instagram", "threads", "pinterest", "linkedin", "truthsocial",
-        "meta_ad_library", "xiaohongshu",
+        "meta_ad_library", "xiaohongshu", "telegram", "amazon",
     }:
         return None
     if name == "tiktok":
-        return ScrapeCreatorsTikTokAdapter(api_key=_env("SCRAPECREATORS_API_KEY") or None)
-    if name in {"instagram", "threads", "pinterest", "linkedin"}:
-        from ..connectors.parity_sources import ScrapeCreatorsPlatformAdapter
+        from ..connectors.fallback import FallbackAdapter, Route
+        from ..connectors.parity_sources import PublicLinkYtDlpAdapter
 
+        key = _env("SCRAPECREATORS_API_KEY") or None
+        routes = [Route("public_link_ytdlp", PublicLinkYtDlpAdapter(platform="tiktok"))]
+        if key:
+            routes.append(Route(
+                "scrapecreators_tiktok",
+                ScrapeCreatorsTikTokAdapter(api_key=key), paid=True,
+            ))
+        return FallbackAdapter("tiktok", tuple(routes))
+    if name in {"instagram", "threads", "pinterest", "linkedin"}:
+        from ..connectors.fallback import FallbackAdapter, Route
+        from ..connectors.parity_sources import (
+            PublicLinkYtDlpAdapter,
+            ScrapeCreatorsPlatformAdapter,
+        )
+
+        key = _env("SCRAPECREATORS_API_KEY") or None
         endpoint = {
             "instagram": "https://api.scrapecreators.com/v2/instagram/reels/search",
             "threads": "https://api.scrapecreators.com/v1/threads/search",
             "pinterest": "https://api.scrapecreators.com/v1/pinterest/search",
             "linkedin": "https://api.scrapecreators.com/v1/linkedin/search/posts",
         }[name]
-        return ScrapeCreatorsPlatformAdapter(
-            platform=name, endpoint=endpoint,
+        sc = ScrapeCreatorsPlatformAdapter(platform=name, endpoint=endpoint, api_key=key)
+        if name == "instagram":
+            routes = [Route("public_link_ytdlp", PublicLinkYtDlpAdapter(platform="instagram"))]
+            if key:
+                routes.append(Route("scrapecreators_instagram", sc, paid=True))
+            return FallbackAdapter("instagram", tuple(routes))
+        return sc
+    if name == "telegram":
+        from ..connectors.parity_sources import ScrapeCreatorsTelegramAdapter
+
+        return ScrapeCreatorsTelegramAdapter(
             api_key=_env("SCRAPECREATORS_API_KEY") or None,
+            channels=_env("TELEGRAM_SOURCES"),
         )
+    if name == "trustpilot":
+        from ..connectors.parity_sources import TrustpilotCliAdapter
+
+        return TrustpilotCliAdapter()
+    if name == "amazon":
+        from ..connectors.parity_sources import AmazonBrightDataAdapter
+
+        return AmazonBrightDataAdapter(api_key=_env("BRIGHTDATA_API_KEY") or None)
+    if name == "patents":
+        from ..connectors.parity_sources import UsptoPatentAdapter
+
+        return UsptoPatentAdapter()
     if name == "truthsocial":
         from ..connectors.parity_sources import TruthSocialAdapter
 
         return TruthSocialAdapter(token=_env("TRUTHSOCIAL_TOKEN") or None)
     if name == "meta_ad_library":
-        from ..connectors.parity_sources import MetaAdLibraryAdapter
+        from ..connectors.fallback import FallbackAdapter, Route
+        from ..connectors.parity_sources import (
+            MetaAdLibraryAdapter,
+            ScrapeCreatorsMetaAdsAdapter,
+        )
 
-        return MetaAdLibraryAdapter(token=_env("META_ACCESS_TOKEN") or None)
+        token = _env("META_ACCESS_TOKEN") or None
+        key = _env("SCRAPECREATORS_API_KEY") or None
+        routes = [Route("meta_ads_archive", MetaAdLibraryAdapter(token=token))]
+        if key:
+            routes.append(Route(
+                "scrapecreators_meta_ads",
+                ScrapeCreatorsMetaAdsAdapter(api_key=key), paid=True,
+            ))
+        return FallbackAdapter("meta_ad_library", tuple(routes))
     if name == "stocktwits":
         from ..connectors.parity_sources import StockTwitsAdapter
 
@@ -156,7 +238,18 @@ def default_adapter_factory(
             app_password=_env("BSKY_APP_PASSWORD") or None,
         )
     if name == "youtube":
-        return YouTubeAdapter(include_transcripts=True)
+        from ..connectors.parity_sources import ScrapeCreatorsYouTubeAdapter
+
+        key = _env("SCRAPECREATORS_API_KEY") if allow_credentials else ""
+        base = YouTubeAdapter(include_transcripts=True)
+        if not key:
+            return base
+        from ..connectors.fallback import FallbackAdapter, Route
+
+        return FallbackAdapter("youtube", (
+            Route("yt_dlp", base),
+            Route("scrapecreators_youtube", ScrapeCreatorsYouTubeAdapter(api_key=key), paid=True),
+        ))
     if name == "hacker_news":
         return HackerNewsAdapter(require_topic_match=True)
     if name == "github":
@@ -176,12 +269,23 @@ def default_adapter_factory(
                     pass
         return GitHubAdapter(token=token or None, include_discussions=True)
     if name == "reddit":
-        return RedditAdapter(
+        from ..connectors.parity_sources import ScrapeCreatorsRedditAdapter
+
+        key = _env("SCRAPECREATORS_API_KEY") if allow_credentials else ""
+        base = RedditAdapter(
             client_id=(_env("REDDIT_CLIENT_ID") or None) if allow_credentials else None,
             client_secret=(_env("REDDIT_CLIENT_SECRET") or None) if allow_credentials else None,
             allow_keyless_rss=True,
             include_archive=True,
         )
+        if not key:
+            return base
+        from ..connectors.fallback import FallbackAdapter, Route
+
+        return FallbackAdapter("reddit", (
+            Route("reddit_public", base),
+            Route("scrapecreators_reddit", ScrapeCreatorsRedditAdapter(api_key=key), paid=True),
+        ))
     if name == "devto":
         return DevToAdapter(require_topic_match=True)
     if name == "qiita":

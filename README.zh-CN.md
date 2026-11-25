@@ -11,7 +11,7 @@ Skill 会先拆出子问题，检索并检查保留的证据。重要缺口或�
 ## 版本
 
 - **已发布：Vantage 1.0 Beta 1**，版本 `1.0.0b1`。下方安装命令固定使用已发布标签。 [GitHub 预发布说明](https://github.com/NextVariable/Vantage/releases/tag/v1.0.0b1)
-- **开发中：Vantage 1.1 Global Source Expansion**，本分支 `dev/vantage-1.1-global-sources` 的包版本为 `1.1.0.dev1`。已有公开来源扩展和阶段性验证记录，尚未发布 1.1。 [1.1 验收记录](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
+- **开发中：Vantage 1.1 Global Source Expansion**，本分支 `dev/vantage-1.1-global-sources` 的包版本为 `1.1.0.dev2`。已有公开来源扩展和阶段性验证记录，尚未发布 1.1。 [1.1 验收记录](docs/source-expansion-1.1.md#phase-3-codex-host-acceptance-2026-11-24)
 
 ## 可以研究什么
 
@@ -47,13 +47,30 @@ python3 -m venv .venv
 用于开发和验证时，把上面的 `--branch v1.0.0b1` 换成
 `--branch dev/vantage-1.1-global-sources`，目标目录换成
 `~/.codex/skills/vantage-dev`，之后在该目录安装。版本检查应输出
-`1.1.0.dev1`。同一 Codex 环境只启用一份名为 `vantage` 的 Skill。
+`1.1.0.dev2`。同一 Codex 环境只启用一份名为 `vantage` 的 Skill。
 
 直接使用 `vantage` 时默认启用自适应研究，最多运行三轮。命令行仍需宿主
 提供结构化模型，例如通过 `--model sourceglint.host_stdio:build_model` 交互。
 用 `--window DAYS` 或 `--start-date` 和 `--end-date` 设置时间窗，后者包含首尾 UTC 日期。
 原 `sourceglint` 命令和 Python 导入路径继续可用。
 [四种使用示例与真实宿主记录](docs/examples/vantage-1.0.md)列出了完整提示词和输出边界。
+
+### 一条命令完成配置
+
+```sh
+vantage setup            # 检测、选择、写入凭据，可选联网探针
+vantage setup --skip     # 只显示现有能力，不做任何改动
+vantage setup --free-only --json
+vantage setup --probe    # 有界联网探针，不产生付费调用
+```
+
+向导会检测操作系统、Python、已有 Key（只显示名称，不打印值）、本机 CLI
+（`yt-dlp`、`gh`、`digg-pp-cli`、`trustpilot-pp-cli`、`brightdata`）、
+已授权的本地小红书 MCP 服务以及 GitHub CLI 登录。它列出零配置来源，
+推荐“最少账号覆盖最多平台”的方案，允许全部跳过，并把粘贴的 Key 写入
+macOS Keychain（不可用时写入权限 0600 的本地文件），环境变量仍然优先。
+向导不会注册账号、购买或充值、开启自动续费、读取浏览器 Cookie，也不会
+扩大已有账号权限。详见[配置指南](docs/setup-guide.md)。
 
 ## 输出与覆盖范围
 
@@ -73,12 +90,24 @@ python3 -m venv .venv
 
 ### 1.1 来源验证
 
-截至 2026-11-24，1.1 的最近结构化联网记录有 **35 个免费直连平台**，另有
-**1 个 CLI 平台**（YouTube 公开视频元数据）。Host 网页探针取得 **24 个
-带日期和原文的来源样本**，其中 PR TIMES 和 G2 已进入真实 Vantage 报告。
-合并并去重后，最新联网口径为 **38 个平台**。授权 API、独立 MCP、
-当前被限流的 arXiv 和未取到评论的 Steam 单列。查看来源访问指南可区分
-目录登记、运行时槽位、冻结回放与真实联网结果。 [来源访问](docs/source-access-matrix.md) · [统计快照](docs/source-live-status.json)
+截至 2026-11-25，last30days 去重后的 24 个平台全部有 Vantage 连接器（24/24）。
+其中 7 个完成真实直连往返（YouTube、Hacker News、GitHub、arXiv、DEV、
+Techmeme、USPTO 专利），另有 1 个通过冻结原始页面验证（Trustpilot），
+合计 8/24。有界探针再次确认 Hacker News、GitHub、arXiv、DEV、Techmeme，
+并通过匿名 USPTO 搜索会话取回了带日期的专利证据。
+
+一个 `SCRAPECREATORS_API_KEY` 可增强 9 个平台（TikTok、Instagram、Threads、
+Pinterest、LinkedIn、Reddit、YouTube、Telegram、Meta Ad Library），具体
+端点仍受该服务套餐约束。没有 Key 时免费路线照常运行：YouTube 用 `yt-dlp`，
+显式给出的 TikTok/Instagram 公开链接用 `yt-dlp`，Reddit 走公开 RSS 与归档，
+已安装的 Digg/Trustpilot CLI 本地读取，以及免 Key 的 USPTO 会话。每个平台
+先走免费路线，并记录实际使用的路线。付费回退有上限
+（`VANTAGE_PAID_FALLBACK_CALLS`，默认 10），可用
+`VANTAGE_DISABLE_PAID_FALLBACK=1` 完全关闭；没有凭据就不会产生付费调用。
+
+2026-11-24 快照中的 35 个免费直连平台仍然有效。授权 API、本机未安装的
+CLI（Digg、Trustpilot、Bright Data）以及当前不可达端点（Reddit 公开 RSS
+404、Polymarket 413）单独记录。 [来源访问](docs/source-access-matrix.md) · [统计快照](docs/source-live-status.json)
 
 ## 真实研究与文档
 

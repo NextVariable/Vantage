@@ -118,7 +118,7 @@ class HttpClient(Protocol):
         headers: Mapping[str, str] | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         method: str = "GET",
-        json_data: Mapping[str, object] | None = None,
+        json_data: object | None = None,
         form_data: Mapping[str, str] | None = None,
         max_bytes: int | None = None,
     ) -> HttpResponse:
@@ -146,7 +146,7 @@ class StdlibHttpClient:
         headers: Mapping[str, str] | None = None,
         timeout: float | None = None,
         method: str = "GET",
-        json_data: Mapping[str, object] | None = None,
+        json_data: object | None = None,
         form_data: Mapping[str, str] | None = None,
         max_bytes: int | None = None,
     ) -> HttpResponse:
@@ -195,7 +195,7 @@ class StdlibHttpClient:
         headers: Mapping[str, str] | None,
         timeout: float,
         method: str,
-        json_data: Mapping[str, object] | None,
+        json_data: object | None,
         form_data: Mapping[str, str] | None = None,
         max_bytes: int | None = None,
     ) -> HttpResponse:
@@ -208,7 +208,7 @@ class StdlibHttpClient:
                 merged[k] = v
         body: bytes | None = None
         if json_data is not None:
-            body = json.dumps(dict(json_data), separators=(",", ":")).encode("utf-8")
+            body = json.dumps(json_data, separators=(",", ":")).encode("utf-8")
             merged.setdefault("Content-Type", "application/json")
         elif form_data is not None:
             body = urlencode(form_data).encode("utf-8")
