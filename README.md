@@ -59,7 +59,7 @@ See [four worked prompts and a recorded run](docs/examples/vantage-1.0.md).
 
 ## Results and coverage
 
-You receive a cited report and an evidence file containing links, dates and source excerpts. Reports distinguish maker claims, user experiences and interpretations, retain counterexamples, and disclose missing sources or thin evidence.
+You receive a cited report and an evidence file containing links, dates and source excerpts. Reports distinguish maker claims, user experiences and interpretations, retain counterexamples, and disclose missing sources or thin evidence. Cross-platform synthesis is the main body; a supplementary `Platform Observations` section appears only when at least two original platforms contributed cited evidence, and citations keep the original platform next to the retrieval route (`Reddit via host_web_search`). Use `--platform`/`--exclude-platform` (or "only Reddit and GitHub" / "排除 X") to scope a run, and `--exclude-official` to drop owner-published material.
 
 The Beta Skill selects relevant routes from a hybrid profile with GitHub, Reddit, Hacker News, YouTube, Qiita and agent web search. The 1.1 Skill can choose Hybrid or Expanded by research intent. A run need not query every route. Discussion, comment and caption enrichment is attempted where available. The Skill uses public sources by default. Credentialed routes can be configured for direct CLI use. Host usage limits still apply.
 

@@ -117,6 +117,18 @@ and URLs; archive copies are not independent corroboration.
 Its `.raw.jsonl` companion retains the retrieved text and provider metadata before
 filtering; distinguish these unvalidated records from the dated retained ledger.
 
+The default brief synthesises across platforms first and adds a supplementary
+`Platform Observations` section only when at least two original platforms
+contributed cited evidence. Citations keep the original platform and the
+retrieval route when they differ (`Reddit via host_web_search`). If the user
+explicitly asks for a per-platform study ("only Reddit and GitHub", "compare
+platforms"), pass `--platform` (repeatable) or use "only"/"只看"; ordinary
+mentions such as "focus on X, Reddit and GitHub" remain soft priorities.
+`--exclude-platform` and "exclude X" remove a route. "排除官方宣传 /
+exclude official" drops owner-published evidence and records how many items
+were excluded. Identical content syndicated across platforms is disclosed and
+is never counted as independent corroboration.
+
 A catalog entry is a routing target, not proof of access. Treat named-board,
 named-package and country/indicator sources as unavailable unless the caller
 supplies those parameters. Read [access truth](docs/source-access-matrix.md) and

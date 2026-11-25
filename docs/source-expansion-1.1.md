@@ -143,8 +143,10 @@ Derived from the 149-row disposition:
 | Aggregators / same-platform sub-routes | 13 |
 | Direct structured access verified (in the 149 rows) | 32 |
 | Direct structured access verified (phase-2 additions not in the matrix) | +5 |
-| **Total verified free structured platforms** | **37** |
-| Web-search coverage verified this round | 1 |
+| Techmeme (verified after the matrix was frozen) | +1 |
+| **Total verified free structured platforms** | **38** |
+| Host web samples validated with a frozen original page | 24 (23 original + 1 supplemental) |
+| Host samples exercised through the full engine (ledger + report) | 2 (G2, PR Times) |
 | Implemented but not verified this round | 1 (Reddit) |
 | Registered only (catalog route, no round-trip) | 73 |
 | Credential required | 20 |
@@ -154,17 +156,23 @@ Derived from the 149-row disposition:
 
 Catalog and routing totals:
 
-- `config/source_catalog.yaml`: 137 entries, 135 with a domain-scoped host-web
-  route, 43 with a direct-connector route (36 passed the 2026-11-24 live run;
-  arXiv returned a transient 429 that run and passed the 2026-10-04 snapshot),
-  65 host-only entries waiting in the verification pack.
+- `config/source_catalog.yaml`: 142 entries, 140 with a domain-scoped host-web
+  route, 45 with a direct-connector route (38 marked `ready`), 65 host-only
+  entries fixed in the Phase-3 verification pack.
 - Distinct registered platforms after de-duplicating the App Store public/owner
-  split and the `jobs_pages` / `rss_newsletters` aggregators: **134**.
-- Free direct structured platforms with a live pass on record: **37** = 43
-  connector implementations minus 4 credential-gated (X, Bluesky, Product Hunt,
-  Semantic Scholar) minus 2 that did not answer (Steam, Reddit's keyless lane).
-- Verified web coverage: **1**. A catalog row is not counted as verified web
-  coverage until a host search returns a relevant original page with a real date.
+  split and the `jobs_pages` / `rss_newsletters` aggregators: **140**.
+- Free direct structured platforms with a live pass on record: **38** (45
+  connector entries minus four credential-gated and minus Steam/Polymarket/
+  Reddit-keyless that did not answer, plus Techmeme).
+- Verified web coverage: **24** validated original pages (23 in the original
+  audit + 1 supplemental), not a search-snippet count. Two of them (G2 and PR
+  Times) also completed the full host → ledger → report path.
+- Deduplicated platforms with a direct or live-web route: **39**. Including
+  named host replays from the Phase-3 pack: **59**.
+- `docs/source-live-status.json` is the canonical dated aggregate; its
+  `phase3_host_web` block keeps the web and replay counts separate from the
+  connector live suite.
+
 
 ## Dispositions of note
 

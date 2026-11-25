@@ -42,9 +42,28 @@ Development branch only; no 1.1 release or tag.
   and index historical decisions, audits and evaluations in place.
 - Include linked documentation in source distributions and declare the existing
   MIT license with SPDX package metadata.
+- Add `docs/last30days-parity.md` and `last30days-parity.csv`: a 31-lane,
+  24-platform audit pinned to release `v4.6.0` (`64b1f00`) and main
+  `7c2e1c2`, with Vantage status, reuse route and blockers per lane.
+- Add a verified Techmeme feed connector and a credential-gated TikTok
+  ScrapeCreators adapter. Neither is enabled in the default profile.
+- Citations now show the original platform and, when it differs, the retrieval
+  route (`Reddit via host_web_search`); mapped domains no longer collapse to
+  the adapter name.
+- Add a supplementary `Platform Observations` brief section grouped by
+  original platform, only when at least two platforms contributed cited
+  evidence, and annotate findings that span platforms.
+- Parse explicit platform scope from natural language and add
+  `--platform` / `--exclude-platform`; add `--exclude-official` and the
+  `exclude_official` plan flag, which drops owner-published evidence before
+  normalization and reports the count.
+- Disclose cross-platform syndicated copies (identical title + opening text)
+  as non-independent corroboration, and add platform item counts to coverage.
+- Add catalog records for the remaining upstream platforms (Truth Social,
+  Pinterest, Digg, StockTwits, Yahoo Finance) with honest availability.
 - Extend `docs/source-authorization.md` with credential-free routes, free
-  registration entries, approval/owner requirements and paid services, with
-  application links and expected data depth.
+  registration entries, approval/owner requirements, paid services and a
+  last30days parity channel table with application links and data depth.
 
 ## 1.0.0b1 — beta
 

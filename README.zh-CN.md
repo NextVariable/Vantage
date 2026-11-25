@@ -57,7 +57,7 @@ python3 -m venv .venv
 
 ## 输出与覆盖范围
 
-你会得到带来源的报告，以及保存链接、日期和原文节选的证据文件。报告区分厂商陈述、用户体验与推断，保留反例，并说明未访问到的来源或材料不足的地方。
+你会得到带来源的报告，以及保存链接、日期和原文节选的证据文件。报告区分厂商陈述、用户体验与推断，保留反例，并说明未访问到的来源或材料不足的地方。跨平台综合是主体；只有在至少两个原始平台贡献了被引用证据时才附上 `Platform Observations`，引用同时保留原始平台与获取路径（如 `Reddit via host_web_search`）。可用 `--platform`/`--exclude-platform`（或自然语言“只看 Reddit 和 GitHub”“排除 X”）限定本次来源，用 `--exclude-official` 排除厂商自述。
 
 1.0 Beta 在 GitHub、Reddit、Hacker News、YouTube、Qiita 和智能体网页搜索之间选择相关路径。1.1 可按研究意图使用 Hybrid 或 Expanded，并在可用时补充讨论、评论或字幕。每次检索的来源随问题和可访问性变化。Skill 默认使用公开来源。直接调用 CLI 时可另行配置需凭据的来源，智能体自身的使用额度仍适用。
 

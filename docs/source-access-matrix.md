@@ -49,12 +49,12 @@ Actual access can vary by environment, permissions and time.
 
 | Measure | Scope and latest recorded result |
 | --- | --- |
-| Catalog entries | 137 route declarations in `config/source_catalog.yaml`, 135 with a Host web route. |
+| Catalog entries | 142 route declarations in `config/source_catalog.yaml`, 140 with a Host web route. |
 | Independent catalog platform candidates | 128 after excluding discovery/aggregation entries and merging same-platform routes. See the [counting rules](source-expansion-1.1.md#live-retrieval-and-counting). |
-| Runtime slots | Base registry `config/sources.yaml` lists 46 slots, 16 enabled there. Hybrid enables 6 and Expanded enables 39, including the shared Host slot. These are configurations; a research task selects a subset. |
-| Current key-free direct checks | 35 structured platforms, plus 1 local CLI platform (YouTube public video metadata). |
+| Runtime slots | Base registry `config/sources.yaml` lists 48 slots, 16 enabled there. Hybrid enables 6 and Expanded enables 40, including the shared Host slot. These are configurations; a research task selects a subset. |
+| Current key-free direct checks | 36 structured platforms, plus 1 local CLI platform (YouTube public video metadata). |
 | Host web original-page probes | 24 sources with verified dated, attributable excerpts. Two of these, PR TIMES and G2, reached the ledger and report in actual Vantage runs. |
-| Latest deduplicated live count | 38 platforms from direct checks, the CLI check and the two live Host report cases. The 42 automatic-routing and 59 named-Host totals include frozen integration replay. |
+| Latest deduplicated live count | 39 platforms from direct checks, the CLI check, Techmeme and the two live Host report cases. The 42 automatic-routing and 59 named-Host totals include frozen integration replay. |
 | Historical or restricted | arXiv passed on 2026-10-04 and returned 429 in the latest connector run. Reddit RSS returned 404; public archive fallback remains bounded. Steam returned a redirect without review text. Polymarket's structured endpoint was unreachable in its recorded probe. No fresh authorized or independent MCP route passed. |
 
 | File | Role |

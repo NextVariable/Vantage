@@ -62,7 +62,7 @@
       "X_BEARER_TOKEN"
     ]
   },
-  "note": "This is a dated verification snapshot, not a permanent availability guarantee. arXiv's prior pass is kept in the 2026-10-04 snapshot, so 37 free structured routes have a live pass on record. Re-run the live suite after connector or upstream changes.",
+  "note": "This is a dated verification snapshot, not a permanent availability guarantee. arXiv's prior pass is kept in the 2026-10-04 snapshot, so 38 free structured routes have a live pass on record (Techmeme added 2026-11-25). Re-run the live suite after connector or upstream changes.",
   "phase3_host_web": {
     "verified_at": "2026-11-24",
     "catalog_entries": 137,
@@ -137,6 +137,40 @@
       "Host public page, automatic routing, frozen acceptance and real full research are separate.",
       "Named replay includes pages injected as real, frozen Host results into a shipped host lane; it is not a new live Vantage call.",
       "Google discovery, aggregators, arXiv historical, and Steam bounded failure are excluded from current deduplicated totals."
+    ]
+  },
+  "phase4_parity": {
+    "verified_at": "2026-11-25",
+    "connector_live_passes": [
+      "techmeme"
+    ],
+    "connector_implemented_unverified": {
+      "tiktok": "ScrapeCreators adapter implemented; SCRAPECREATORS_API_KEY unset, offline contract test only"
+    },
+    "online_probe_failures": {
+      "reddit_shreddit": "connection reset from this network",
+      "stocktwits": "public symbol stream returned 403",
+      "polymarket": "Gamma API timed out",
+      "truthsocial": "request timed out",
+      "digg": "request timed out",
+      "patentsview": "legacy API retired; USPTO ODP requires a key",
+      "yahoo_finance_rss": "HTTP 429 during the probe"
+    },
+    "catalog_entries": 142,
+    "catalog_with_host_route": 140,
+    "catalog_with_direct_route": 45,
+    "catalog_direct_ready": 38,
+    "upstream_parity": {
+      "audited_lanes": 31,
+      "deduplicated_platforms": 24,
+      "aligned_implemented": 10,
+      "verified_direct_or_host_page": 7
+    },
+    "latest_deduplicated_platforms_engine_direct_or_live_web": 39,
+    "latest_deduplicated_platforms_with_named_host_replay_or_direct": 59,
+    "notes": [
+      "Techmeme was verified with a real feed item; TikTok is not counted without a key.",
+      "The 149-row inventory remains historical and is not rewritten by this block."
     ]
   }
 }

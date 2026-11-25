@@ -198,3 +198,43 @@ which fields were observed, and whether a matching public observation reached
 the ledger and report. If the provider denies access or requires new payment,
 leave the route unverified. The Skill does not ask for cookies or credential
 values in chat.
+
+## last30days parity channels (added 2026-11-25)
+
+These are the remaining upstream routes that are not yet verified in Vantage.
+Each entry states the exact gate to clear before a connector can be claimed.
+
+| Channel | Application / entry | Gate | What Vantage can return after approval | Current state |
+| --- | --- | --- | --- | --- |
+| TikTok (ScrapeCreators) | <https://scrapecreators.com/> → sign up → API key | Paid plan; a small free credit allowance is normally offered | Keyword search, video description, author, publish time, views/likes/comments/shares; optional transcript costs extra credits | Adapter implemented; `SCRAPECREATORS_API_KEY` unset, so `MISSING_CREDENTIALS` |
+| Instagram | Meta app review + Instagram Graph API, or the same ScrapeCreators key for reels search | App review, professional account, scoped permissions; ScrapeCreators is paid | Reels/posts metadata and comments within the approved surface | Host search only |
+| Threads | Meta Threads API, or ScrapeCreators | App review/scopes or paid key | Keyword posts and engagement | Host search only |
+| Pinterest | ScrapeCreators (no free public search API) | Paid key | Keyword pins, engagement; upstream payload has no reliable publish date | Host search only |
+| LinkedIn | <https://developer.linkedin.com/product-catalog> | Partner/product approval; no public search API | Organization/member posts within approved scopes | Host search only |
+| X | <https://developer.x.com/en/portal/dashboard> | Paid API tier | Recent/full-archive search, engagement | Connector present; `X_BEARER_TOKEN` unset |
+| Reddit | <https://www.reddit.com/prefs/apps> (script app) | Free OAuth registration | Dated posts and accessible comments | Connector present; OAuth env vars unset, keyless route failed |
+| Bluesky | <https://bsky.app/settings/app-passwords> | Free app password | Search posts and engagement | Connector present; `BSKY_HANDLE`/`BSKY_APP_PASSWORD` unset |
+| Truth Social | <https://truthsocial.com> account → developer/API token, or public pages | Account bearer token; Vantage will not import browser sessions | Public statuses and engagement | Host search only |
+| Telegram | <https://my.telegram.org> or a user-authorized MCP/bot | `api_id`/`api_hash` and channel permission | Public channel posts | Host search only |
+| Digg | `digg-pp-cli` from the printing-press CLI set | Local binary | Stories and dates | Host search only |
+| StockTwits | <https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json> | None, but a ticker is required; public API returned 403 from this network | Symbol messages and engagement | Host search only |
+| Patents (USPTO) | <https://developer.uspto.gov/api-catalog> Open Data Portal | Free API key; legacy PatentsView endpoint retired | Patent search metadata and dates | Host search only (`patents.google.com` public pages) |
+| Amazon | <https://webservices.amazon.com/paapi5/documentation/> or Bright Data dataset | Affiliate approval + qualifying sales, or paid dataset | Product metadata/pricing; review text depends on the product | Host search only |
+| Meta Ad Library | <https://www.facebook.com/ads/library/api/> | Identity verification and access token | Ads by page and region | Host search only |
+| Yahoo Finance | Public quote/news endpoints | None for public pages; RSS was rate-limited in the probe | Quotes/news as enrichment, not a search platform | Not a source; artifact only |
+| Perplexity / Deepline | Provider paid API | Paid key | Answer/enrichment, not independent evidence | Not a platform; excluded from counts |
+| Xiaohongshu | A local MCP service plus a user-authorized session, or public pages | Local service and explicit user authorization | Notes, comments, engagement | Host search only |
+| Trustpilot | <https://developers.trustpilot.com/> or `trustpilot-pp-cli` | Business-unit authorization or local CLI | Dated reviews for authorized units | Host search only |
+
+To enable the implemented TikTok route:
+
+```bash
+export SCRAPECREATORS_API_KEY=...        # never commit or paste into chat
+# enable the single registry entry (or use a profile that includes tiktok)
+.venv/bin/sourceglint doctor --json | grep -A2 '"source": "tiktok"'
+```
+
+A configured key is not a verification. Run one small query and check that
+dated items with original URLs reach the ledger before marking the route
+verified.
+
